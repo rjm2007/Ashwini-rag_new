@@ -1,0 +1,26 @@
+src/app/page.tsx
+Login screen that authenticates users and stores JWT.
+
+src/app/(dashboard)/*
+Main protected pages for dashboard, upload, documents, review, and chat.
+
+src/components/Sidebar.tsx
+Role-based navigation for admin, reviewer, and user.
+
+src/components/UploadDropzone.tsx
+Simple PDF upload component that calls backend upload API.
+
+src/components/ChatWindow.tsx
+Chat interface to send questions and view assistant responses.
+
+src/components/EvidencePanel.tsx
+Displays source chunks and page numbers used in AI answers.
+
+src/lib/api.ts
+Axios client with auth interceptor and 401 handling.
+
+src/lib/auth.ts
+Login/logout helpers and local user state utilities.
+
+src/hooks/*
+Small hooks for auth state, document listing, and chat state.

@@ -1,0 +1,17 @@
+node_modules
+.env
+.next
+dist
+__pycache__
+*.pyc
+.DS_Store
+coverage
+*.log
+
+# Per-run and service log output (see logs/README.md)
+logs/runs/*
+!logs/runs/.gitkeep
+logs/runs/latest.txt
+logs/services/**/*.log
+logs/services/**/app.log.*
+test-run.log
