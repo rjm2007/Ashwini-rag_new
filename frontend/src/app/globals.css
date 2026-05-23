@@ -2,14 +2,149 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* ─── SURFACES ───────────────────────────────────────── */
+  --bg-primary: #F0F4F8;
+  --bg-secondary: #FFFFFF;
+  --bg-sidebar: #06101E;
+  --bg-sidebar-hover: #0D1B2E;
+  --bg-sidebar-active: #1A2B42;
+
+  /* ─── TEXT COLORS ────────────────────────────────────── */
+  --text-primary: #0A1628;
+  --text-secondary: #3D5A80;
+  --text-muted: #7A92A8;
+  --text-sidebar: #8BAABF;
+  --text-sidebar-active: #FFFFFF;
+
+  /* ─── BRAND ACCENT — FIXYEE ORANGE ──────────────────── */
+  --accent: #FF6200;
+  --accent-light: #FFF0E6;
+  --accent-hover: #E05500;
+  --accent-text: #C24A00;
+
+  /* ─── STATUS COLORS ──────────────────────────────────── */
+  --status-success: #16A34A;
+  --status-success-bg: #F0FDF4;
+  --status-warning: #D97706;
+  --status-warning-bg: #FFFBEB;
+  --status-error: #DC2626;
+  --status-error-bg: #FEF2F2;
+  --status-info: #2563EB;
+  --status-info-bg: #EFF6FF;
+  --status-pending: #7C3AED;
+  --status-pending-bg: #F5F3FF;
+
+  /* ─── BORDERS & SHADOWS ──────────────────────────────── */
+  --border: #D1DCE8;
+  --border-strong: #A8BCCF;
+  --shadow-sm: 0 1px 3px rgba(6, 16, 30, 0.06), 0 1px 2px rgba(6, 16, 30, 0.04);
+  --shadow-md: 0 4px 12px rgba(6, 16, 30, 0.10), 0 2px 6px rgba(6, 16, 30, 0.06);
+  --shadow-lg: 0 8px 24px rgba(6, 16, 30, 0.14), 0 4px 12px rgba(6, 16, 30, 0.08);
+
+  /* ─── CONFIDENCE GAUGE COLORS ───────────────────────── */
+  --confidence-high: #16A34A;
+  --confidence-medium: #D97706;
+  --confidence-low: #DC2626;
+}
+
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
+  font-family: "DM Sans", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse {
+  animation: pulse-dot 1.8s ease-in-out infinite;
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-in {
+  animation: slide-in-up 0.2s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.confidence-bar-fill {
+  transition: width 0.5s ease-out;
+}
+
+button, a {
+  transition: all 0.15s ease;
+}
+
+/* Native disclosure toggles for evidence panels */
+details.evidence-sources > summary::-webkit-details-marker,
+details.evidence-sources summary::-webkit-details-marker,
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details.evidence-sources[open] > summary,
+details[open] > summary .evidence-chevron {
+  color: #C24A00;
+}
+details > summary {
+  outline: none;
+}
+details > summary:focus-visible {
+  box-shadow: 0 0 0 2px #FF6200;
+  border-radius: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

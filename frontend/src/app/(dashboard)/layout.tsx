@@ -8,11 +8,16 @@ import ProtectedRoute from "../../components/ProtectedRoute";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen">
+      <div style={{ display: "flex", minHeight: "100vh" }}>
         <Sidebar />
-        <div className="flex-1">
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <Topbar />
-          <div className="p-6">{children}</div>
+          <main
+            className="animate-page-in"
+            style={{ flex: 1, padding: "24px", backgroundColor: "#F0F4F8" }}
+          >
+            {children}
+          </main>
         </div>
       </div>
     </ProtectedRoute>

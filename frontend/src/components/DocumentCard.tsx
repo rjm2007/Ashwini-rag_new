@@ -1,21 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { Eye, FileText } from "lucide-react";
 import DocumentStatusBadge from "./DocumentStatusBadge";
 
 export default function DocumentCard({ document }: { document: any }) {
-  const effectiveStatus =
-    document.currentRepository === "certified" || document.currentRepository === "rejected"
-      ? document.currentRepository
-      : document.processingStatus;
+  const vehicle = [document.make, document.model, document.year].filter(Boolean).join(" ") || "—";
 
   return (
-    <Link href={`/documents/${document.id}`} className="rounded bg-white p-4 shadow">
-      <div className="flex items-center justify-between">
-        <p className="font-medium">{document.originalFilename}</p>
-        <DocumentStatusBadge status={effectiveStatus} />
+    <Link
+      href={`/documents/${document.id}`}
+      className="card"
+      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 16 }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <FileText size={18} color="#FF6200" />
+        <div>
+          <p style={{ fontSize: 14, fontWeight: 500, color: "#0A1628" }}>{document.originalFilename}</p>
+          <p style={{ fontSize: 12, color: "#7A92A8" }}>{vehicle}</p>
+        </div>
       </div>
-      <p className="text-xs text-slate-500">{document.currentRepository}</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <DocumentStatusBadge status={document.currentRepository} />
+        <Eye size={16} color="#7A92A8" />
+      </div>
     </Link>
   );
 }

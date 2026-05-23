@@ -5,7 +5,7 @@ from ..database import SessionLocal
 from ..services.s3_service import S3Service
 from ..services.textract_service import TextractService
 from ..services.extraction_service import ExtractionService
-from ..services.chunking_service import chunk_text
+from ..services.chunking_service import chunk_pages, chunk_text
 from ..services.embedding_service import embed_chunks
 from ..services.qdrant_service import QdrantService
 
@@ -94,7 +94,8 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
         logger.info("[%s] STEP 3/6 DB metadata update done", document_id)
 
         logger.info("[%s] STEP 4/6 Chunking start", document_id)
-        chunks = chunk_text(plain_text)
+        ocr_pages = ocr_result.get("pages", [])
+        chunks = chunk_pages(ocr_pages) if ocr_pages else chunk_text(plain_text)
         logger.info("[%s] STEP 4/6 Chunked into %d pieces", document_id, len(chunks))
 
         logger.info("[%s] STEP 5/6 Embedding %d chunks", document_id, len(chunks))
