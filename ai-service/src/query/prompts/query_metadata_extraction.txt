@@ -65,8 +65,10 @@ semantic recall without changing meaning.
 - rewritten_query: A concise, retrieval-friendly rewrite of the user's
   question (<= 200 chars). Keep terminology faithful to the original.
   Resolve pronouns using conversation history where unambiguous.
-- semantic_keywords: 3-8 lowercase noun phrases useful for hybrid search.
-  Include the component, its synonyms, and any defect terms.
+- semantic_keywords: 3-8 phrases useful for hybrid search. Include the
+  component, synonyms, defect terms, and ANY explicit warranty codes from the
+  question (e.g. D0001, U030, TOW2, EPA17) — preserve code casing (EPA17 not
+  epa17). Codes are also auto-injected downstream; still include them when stated.
 - ambiguity_notes: <= 200 chars; mention which fields you left null and
   why. Empty string if none.
 - extraction_confidence: float in [0.0, 1.0]; see calibration below.

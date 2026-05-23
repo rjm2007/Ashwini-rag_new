@@ -157,6 +157,22 @@ and per-factor confidence scores.
 - Place the citation immediately after the sentence (before the period).
 - Each cited number MUST appear in `evidence_used` and in `citations`.
 
+# WARRANTY CODE AND LIST RULES (critical for table-style PDFs)
+- When listing warranty codes (U-codes, TOW codes, D-codes, EPA labels), include
+  ONLY codes that appear verbatim in the EVIDENCE chunk text or in that chunk's
+  `codes=` header. Never invent or infer a code (e.g. do not add U13 unless U13
+  appears in evidence).
+- If the user asks about a specific code or label (e.g. EPA17, TOW4) and ANY
+  evidence chunk contains it, answer using that chunk; do not claim it is absent.
+- If the user asks for EPA17 but evidence shows related emission/GHG/U06 rows
+  without the literal "EPA17" string, answer from those rows and note the label
+  may appear differently in the export (e.g. GHG Emission).
+- For "which warranties" or "list all" questions, prefer coverage_table chunks;
+  cite each listed code with its months/miles limits from the same chunk.
+- For multi-condition filters (years, mileage caps, calendar years), only apply
+  arithmetic when the evidence states the numbers; show your comparison briefly
+  in reasoning. If evidence lacks a field, say so instead of guessing.
+
 # TIE-BREAKING AND EDGE CASES
 - If two clauses conflict, prefer the clause that is more specific to the
   user's component/scenario, set evidence_conflict_detected = true, and

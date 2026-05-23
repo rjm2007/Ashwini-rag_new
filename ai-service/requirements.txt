@@ -11,3 +11,4 @@ pydantic
 pydantic-settings
 tiktoken
 httpx
+pymupdf>=1.24.0

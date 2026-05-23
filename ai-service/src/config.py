@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """This class stores AI service configuration from environment variables."""
+    """AI service configuration from environment variables."""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -18,6 +18,26 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     small_model: str = "gpt-5.4-mini"
     large_model: str = "gpt-5.5"
+    embedding_dims: int = 1536
+    bm25_vocab_size: int = 262144
+    enable_contextual_retrieval: bool = True
+    enable_reranker: bool = True
+    reranker_candidates: int = 20
+    # openai | none
+    reranker_provider: str = "openai"
+    docling_url: str = "http://docling:5001"
+    ocr_method: str = "auto"
+    textract_poll_interval: int = 3
+    textract_timeout: int = 600
+
+    # Phase upgrades (safe defaults: new behavior on, can disable per flag)
+    enable_parent_child: bool = True
+    enable_structured_reasoning: bool = True
+    enable_retrieval_quality: bool = True
+    enable_query_decomposition: bool = True
+    retrieval_score_threshold: float = 0.01
+    retrieval_min_chunks: int = 3
+    retrieval_retry_top_k: int = 50
 
 
 settings = Settings()

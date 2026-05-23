@@ -1,0 +1,85 @@
+{
+  "mean_recall_at_k": 0.75,
+  "results": [
+    {
+      "id": "H01",
+      "question": "Which warranties remain active after 5 years but below 700,000 miles?",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    },
+    {
+      "id": "H02",
+      "question": "List all warranties related to EPA17 emissions coverage.",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    },
+    {
+      "id": "H03",
+      "question": "Show all drivetrain-related warranties ordered by mileage coverage.",
+      "recall_at_k": 0.5,
+      "mrr": 1.0,
+      "pass": false,
+      "chunks": 1
+    },
+    {
+      "id": "H04",
+      "question": "What is the coverage duration for U06A?",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    },
+    {
+      "id": "H05",
+      "question": "Compare U065, U0650, and TOW4 warranties.",
+      "recall_at_k": 0.5,
+      "mrr": 1.0,
+      "pass": false,
+      "chunks": 2
+    },
+    {
+      "id": "H06",
+      "question": "Which warranties would become invalid after 800,000 miles?",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    },
+    {
+      "id": "H07",
+      "question": "Which warranties provide engine-related protection?",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    },
+    {
+      "id": "H08",
+      "question": "Does the document mention turbocharger warranty?",
+      "recall_at_k": 0.0,
+      "mrr": 0.0,
+      "pass": false,
+      "chunks": 2
+    },
+    {
+      "id": "H09",
+      "question": "If transmission fails after 55 months and 200,000 miles, what warranties could still apply?",
+      "recall_at_k": 0.5,
+      "mrr": 1.0,
+      "pass": false,
+      "chunks": 1
+    },
+    {
+      "id": "H10",
+      "question": "Find all warranties related to transmission or driveline systems that remain active after 3 years and exceed 300,000 miles coverage.",
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "pass": true,
+      "chunks": 2
+    }
+  ]
+}

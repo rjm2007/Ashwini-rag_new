@@ -1,12 +1,17 @@
 import json
 import logging
+from pathlib import Path
+
 from sqlalchemy import text
+
+from ..config import settings
 from ..database import SessionLocal
 from ..services.s3_service import S3Service
-from ..services.textract_service import TextractService
+from ..services.ocr_service import OcrService
 from ..services.extraction_service import ExtractionService
 from ..services.chunking_service import chunk_pages, chunk_text
-from ..services.embedding_service import embed_chunks
+from ..services.coverage_row_parser import parse_chunk_structured_meta
+from ..services.embedding_service import prepare_chunks_for_upsert
 from ..services.qdrant_service import QdrantService
 
 logger = logging.getLogger("pipeline")
@@ -34,7 +39,7 @@ async def update_document_status(document_id: str, status: str, repository: str 
 async def process_document(document_id: str, s3_path: str | None = None) -> None:
     """This function runs OCR, extraction, chunking, embedding, and vector upsert."""
     s3 = S3Service()
-    textract = TextractService()
+    ocr = OcrService()
     extractor = ExtractionService()
     qdrant = QdrantService()
 
@@ -48,7 +53,7 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
     try:
         logger.info("[%s] STEP 1/6 OCR start (s3=%s)", document_id, s3_path)
         await update_document_status(document_id, "ocr_in_progress")
-        ocr_result = textract.run_ocr(s3_path)
+        ocr_result = ocr.run_ocr(s3_path)
         page_count = len(ocr_result.get("pages", []))
         await s3.upload_json(f"ocr-output/{document_id}/ocr.json", ocr_result)
         logger.info("[%s] STEP 1/6 OCR done (pages=%d)", document_id, page_count)
@@ -93,20 +98,29 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
 
         logger.info("[%s] STEP 3/6 DB metadata update done", document_id)
 
-        logger.info("[%s] STEP 4/6 Chunking start", document_id)
+        logger.info("[%s] STEP 4/6 Strategic chunking start", document_id)
         ocr_pages = ocr_result.get("pages", [])
-        chunks = chunk_pages(ocr_pages) if ocr_pages else chunk_text(plain_text)
+        chunks = chunk_pages(ocr_pages, document_id=document_id) if ocr_pages else chunk_text(plain_text)
         logger.info("[%s] STEP 4/6 Chunked into %d pieces", document_id, len(chunks))
 
-        logger.info("[%s] STEP 5/6 Embedding %d chunks", document_id, len(chunks))
-        vectors = embed_chunks([chunk["chunkText"] for chunk in chunks])
-        logger.info("[%s] STEP 5/6 Embedded %d vectors", document_id, len(vectors))
+        filename = Path(s3_path).name if s3_path else f"{document_id}.pdf"
+
+        logger.info("[%s] STEP 5/6 Contextual embed + sparse vectors", document_id)
+        chunks = prepare_chunks_for_upsert(
+            chunks,
+            plain_text,
+            enable_contextual=settings.enable_contextual_retrieval,
+            enable_sparse=qdrant.hybrid,
+        )
+
         enriched = []
-        for index, chunk in enumerate(chunks):
+        for chunk in chunks:
             item = dict(chunk)
-            item["vector"] = vectors[index] if index < len(vectors) else []
+            if not item.get("structuredMeta"):
+                item["structuredMeta"] = parse_chunk_structured_meta(item)
             item["repository"] = "pending_review"
             item["documentId"] = document_id
+            item["filename"] = filename
             item.update(
                 {
                     "make": metadata.get("make"),
@@ -114,6 +128,9 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
                     "year": metadata.get("year"),
                     "country": metadata.get("country"),
                     "warrantyType": metadata.get("warranty_type"),
+                    "vin": metadata.get("vin"),
+                    "chassisId": metadata.get("chassis_id"),
+                    "coverageSummary": metadata.get("coverage_summary"),
                 }
             )
             enriched.append(item)

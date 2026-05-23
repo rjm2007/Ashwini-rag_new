@@ -1,134 +1,136 @@
-# Test the RAG pipeline (super simple)
+# test-rag v2 — New RAG Strategy Testing
 
-This folder lets you test the whole document → vectors → search → answer flow
-**without going through the website**. Perfect for checking the RAG logic step
-by step.
+Test the upgraded RAG pipeline **directly against Qdrant** without going through
+the backend or ai-service. Uses a separate collection (`warranty_chunks_v2`) so
+the production data is untouched.
 
-## Before you start
+## What changed vs the old pipeline
 
-1. The stack must be running. From `warranty-platform/`:
+| Aspect | Old (ai-service) | New (test-rag v2) |
+|--------|-------------------|-------------------|
+| **Chunking** | Word-count (500 words, 50 overlap) | Strategic tiktoken: coverage rows, policy clauses, prose |
+| **Splitting** | Blind word split | Table rows intact; numbered sections (23. GLASS); prose fallback |
+| **Vectors** | Dense only (1536-dim) | Dense + BM25 sparse (hybrid) |
+| **Search** | Cosine similarity | Dense + BM25 prefetch → RRF fusion |
+| **Context** | None | Contextual Retrieval (LLM blurb prepended before embedding) |
+| **Metadata** | Basic (make/model/year) | Rich (coverage codes, VIN, chassis, summary + payload indexes) |
+| **Collection** | `warranty_chunks` | `warranty_chunks_v2` (isolated) |
 
-   ```powershell
-   docker compose up -d
-   ```
+## Prerequisites
 
-2. Drop one warranty PDF into this folder and rename it to `sample.pdf`.
-   (Or pass a different path to the script — see below.)
+- Python 3.11+
+- Docker running with Qdrant (`docker compose up qdrant`)
+- `.env` file in `warranty-platform/` root with at least:
+  - `OPENAI_API_KEY` (required — embedding, reasoning, and fallback Vision OCR)
+  - `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` + `S3_BUCKET_NAME` (optional — for Textract OCR)
 
-## The 3 scripts
+**No AWS? No problem.** The system falls back to Docling (Docker) or OpenAI Vision automatically.
 
-Each script does ONE thing. Run them in order.
-
-### Script 1 — Upload + process
-
-```powershell
-.\1_upload_and_process.ps1
-# or with a custom file:
-.\1_upload_and_process.ps1 -PdfPath "C:\path\to\my.pdf"
-```
-
-What it does:
-
-1. Logs in as admin and gets a JWT token
-2. Uploads your PDF to the backend
-3. Calls the AI service's `/internal/process/<id>` to run OCR + extraction +
-   chunking + embedding + Qdrant upsert (skips SQS, since SQS isn't configured)
-4. Polls the database every 3 seconds until the doc reaches
-   `ready_for_review` or `failed`
-5. Prints the document ID — copy this for the next scripts
-
-### Script 2 — Inspect Qdrant
+## Setup
 
 ```powershell
-.\2_check_qdrant.ps1 -DocumentId "PASTE-DOC-ID-HERE"
+cd warranty-platform\test-rag
+pip install -r requirements.txt
+
+# Tier 2 OCR: start Docling in Docker (first build ~5–10 min)
+Start-Docling.cmd
+# If .ps1 is blocked: powershell -ExecutionPolicy Bypass -File .\Start-Docling.ps1
+# Or: docker compose -f docker-compose.docling.yml up --build -d
 ```
 
-Shows:
+Set `DOCLING_URL=http://localhost:5001` in `warranty-platform/.env` (default). Inside the main Docker network use `http://docling:5001`.
 
-- The collection summary (how many points total)
-- The first 5 points (vector dimension + chunk text + metadata)
-- A count of points belonging to your document
-
-This is the proof the document was vectorised.
-
-### Script 3 — Ask a question (uses the AI service directly)
+## Step 1 — Ingest PDFs
 
 ```powershell
-.\3_ask_question.ps1 -Question "What components are covered under the powertrain warranty?"
+# Quick ingest (Docling OCR + auto-certify; start Docling first)
+Run-Ingest.cmd
+
+# AUTO mode — tries Textract → Docling → OpenAI Vision
+python ingest_v2.py --pdf-dir "C:\Users\rudra\Desktop\Waranty_POC\pdf" --auto-certify
+
+# Force Docling Docker only (no AWS; start docling container first)
+python ingest_v2.py --pdf-dir ./pdfs --ocr-method docling --auto-certify
+
+# Force OpenAI Vision only (no AWS, no Docling container needed)
+python ingest_v2.py --pdf-dir ./pdfs --ocr-method openai_vision --auto-certify
+
+# Skip contextual retrieval (faster + cheaper)
+python ingest_v2.py --pdf-dir ./pdfs --ocr-method docling --no-context --auto-certify
+
+# Start fresh (delete old collection)
+python ingest_v2.py --pdf-dir ./pdfs --reset --auto-certify
 ```
 
-What it does:
+What happens for each PDF:
+1. **PDF extraction** (auto-fallback: Textract → Docling → OpenAI Vision) → per-page text
+2. GPT-4o-mini extracts make/model/year/warranty_type
+3. Strategic chunking (coverage tables / policy sections / prose, 700-token target)
+4. GPT-4o-mini generates 2-3 sentence context blurb per chunk (optional)
+5. OpenAI embeds contextualized text → 1536-dim dense vector
+6. BM25 sparse vector computed via hash-based encoder
+7. Both vectors + rich payload upserted to Qdrant `warranty_chunks_v2`
 
-1. Calls `POST http://localhost:8000/query/answer`
-2. Behind the scenes the AI service:
-   - Embeds your question
-   - Searches Qdrant filtered by `repository = certified`
-   - Sends the matching chunks to the large LLM
-   - Returns a structured JSON answer with citations
+## Step 2 — Search
 
-> Important: until you approve the doc as reviewer **and** admin via the
-> website, its chunks have `repository = pending_review` and the search
-> returns nothing. Either go through the UI flow OR run
-> `.\set_certified.ps1 -DocumentId "..."` (see below) to fast-forward the
-> repo flag in Qdrant for testing.
+```bash
+# Basic question (hybrid search: dense + BM25 + RRF)
+python search_v2.py -q "What engine components are covered under the standard warranty?"
 
-### Bonus — Fast-forward to certified (test only)
+# With metadata filter
+python search_v2.py -q "What is the turbocharger coverage?" --make Volvo
 
-```powershell
-.\set_certified.ps1 -DocumentId "PASTE-DOC-ID-HERE"
+# Dense-only search (for A/B comparison against hybrid)
+python search_v2.py -q "What components are covered?" --dense-only
+
+# Show full source previews
+python search_v2.py -q "What are the exclusions?" --show-sources --top-k 5
 ```
 
-Updates every Qdrant point belonging to your document so its
-`repository` field becomes `certified`. After this, script 3 can find
-the chunks. **Don't use this in production** — it bypasses human review.
+## Step 3 — Manage document status
 
-## Where to look while it runs
+```bash
+# List all ingested documents
+python set_certified.py --list
 
-In another terminal, follow the AI service logs to see each step:
+# Certify a specific document
+python set_certified.py --doc-id volvo_warranty_2019_a1b2c3d4
 
-```powershell
-docker logs -f warranty-ai-service
+# Certify ALL at once (testing shortcut)
+python set_certified.py --all
 ```
 
-You should see lines like:
-
-```text
-[<id>] STEP 1/6 OCR start
-[<id>] STEP 1/6 OCR done (pages=23)
-[<id>] STEP 2/6 Metadata extraction start
-LLM small call model=gpt-5.4-mini prompt_chars=14820
-LLM small call ok response_chars=312
-[<id>] STEP 2/6 Metadata extracted (make=Freightliner model=Cascadia year=2023 ...)
-[<id>] STEP 3/6 DB metadata update done
-[<id>] STEP 4/6 Chunking start
-[<id>] STEP 4/6 Chunked into 47 pieces
-[<id>] STEP 5/6 Embedding 47 chunks
-[<id>] STEP 5/6 Embedded 47 vectors
-[<id>] STEP 6/6 Upserted 47 chunks into Qdrant
-[<id>] DONE pipeline complete -> ready_for_review
-```
-
-That's your proof every step ran.
-
-## What "RAG" really does here (in 6 boxes)
+## File structure
 
 ```
-1. PDF in S3
-       │
-       ▼
-2. AWS Textract turns pages → plain text
-       │
-       ▼
-3. Small LLM extracts make/model/year/coverage as JSON
-       │
-       ▼
-4. Text is split into ~500-token "chunks"
-       │
-       ▼
-5. OpenAI embeds each chunk → 1536-number vectors
-       │
-       ▼
-6. Vectors + chunk text + metadata stored in Qdrant
-   (later: question is also embedded, top-K nearest chunks retrieved,
-    LLM answers ONLY from those chunks → "RAG")
+test-rag/
+  requirements.txt            # Python dependencies
+  understanding.md            # For Cursor AI — read FIRST before editing
+  README.md                   # You are here
+  config.py                   # Loads .env → RagConfig dataclass
+  pdf_reader.py               # Three-tier extraction: Textract → Docling → OpenAI Vision
+  ocr_textract.py             # Textract-only OCR (used by pdf_reader as Tier 1)
+  chunker.py                  # Tiktoken recursive chunker (700 tok, 15% overlap)
+  sparse_encoder.py           # BM25 sparse vector encoder (hash-based)
+  contextual_retrieval.py     # LLM context blurb generation (OpenAI)
+  metadata_extractor.py       # LLM warranty metadata extraction
+  embedder.py                 # OpenAI dense embedding (text-embedding-3-small)
+  qdrant_manager.py           # Qdrant v2 collection: create, upsert, hybrid search
+  ingest_v2.py                # Main ingestion orchestrator
+  search_v2.py                # Main search + LLM answer
+  set_certified.py            # Repository tag management
 ```
+
+## Comparison: old scripts vs new
+
+The old PowerShell scripts (`1_upload_and_process.ps1` etc.) test the **existing
+production pipeline** through the backend API → ai-service. They use collection
+`warranty_chunks`.
+
+The new Python scripts test the **upgraded RAG strategy** directly against Qdrant.
+They use collection `warranty_chunks_v2`. Both can run simultaneously.
+
+## Qdrant dashboard
+
+Open http://localhost:6333/dashboard to inspect the `warranty_chunks_v2` collection,
+browse points, and verify payloads.

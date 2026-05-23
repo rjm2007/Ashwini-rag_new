@@ -1,0 +1,704 @@
+==============================================================================
+Volvo Warranty PDF — Production RAG Benchmark (50 questions)
+Generated (UTC): 2026-05-23 14:40:17
+Pipeline: Phase 2 — hybrid retrieval + lexical boost + OpenAI rerank + table mode
+Reranker enabled: True
+Collection: warranty_chunks
+Note: Answers reflect CERTIFIED chunks only. Compare to PDF manually.
+==============================================================================
+==============================================================================
+LEVEL 1 — Simple Retrieval
+==============================================================================
+
+------------------------------------------------------------------------------
+Q01. What is the warranty period for the truck warranty D0001?
+------------------------------------------------------------------------------
+
+ANSWER:
+Warranty D0001 is the Truck warranty for 12 months or 100,000 miles [1]. Its listed start date is 2019-05-17 and its listed end date is 2020-05-17 [1].
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.98
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q02. What mileage limit is mentioned in the standard engine warranty U06?
+------------------------------------------------------------------------------
+
+ANSWER:
+I cannot identify a mileage limit for standard engine warranty U06 because the certified evidence provided does not mention U06 [1][2]. The only engine-related warranty row shown is E6460, which says “ENGINE PLAN 2: 48 MONTHS/600K MILES,” but that is not labeled U06 [2].
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.45
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1, 6
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q03. What does coverage code ET460 represent?
+------------------------------------------------------------------------------
+
+ANSWER:
+Coverage code ET460 represents “EXHAUST AFTERTREATMENT 48 MONTHS/600K MILES - VEHICLE WARRANTY CLAIM JOB (DC27)” [2]. In the listed vehicle coverage table, ET460 starts on 2019-06-17 and ends on 2023-05-17 [2].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.82
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q04. What is the duration of the AMT transmission warranty U065?
+------------------------------------------------------------------------------
+
+ANSWER:
+The AMT transmission warranty U065 duration is 60 months, with a 750,000-mile limit [1]. For the vehicle shown in the evidence, U065 starts on 2019-05-17 and ends on 2024-05-17 [1].
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.96
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q05. What is the mileage coverage for cab corrosion U092?
+------------------------------------------------------------------------------
+
+ANSWER:
+For U092 Cab Corrosion, the mileage coverage is 500,000 miles, paired with 60 months of coverage [1]. The listed coverage period runs from 2019-05-17 to 2024-05-17 [1].
+
+COVERAGE DECISION: covered
+CONFIDENCE: 1.0
+INTENT: warranty_coverage
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q06. Which coverage mentions HVAC?
+------------------------------------------------------------------------------
+
+ANSWER:
+I do not see any coverage entry that mentions “HVAC” in the provided chunks [1][2]. The closest related wording is coverage U13, which says “GHG Emission/AC Sealed, Exterior Components,” but it does not say HVAC [1]. I cannot identify an HVAC-specific coverage from these chunks [1][2].
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.53
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q07. What is the warranty duration for towing on warrantable engine failures TOW2?
+------------------------------------------------------------------------------
+
+ANSWER:
+The TOW2 warranty duration is 24 months or 250,000 miles for towing on warrantable engine failures [2]. In this record, TOW2 runs from 2019-05-17 to 2021-05-17 [2].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.92
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q08. What does coverage U030 include?
+------------------------------------------------------------------------------
+
+ANSWER:
+Coverage U030 is for Frame & Crossmembers as a Vehicle Warranty Claim Job (DC10) [1]. It is listed with a 72 months/750,000 miles limit, starting 2019-05-17 and ending 2025-05-17 [1].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.92
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q09. Which warranty has unlimited mileage?
+------------------------------------------------------------------------------
+
+ANSWER:
+I do not see any warranty explicitly identified as having unlimited mileage in the provided coverage rows [1][2]. The listed claim warranties shown have mileage caps such as 100,000 miles, 600K miles, 350,000 miles, 250,000 miles, or 100K miles, while the uptime bundle entries are labeled “INFO ONLY NO CLAIMS” and do not state unlimited mileage [1][2].
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.63
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q10. What is the coverage duration for rear axle housing U0561?
+------------------------------------------------------------------------------
+
+ANSWER:
+U0561 for Rear Axle Housing has a coverage duration of 36 months or 350,000 miles [1]. The listed coverage period runs from 2019-05-17 to 2022-05-17 [1].
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.97
+INTENT: warranty_coverage
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+==============================================================================
+LEVEL 2 — Metadata / Filtering
+==============================================================================
+
+------------------------------------------------------------------------------
+Q11. List all warranties related to engine components.
+------------------------------------------------------------------------------
+
+ANSWER:
+- E6460 — 48 months / 600K miles — ENGINE PLAN 2: VEHICLE WARRANTY CLAIM JOB (DC27) [2]
+- TOW2 — 24 months / 250,000 miles — TOWING on warrantable engine failures: BREAKDOWN CLAIM JOB (DC10) [2]
+
+Only the rows shown in the certified evidence that explicitly mention ENGINE/engine are listed; the list may be incomplete if other certified rows were not provided.
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.92
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q12. Which warranties are related to transmission failures?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U065 — 60 Months / 750,000 Miles — Auto/Manual Transmission (AMT); Start 2019-05-17; End 2024-05-17 [2]
+- U0650 — 36 Months / 300,000 Miles — AMT Clutch; Start 2019-05-17; End 2022-05-17 [2]
+
+COVERAGE DECISION: sufficient_evidence
+CONFIDENCE: 0.93
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q13. Show all warranties that have 72 months duration.
+------------------------------------------------------------------------------
+
+ANSWER:
+No warranty rows with a 72 months duration appear in the provided certified evidence.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.89
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q14. Which warranties expire in 2024?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U13 — 60 mo / 100K mi / 160934 KM — 2014/2017 GHG Emission/AC Sealed, Exterior Components; ends 2024-05-17 [1]
+- U065 — 60 Months / 750,000 Miles — Auto/Manual Transmission (AMT); ends 2024-05-17 [2]
+- U071 — 60 Months / 500,000 Miles — Cab Structure; ends 2024-05-17 [2]
+- U092 — 60 Months / 500,000 Miles — Cab Corrosion; ends 2024-05-17 [2]
+
+Based only on the provided certified evidence rows, these are the warranties shown as expiring in 2024. The list may be incomplete if other coverage rows were not included in the evidence.
+
+COVERAGE DECISION: sufficient_evidence
+CONFIDENCE: 0.92
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q15. Which coverages mention bearings or drive shafts?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U050 — 36 Months / 350,000 Miles — Driveline: Bearings, Hangers and Drive Shafts [2]
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.97
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q16. List all cab-related warranties.
+------------------------------------------------------------------------------
+
+ANSWER:
+- U071 — 60 Months / 500,000 Miles — Cab Structure [2]
+- U092 — 60 Months / 500,000 Miles — Cab Corrosion [2]
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.95
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q17. Which warranty has the highest mileage limit?
+------------------------------------------------------------------------------
+
+ANSWER:
+- ET460 — 48 months / 600K miles — EXHAUST AFTERTREATMENT [2]
+- E6460 — 48 months / 600K miles — ENGINE PLAN 2 [2]
+
+COVERAGE DECISION: sufficient_evidence
+CONFIDENCE: 0.95
+INTENT: comparison
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q18. Which warranties are active until 2025?
+------------------------------------------------------------------------------
+
+ANSWER:
+- No warranties in the provided certified evidence have an End date in 2025.
+
+COVERAGE DECISION: not_covered
+CONFIDENCE: 0.88
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q19. Which coverages are related to frame and crossmembers?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U030 — 72 Months / 750,000 Miles — Frame & Crossmembers [2]
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.97
+INTENT: warranty_coverage
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q20. Find all EPA17-related warranties.
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence does not explicitly mention “EPA17,” so I cannot identify any EPA17-related warranties from these documents. The only row that mentions 2017 emissions is:
+- U13 — 60 mo / 100K mi / 160934 KM — 2014/2017 GHG Emission/AC Sealed, Exterior Components [1]
+
+Because the evidence does not label U13 or any other coverage as “EPA17,” this list may be incomplete or not applicable.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.65
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+==============================================================================
+LEVEL 3 — Numerical / Logical
+==============================================================================
+
+------------------------------------------------------------------------------
+Q21. Which warranty lasts longer: U071 or U052?
+------------------------------------------------------------------------------
+
+ANSWER:
+Cannot determine which warranty lasts longer from the certified evidence. The evidence lists:
+- U071 — 60 Months / 500,000 Miles — Cab Structure [1]
+No certified row is provided for the other requested warranty, so a longer/shorter comparison cannot be made.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.8
+INTENT: comparison
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q22. Compare mileage limits between U030 and U071.
+------------------------------------------------------------------------------
+
+ANSWER:
+U030 is listed with a mileage limit of 750,000 miles [1]. The retrieved evidence does not show a U071 entry, so I cannot determine U071’s mileage limit or make a complete comparison [1][2].
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.55
+INTENT: comparison
+EVIDENCE PAGES: 5, 6
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q23. Which has greater coverage: Standard Engine Warranty U06 OR Major Engine Components EPA17 U06A?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not mention either Standard Engine Warranty U06 or Major Engine Components EPA17 U06A, so I cannot determine which has greater coverage.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.3
+INTENT: comparison
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q24. How many warranties provide coverage above 500,000 miles?
+------------------------------------------------------------------------------
+
+ANSWER:
+I can only help with warranty coverage questions based on your certified warranty documents. Try asking whether a component is covered, what the warranty period is, or what applies to a specific VIN.
+
+COVERAGE DECISION: n/a
+CONFIDENCE: 0.1
+INTENT: out_of_scope
+
+------------------------------------------------------------------------------
+Q25. Which warranty provides the shortest duration?
+------------------------------------------------------------------------------
+
+ANSWER:
+The shortest-duration warranties shown are D0003, “Truck, 30 days, Standard Warranty,” and D0005, “Alignment, 1 month”; both run from 2019-05-17 to 2019-06-17 [2]. The other listed durations in the provided evidence are 12 months, 24 months, 36 months, 48 months, or 60 months, so they are longer than D0003 and D0005 [1][2].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.97
+INTENT: comparison
+EVIDENCE PAGES: 2, 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q26. Which warranty has both month and mileage restrictions?
+------------------------------------------------------------------------------
+
+ANSWER:
+Which warranty document or vehicle are you referring to?
+
+COVERAGE DECISION: n/a
+CONFIDENCE: 0.58
+INTENT: ambiguous
+
+------------------------------------------------------------------------------
+Q27. What is the average duration of all engine-related warranties?
+------------------------------------------------------------------------------
+
+ANSWER:
+Based on the certified evidence rows that explicitly mention Engine, the average duration is 36 months.
+
+Included warranties:
+- E6460 — 48 months / 600K miles — ENGINE PLAN 2 [2]
+- U06 — 24 months / 250,000 miles — Standard Engine Warranty [2]
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.89
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q28. Which warranty has the largest time coverage but not the largest mileage coverage?
+------------------------------------------------------------------------------
+
+ANSWER:
+U13 is the warranty with the largest time coverage shown: 60 months, with 100,000 miles listed for mileage coverage [1]. It is not the largest mileage coverage because ET460 and E6460 each list 600,000 miles, but only 48 months [2].
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.93
+INTENT: comparison
+EVIDENCE PAGES: 1, 2
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q29. Compare TOW2 and TOW4 warranties.
+------------------------------------------------------------------------------
+
+ANSWER:
+TOW2 is towing coverage for warrantable engine failures, while TOW4 is towing coverage for warrantable transmission failures [1]. Both warranties show the same limits: 24 months/250,000 miles, with coverage dates from 2019-05-17 to 2021-05-17 [1]. The main difference is the failure category: engine for TOW2 versus transmission for TOW4 [1].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.95
+INTENT: comparison
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q30. Which warranties exceed 60 months coverage?
+------------------------------------------------------------------------------
+
+ANSWER:
+No warranties in the provided certified evidence exceed 60 months coverage. U13 is exactly 60 months, and the other listed warranties are 48 months or less.
+
+COVERAGE DECISION: not_covered
+CONFIDENCE: 0.9
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 3, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+==============================================================================
+LEVEL 4 — Complex RAG
+==============================================================================
+
+------------------------------------------------------------------------------
+Q31. If a truck has transmission failure after 260,000 miles, which warranties are likely invalid?
+------------------------------------------------------------------------------
+
+ANSWER:
+- TOW4 — 24 months / 250,000 miles — TOWING on warrantable transmission failures; at 260,000 miles it exceeds the stated mileage limit [2].
+- D0001 — 12 months / 100,000 miles — Truck warranty; at 260,000 miles it exceeds the stated mileage limit [2].
+
+COVERAGE DECISION: not_covered
+CONFIDENCE: 0.89
+INTENT: warranty_coverage
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q32. Which warranties could still apply after 5 years but before 700,000 miles?
+------------------------------------------------------------------------------
+
+ANSWER:
+No matching warranties are shown in the certified evidence. The listed coverage rows do not show any warranty with a duration extending after 5 years; the longest duration shown is 60 months, and the listed mileage limits are below 700,000 miles.
+
+COVERAGE DECISION: not_covered
+CONFIDENCE: 0.85
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q33. Compare all drivetrain-related warranties.
+------------------------------------------------------------------------------
+
+ANSWER:
+- E6460 — 48 months / 600,000 miles — ENGINE PLAN 2; start 2019-05-17, end 2023-05-17 [2]
+- U065 — 60 months / 750,000 miles — Auto/Manual Transmission (AMT); start 2019-05-17, end 2024-05-17 [2]
+- U0650 — 36 months / 300,000 miles — AMT Clutch; start 2018-05-17, end 2022-05-17 [2]
+
+Comparison: U065 has the longest stated duration and mileage limit among the drivetrain-related rows shown: 60 months/750,000 miles. E6460 is next at 48 months/600,000 miles. U0650 has the shortest stated limit at 36 months/300,000 miles. E6460 and U065 both start on 2019-05-17, while U0650 starts earlier on 2018-05-17. U065 ends latest on 2024-05-17; E6460 ends 2023-05-17; U0650 ends 2022-05-17.
+
+COVERAGE DECISION: covered
+CONFIDENCE: 0.88
+INTENT: comparison
+EVIDENCE PAGES: 5
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q34. Which warranty combination gives maximum engine protection?
+------------------------------------------------------------------------------
+
+ANSWER:
+For maximum engine-focused protection in the provided coverage list, the strongest combination shown is E6460 Engine Plan 2 plus ET460 Exhaust Aftertreatment, because both run 48 months/600K miles [2]. The standard engine warranty U06 is shorter at 24 months/250,000 miles, so it is not the maximum engine coverage shown [2]. U13 lasts 60 months but is described as GHG Emission/AC Sealed, Exterior Components with a 100K-mile limit, so the evidence does not show it as broader engine-plan protection than E6460 [1].
+
+COVERAGE DECISION: partial
+CONFIDENCE: 0.82
+INTENT: comparison
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q35. Which warranties overlap with powertrain-related failures?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not list any warranty rows or mention powertrain-related failures, so I cannot identify which warranties overlap with powertrain-related failures.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.0
+INTENT: warranty_coverage
+
+------------------------------------------------------------------------------
+Q36. If HVAC fails after 50 months, is it still covered?
+------------------------------------------------------------------------------
+
+ANSWER:
+Possibly yes, but only for the AC components shown in the certified coverage. Evidence lists U13 — 60 mo / 100K mi / 160934 KM — “2014/2017 GHG Emission/AC Sealed, Exterior Components,” starting 2019-06-17 and ending 2024-05-17 [1]. A failure at 50 months would be within the 60-month duration, but coverage also depends on the failed HVAC part being within “AC Sealed, Exterior Components” and the vehicle being within 100,000 miles.
+
+COVERAGE DECISION: covered_if_conditions_met
+CONFIDENCE: 0.74
+INTENT: warranty_coverage
+EVIDENCE PAGES: 4
+
+------------------------------------------------------------------------------
+Q37. What warranties remain active after standard engine warranty expires?
+------------------------------------------------------------------------------
+
+ANSWER:
+I do not have certified evidence showing which warranties remain active after the standard engine warranty expires.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.0
+INTENT: warranty_coverage
+
+------------------------------------------------------------------------------
+Q38. Which warranty categories provide the longest protection overall?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U13 — 60 mo / 100K mi / 160934 KM — 2014/2017 GHG Emission/AC Sealed, Exterior Components; longest duration shown [1]
+- ET460 — 48 months / 600K miles — EXHAUST AFTERTREATMENT; highest mileage shown [2]
+- E6460 — 48 months / 600K miles — ENGINE PLAN 2; highest mileage shown [2]
+
+COVERAGE DECISION: sufficient_evidence
+CONFIDENCE: 0.88
+INTENT: comparison
+EVIDENCE PAGES: 3, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q39. If rear axle housing fails after 400,000 miles, is it covered?
+------------------------------------------------------------------------------
+
+ANSWER:
+No. Rear axle housing is listed under U0561 — 36 months / 350,000 miles — Rear Axle Housing [1]. A failure after 400,000 miles exceeds the 350,000-mile limit shown in the certified coverage table.
+
+COVERAGE DECISION: not_covered
+CONFIDENCE: 0.95
+INTENT: warranty_coverage
+EVIDENCE PAGES: 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q40. Which warranties are likely intended for heavy-duty components?
+------------------------------------------------------------------------------
+
+ANSWER:
+- U050 — 36 months / 350,000 miles — Driveline: Bearings, Hangers and Drive Shafts [2]
+- U052 — 36 months / 350,000 miles — Front Non-Drive Steering Axle: Axle Beam, Steering Knuckle & Tie Rod [2]
+- U0551 — 36 months / 350,000 miles — Rear Axle: Differential Carrier Assembly [2]
+- U0561 — 36 months / 350,000 miles — Rear Axle Housing [2]
+
+The certified evidence does not use the exact phrase “heavy-duty components”; these are identified as likely heavy-duty component warranties because their descriptions are for driveline and axle assemblies. The list may be incomplete because only the provided evidence chunks were available.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.78
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+==============================================================================
+LEVEL 5 — Hallucination Resistance
+==============================================================================
+
+------------------------------------------------------------------------------
+Q41. Does this document mention tire warranty coverage?
+------------------------------------------------------------------------------
+
+ANSWER:
+No. The provided certified document evidence does not mention tire warranty coverage.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.84
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q42. Is roadside assistance included?
+------------------------------------------------------------------------------
+
+ANSWER:
+Which vehicle or warranty document are you asking about?
+
+COVERAGE DECISION: n/a
+CONFIDENCE: 0.62
+INTENT: ambiguous
+
+------------------------------------------------------------------------------
+Q43. Does the warranty cover windshield damage?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified documents provided do not mention windshield damage or windshield/glass coverage. Based only on the evidence, there is no certified evidence that windshield damage is covered.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.6
+INTENT: warranty_coverage
+EVIDENCE PAGES: 1, 6
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q44. Is battery replacement covered?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not mention battery replacement coverage. I cannot confirm that battery replacement is covered from these documents.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.77
+INTENT: warranty_coverage
+EVIDENCE PAGES: 2, 3
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q45. Does the document mention fuel injector warranty?
+------------------------------------------------------------------------------
+
+ANSWER:
+No. The certified evidence provided does not mention a fuel injector warranty.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.87
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 5, 6
+EVIDENCE CODES: U065, U0650, U071, U092
+
+------------------------------------------------------------------------------
+Q46. What deductible amount is mentioned?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not mention any deductible amount.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.73
+INTENT: warranty_metadata_lookup
+EVIDENCE PAGES: 2, 5
+EVIDENCE CODES: U030
+
+------------------------------------------------------------------------------
+Q47. Is accidental damage covered?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not mention accidental damage coverage. It only lists specific warranty coverage rows such as Truck, Alignment, Exhaust Aftertreatment, Engine Plan, Driveline, Axle, Rear Axle, and Emission/AC Sealed Exterior Components coverage. Based on these documents alone, I cannot confirm that accidental damage is covered.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.55
+INTENT: warranty_coverage
+EVIDENCE PAGES: 1, 4
+EVIDENCE CODES: U050, U052, U0551, U0561
+
+------------------------------------------------------------------------------
+Q48. Does the document mention California emissions warranty?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence provided does not mention a California emissions warranty.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.0
+INTENT: warranty_metadata_lookup
+
+------------------------------------------------------------------------------
+Q49. What is the customer service phone number?
+------------------------------------------------------------------------------
+
+ANSWER:
+I can only help with warranty coverage questions based on your certified warranty documents. Try asking whether a component is covered, what the warranty period is, or what applies to a specific VIN.
+
+COVERAGE DECISION: n/a
+CONFIDENCE: 0.1
+INTENT: out_of_scope
+
+------------------------------------------------------------------------------
+Q50. Does this warranty include towing reimbursement amount?
+------------------------------------------------------------------------------
+
+ANSWER:
+The certified evidence includes towing coverage entries, but it does not state any towing reimbursement dollar amount.
+
+- TOW1 — 3 months / 5,000 miles — Towing on warrantable chassis failures [2]
+- TOW2 — 24 months / 250,000 miles — TOWING on warrantable engine failures [2]
+- TOW4 — 24 months / 250,000 miles — TOWING on warrantable transmission failures [2]
+
+No monetary reimbursement amount is shown in the provided certified documents.
+
+COVERAGE DECISION: insufficient_evidence
+CONFIDENCE: 0.83
+INTENT: warranty_coverage
+EVIDENCE PAGES: 1
+EVIDENCE CODES: U030
+
+==============================================================================
+Completed 50/50 questions.
+Output: /app/eval/RAG_BENCHMARK_ANSWERS.txt

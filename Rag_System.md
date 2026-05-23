@@ -45,6 +45,9 @@ So physical storage is shared, but logical visibility is controlled by payload t
 
 Main orchestrator: `ai-service/src/workers/pipeline_orchestrator.py`
 
+**OCR (same as test-rag):** `OcrService` → `PDFReader` with `OCR_METHOD=auto`:
+Textract → Docling Docker → OpenAI Vision. Set `OCR_METHOD=openai_vision` if AWS Textract is unavailable.
+
 ### Step-by-step (actual code behavior)
 
 1. **Upload entry**
@@ -139,20 +142,22 @@ AI orchestrator: `ai-service/src/query/query_orchestrator.py`
 
 ### Runtime stages
 
-1. **Intent classification**
-   - `classify_intent(question)`
-   - If out-of-scope, returns a safe fallback response
+1. **Intent classification** (small model; greetings skip retrieval)
+   - `classify_intent(question)` → `greeting_or_smalltalk`, `warranty_coverage`, `out_of_scope`, etc.
+   - Greetings (`hi`, `hello`) → polite assistant intro, no Qdrant call
+   - Out-of-scope / prompt injection → safe fixed reply
 
 2. **Metadata filter extraction**
    - `extract_metadata_filters(question)`
    - LLM returns filter hints (make/model/year/etc)
 
-3. **Retrieve chunks**
-   - embed question with `text-embedding-3-small`
-   - search Qdrant collection with:
-     - semantic vector query
-     - `repository=certified` hard filter
-     - optional metadata filters (only supported scalar keys are used)
+3. **Retrieve chunks** (v2 hybrid when collection supports it)
+   - small model extracts `rewritten_query` + `semantic_keywords`
+   - embed rewritten query with `text-embedding-3-small`
+   - BM25 sparse encode on question + keywords + component synonyms
+   - Qdrant hybrid search: dense + sparse prefetch → RRF fusion
+   - dedupe results (max 2 per doc/page)
+   - filters: `repository=certified` + optional make/model/year/country/warrantyType
 
 4. **Reason over evidence**
    - sends question + history + retrieved chunks to large model
