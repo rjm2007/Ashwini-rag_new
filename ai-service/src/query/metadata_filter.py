@@ -48,18 +48,48 @@ def extract_metadata_filters(question: str, conversation_history: list[dict] | N
     )
 
 
+# Minimum and maximum plausible truck model years.
+# Years outside this range are almost certainly misextracted from mileage numbers,
+# dates, or other numeric tokens in the query. We drop them to avoid false-zero results.
+_MIN_VEHICLE_YEAR = 1980
+_MAX_VEHICLE_YEAR = 2030
+
+
+def _is_valid_year(value) -> bool:
+    """Return True only when value is an integer that looks like a real model year."""
+    if value is None:
+        return False
+    try:
+        y = int(value)
+        return _MIN_VEHICLE_YEAR <= y <= _MAX_VEHICLE_YEAR
+    except (TypeError, ValueError):
+        return False
+
+
 def qdrant_filters_from_metadata(metadata: dict) -> dict:
     """Map extraction JSON to Qdrant payload filter keys."""
     filters: dict = {}
+
     if metadata.get("make"):
         filters["make"] = metadata["make"]
+
     if metadata.get("model"):
         filters["model"] = metadata["model"]
-    if metadata.get("year") is not None:
-        filters["year"] = metadata["year"]
+
+    # Only apply year filter when the extracted year is a plausible vehicle model year.
+    # Values like 2000, 200000, or 312000 that the LLM might confuse with mileage numbers
+    # are rejected here so they do not create an AND filter that returns zero chunks.
+    raw_year = metadata.get("year")
+    if _is_valid_year(raw_year):
+        filters["year"] = int(raw_year)
+    # If year is invalid or out of range, we silently drop it — do not add to filters.
+    # The semantic search will still find the right document via embeddings.
+
     if metadata.get("country"):
         filters["country"] = metadata["country"]
+
     warranty_type = metadata.get("warranty_type") or metadata.get("warrantyType")
     if warranty_type:
         filters["warrantyType"] = warranty_type
+
     return filters

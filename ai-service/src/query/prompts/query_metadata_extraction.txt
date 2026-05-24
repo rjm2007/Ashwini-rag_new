@@ -48,6 +48,14 @@ semantic recall without changing meaning.
 # FIELD GUIDANCE
 - make/model/year: The vehicle or equipment identifiers. year is a single
   4-digit integer if stated; otherwise use year_range.
+
+CRITICAL RULE — DO NOT CONFUSE MILEAGE WITH MODEL YEAR:
+The "year" field must only contain a 4-digit vehicle model year (e.g. 2019, 2023).
+If the user mentions "200,000 miles", "312,000 miles", or any odometer reading,
+that number goes into "mileage" only. Never put a mileage value into "year".
+If you cannot identify a model year with confidence, set year to null.
+Valid year range: 1980–2030. Any number outside that range is NOT a model year.
+
 - country: ISO country name as the user wrote it ("USA", "India",
   "Germany"), null otherwise.
 - warranty_type: A short label only if the user names one (e.g.
