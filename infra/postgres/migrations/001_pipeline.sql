@@ -34,14 +34,4 @@ CREATE TABLE IF NOT EXISTS pipeline_events (
 CREATE INDEX IF NOT EXISTS idx_pipeline_events_doc ON pipeline_events(document_id, sequence);
 CREATE INDEX IF NOT EXISTS idx_pipeline_events_status ON pipeline_events(document_id, status);
 
-CREATE TABLE IF NOT EXISTS support_tickets (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
-  session_id UUID REFERENCES query_sessions(id) ON DELETE SET NULL,
-  raised_by UUID REFERENCES users(id),
-  question TEXT,
-  answer_snapshot TEXT,
-  note TEXT,
-  status VARCHAR(24) NOT NULL DEFAULT 'open',
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
+-- support_tickets requires query_sessions — see 002_missing_tables.sql or init.sql (fixed order)
