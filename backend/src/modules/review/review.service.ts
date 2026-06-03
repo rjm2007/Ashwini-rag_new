@@ -27,10 +27,16 @@ export class ReviewService {
     // as soon as the AI pipeline marks it ready_for_review. The review
     // row is created lazily when someone takes the first action.
     const documents = await this.documentsRepository.find({
-      where: {
-        processingStatus: ProcessingStatus.READY_FOR_REVIEW,
-        currentRepository: DocumentRepository.PENDING_REVIEW
-      },
+      where: [
+        {
+          processingStatus: ProcessingStatus.AWAITING_CERTIFICATION,
+          currentRepository: DocumentRepository.PENDING_REVIEW
+        },
+        {
+          processingStatus: ProcessingStatus.READY_FOR_REVIEW,
+          currentRepository: DocumentRepository.PENDING_REVIEW
+        }
+      ],
       order: { uploadedAt: "DESC" }
     });
 
@@ -97,10 +103,15 @@ export class ReviewService {
   async adminApprove(documentId: string, userId: string, comment?: string) {
     this.logger.log(`adminApprove start documentId=${documentId} userId=${userId}`);
     const review = await this.getOrCreateReview(documentId);
-    if (review.finalStatus !== ReviewFinalStatus.REVIEWER_APPROVED) {
+    const document = await this.documentsService.getDocument(documentId);
+    const canCertifyDirect =
+      document.processingStatus === ProcessingStatus.AWAITING_CERTIFICATION;
+    if (
+      !canCertifyDirect &&
+      review.finalStatus !== ReviewFinalStatus.REVIEWER_APPROVED
+    ) {
       throw new BadRequestException("Document must be reviewer approved first");
     }
-    const document = await this.documentsService.getDocument(documentId);
     const toKey = `certified/${document.country || "unknown"}/${document.make || "unknown"}/${document.model || "unknown"}/${document.year || "unknown"}/${documentId}/original.pdf`;
     this.logger.log(`adminApprove moving s3 ${document.s3Path} -> ${toKey}`);
 
@@ -138,7 +149,31 @@ export class ReviewService {
     const saved = await this.reviewRepository.save(review);
     this.logger.log(`adminApprove reviews row updated documentId=${documentId} finalStatus=${saved.finalStatus}`);
 
-    await this.setQdrantRepository(documentId, DocumentRepository.CERTIFIED);
+    try {
+      await this.setQdrantRepository(documentId, DocumentRepository.CERTIFIED);
+    } catch (err: any) {
+      this.logger.warn(
+        `adminApprove Qdrant flip skipped (Act 2 will index): ${err?.message ?? err}`
+      );
+    }
+
+    const aiUrl = process.env.AI_SERVICE_URL;
+    if (aiUrl) {
+      const processUrl = `${aiUrl.replace(/\/$/, "")}/internal/process/${documentId}`;
+      this.logger.log(`adminApprove triggering Act 2 -> ${processUrl}`);
+      fetch(processUrl, { method: "POST" })
+        .then((res) => {
+          if (!res.ok) {
+            this.logger.warn(`Act 2 trigger returned ${res.status} for ${documentId}`);
+          } else {
+            this.logger.log(`Act 2 trigger accepted for ${documentId}`);
+          }
+        })
+        .catch((err) =>
+          this.logger.error(`Act 2 trigger failed for ${documentId}: ${err?.message ?? err}`)
+        );
+    }
+
     this.logger.log(`adminApprove done documentId=${documentId}`);
     return saved;
   }
@@ -181,7 +216,10 @@ export class ReviewService {
       processingStatus: document.processingStatus,
       finalStatus,
       canReviewerApprove: isPendingRepository && finalStatus === ReviewFinalStatus.IN_REVIEW,
-      canAdminApprove: isPendingRepository && finalStatus === ReviewFinalStatus.REVIEWER_APPROVED,
+      canAdminApprove:
+        isPendingRepository &&
+        (document.processingStatus === ProcessingStatus.AWAITING_CERTIFICATION ||
+          finalStatus === ReviewFinalStatus.REVIEWER_APPROVED),
       canReject:
         isPendingRepository &&
         finalStatus !== ReviewFinalStatus.CERTIFIED &&

@@ -23,3 +23,13 @@ class S3Service:
         """This function moves an object by copy and delete operations."""
         self.client.copy_object(Bucket=self.bucket, CopySource=f"{self.bucket}/{from_key}", Key=to_key)
         self.client.delete_object(Bucket=self.bucket, Key=from_key)
+
+    async def download_bytes(self, key: str) -> bytes:
+        """Download object body as bytes."""
+        obj = self.client.get_object(Bucket=self.bucket, Key=key)
+        return obj["Body"].read()
+
+    async def download_json(self, key: str) -> dict:
+        """Download and parse a JSON object from S3."""
+        raw = await self.download_bytes(key)
+        return json.loads(raw.decode("utf-8"))

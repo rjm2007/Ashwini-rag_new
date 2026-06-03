@@ -45,6 +45,18 @@ export class DocumentEntity {
   @Column({ name: "error_message", type: "text", nullable: true })
   errorMessage?: string;
 
+  @Column({ name: "document_type", nullable: true })
+  documentType?: string;
+
+  @Column({ name: "master_schema_json", type: "jsonb", nullable: true })
+  masterSchemaJson?: Record<string, unknown>;
+
+  @Column({ name: "document_tree_json", type: "jsonb", nullable: true })
+  documentTreeJson?: Record<string, unknown>[];
+
+  @Column({ name: "completeness", type: "float", nullable: true })
+  completeness?: number;
+
   @CreateDateColumn({ name: "uploaded_at" })
   uploadedAt!: Date;
 

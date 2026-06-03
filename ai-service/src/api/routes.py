@@ -1,10 +1,16 @@
+import asyncio
 import logging
 from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from ..workers.pipeline_orchestrator import process_document
+from sqlalchemy import text
+
+from ..database import SessionLocal
 from ..query.query_orchestrator import answer_question
 from ..services.qdrant_service import QdrantService
+from ..services.summary_builder import build_summary
+from ..workers.pipeline_orchestrator import run_act1_parse, run_act2_process
 
 logger = logging.getLogger(__name__)
 
@@ -25,55 +31,55 @@ ALLOWED_REPOSITORIES = {"pending_review", "reviewer_approved", "certified", "rej
 
 @router.get("/health")
 async def health() -> dict[str, str]:
-    """This function provides a basic health check endpoint."""
     return {"status": "ok"}
 
 
+@router.post("/internal/parse/{document_id}")
+async def trigger_parse(document_id: str) -> dict:
+    asyncio.create_task(run_act1_parse(document_id))
+    return {"status": "started", "act": 1, "documentId": document_id}
+
+
 @router.post("/internal/process/{document_id}")
-async def trigger_process(document_id: str) -> dict[str, str]:
-    """This function manually triggers processing for one document."""
-    await process_document(document_id)
-    return {"status": "queued", "documentId": document_id}
+async def trigger_process(document_id: str) -> dict:
+    asyncio.create_task(run_act2_process(document_id))
+    return {"status": "started", "act": 2, "documentId": document_id}
+
+
+@router.get("/internal/summary/{document_id}")
+async def get_summary(document_id: str) -> dict:
+    with SessionLocal() as session:
+        row = session.execute(
+            text("SELECT master_schema_json, original_filename FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Document not found")
+    schema = row[0] or {}
+    filename = row[1] or ""
+    return build_summary(schema, document_id, filename)
 
 
 @router.post("/query/answer")
 async def query_answer(payload: QueryRequest) -> dict[str, Any]:
-    """This function runs the query orchestration pipeline."""
     return await answer_question(payload.question, payload.conversationHistory)
 
 
 @router.post("/internal/set-repository/{document_id}")
 async def set_repository(document_id: str, payload: SetRepositoryRequest) -> dict[str, Any]:
-    """Flips the repository tag on every Qdrant chunk that belongs to a document."""
     if payload.repository not in ALLOWED_REPOSITORIES:
         raise HTTPException(
             status_code=400,
             detail=f"repository must be one of {sorted(ALLOWED_REPOSITORIES)}",
         )
-    logger.info(
-        "[set-repository] documentId=%s -> repository=%s",
-        document_id,
-        payload.repository,
-    )
     try:
         qdrant = QdrantService()
         updated = qdrant.update_repository(document_id, payload.repository)
-
         if updated == 0:
-            # Document ID was not found in Qdrant at all.
-            # This can happen if processing failed or document was never indexed.
             raise HTTPException(
                 status_code=404,
-                detail=f"No chunks found in Qdrant for document {document_id}. "
-                       f"Document may not have been processed yet.",
+                detail=f"No chunks found in Qdrant for document {document_id}.",
             )
-
-        logger.info(
-            "[set-repository] documentId=%s repository=%s updatedChunks=%d",
-            document_id,
-            payload.repository,
-            updated,
-        )
         return {
             "success": True,
             "documentId": document_id,
@@ -83,16 +89,9 @@ async def set_repository(document_id: str, payload: SetRepositoryRequest) -> dic
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception(
-            "[set-repository] failed documentId=%s repository=%s error=%s",
-            document_id,
-            payload.repository,
-            exc,
-        )
-        raise HTTPException(status_code=500, detail=str(exc))
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("/internal/update-chunks")
 async def update_chunks(payload: dict[str, Any]) -> dict[str, Any]:
-    """Legacy placeholder kept for backward compatibility. Use /internal/set-repository instead."""
     return {"status": "not_implemented", "payload": payload}

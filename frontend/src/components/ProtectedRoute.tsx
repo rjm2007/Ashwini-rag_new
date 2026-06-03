@@ -23,7 +23,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#F0F4F8"
+          background: "var(--bg-page)"
         }}
       >
         <div style={{ textAlign: "center" }}>
@@ -31,7 +31,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
             style={{
               width: 56,
               height: 56,
-              backgroundColor: "#FF6200",
+              background: "var(--accent)",
               borderRadius: 14,
               display: "flex",
               alignItems: "center",
@@ -41,7 +41,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
           >
             <ShieldCheck size={28} color="white" />
           </div>
-          <p style={{ fontSize: 14, color: "#7A92A8" }}>Checking credentials...</p>
+          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Checking credentials...</p>
         </div>
       </div>
     );

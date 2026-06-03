@@ -14,5 +14,12 @@ export enum ProcessingStatus {
   EXTRACTION_COMPLETE = "extraction_complete",
   EMBEDDED = "embedded",
   READY_FOR_REVIEW = "ready_for_review",
-  FAILED = "failed"
+  FAILED = "failed",
+  PARSING = "parsing",
+  STRUCTURING = "structuring",
+  CLASSIFYING = "classifying",
+  AWAITING_CERTIFICATION = "awaiting_certification",
+  SCHEMA_EXTRACTION = "schema_extraction",
+  EMBEDDING = "embedding",
+  PROCESSING_COMPLETE = "processing_complete"
 }

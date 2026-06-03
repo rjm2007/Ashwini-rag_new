@@ -9,7 +9,12 @@ BEGIN
     CREATE TYPE document_repository AS ENUM ('pending_review', 'certified', 'rejected', 'archived');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'processing_status') THEN
-    CREATE TYPE processing_status AS ENUM ('uploaded', 'ocr_in_progress', 'ocr_complete', 'extraction_in_progress', 'extraction_complete', 'embedded', 'ready_for_review', 'failed');
+    CREATE TYPE processing_status AS ENUM (
+      'uploaded', 'ocr_in_progress', 'ocr_complete', 'extraction_in_progress', 'extraction_complete',
+      'embedded', 'ready_for_review', 'failed',
+      'parsing', 'structuring', 'classifying', 'awaiting_certification', 'schema_extraction',
+      'embedding', 'processing_complete'
+    );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_final_status') THEN
     CREATE TYPE review_final_status AS ENUM ('in_review', 'reviewer_approved', 'certified', 'rejected');
@@ -44,7 +49,39 @@ CREATE TABLE IF NOT EXISTS documents (
   confidence_score FLOAT,
   error_message TEXT,
   uploaded_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  document_type VARCHAR(64),
+  master_schema_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+  document_tree_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  completeness FLOAT
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  act SMALLINT NOT NULL,
+  stage VARCHAR(64) NOT NULL,
+  step_key VARCHAR(128) NOT NULL,
+  step_label VARCHAR(255) NOT NULL,
+  status VARCHAR(16) NOT NULL,
+  detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+  duration_ms INTEGER,
+  sequence INTEGER NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_events_doc ON pipeline_events(document_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_pipeline_events_status ON pipeline_events(document_id, status);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
+  session_id UUID REFERENCES query_sessions(id) ON DELETE SET NULL,
+  raised_by UUID REFERENCES users(id),
+  question TEXT,
+  answer_snapshot TEXT,
+  note TEXT,
+  status VARCHAR(24) NOT NULL DEFAULT 'open',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS reviews (

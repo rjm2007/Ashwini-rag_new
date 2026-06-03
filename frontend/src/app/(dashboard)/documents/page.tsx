@@ -1,213 +1,194 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, Eye } from "lucide-react";
-import { useDocuments } from "../../../hooks/useDocuments";
-import DocumentStatusBadge from "../../../components/DocumentStatusBadge";
-import LoadingSkeleton from "../../../components/LoadingSkeleton";
-import EmptyState from "../../../components/EmptyState";
+import { useRouter } from "next/navigation";
+import { FileText, ChevronRight, Upload } from "lucide-react";
+import api from "../../../lib/api";
+import StatusPill from "../../../components/ui/StatusPill";
+import TypePill from "../../../components/ui/TypePill";
+import MonoChip from "../../../components/ui/MonoChip";
+import { useAuth } from "../../../hooks/useAuth";
+import type { DocumentItem } from "../../../lib/types";
 
-const headerCell = {
-  padding: "10px 16px",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#7A92A8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.06em",
-  textAlign: "left" as const
-};
-
-function vehicleLabel(doc: any): string {
-  const parts = [doc.make, doc.model, doc.year].filter(Boolean);
-  if (parts.length) return parts.join(" ");
-  const meta = doc.metadataJson || {};
-  const fromMeta = [meta.make, meta.model, meta.year].filter(Boolean);
-  return fromMeta.length ? fromMeta.join(" ") : "—";
+function relativeDate(value?: string): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
 }
 
 export default function DocumentsPage() {
-  const { documents } = useDocuments();
+  const router = useRouter();
+  const { user } = useAuth();
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [repoFilter, setRepoFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const showUpload = user?.role === "admin" || user?.role === "reviewer";
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, [documents]);
-
-  const filtered = useMemo(() => {
-    return documents.filter((doc: any) => {
-      const repoOk = repoFilter === "all" || doc.currentRepository === repoFilter;
-      const statusOk = statusFilter === "all" || doc.processingStatus === statusFilter;
-      return repoOk && statusOk;
-    });
-  }, [documents, repoFilter, statusFilter]);
-
-  const selectStyle = {
-    padding: "6px 10px",
-    border: "1px solid #D1DCE8",
-    borderRadius: 8,
-    fontSize: 13,
-    color: "#0A1628",
-    backgroundColor: "#FFFFFF"
+  const fetchDocs = () => {
+    api
+      .get("/documents")
+      .then((r) => setDocuments(r.data.data || []))
+      .catch(() => setDocuments([]))
+      .finally(() => setLoading(false));
   };
 
+  useEffect(() => {
+    fetchDocs();
+    const interval = setInterval(fetchDocs, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="animate-page-in">
+    <div style={{ padding: "20px 24px" }}>
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 12,
           marginBottom: 20
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1 className="text-xl font-bold" style={{ color: "#0A1628" }}>
+          <h1 style={{ fontSize: 18, fontWeight: 500, margin: 0, color: "var(--text-primary)" }}>
             Documents
           </h1>
-          <span
+          <MonoChip value={String(documents.length)} size="sm" />
+        </div>
+        {showUpload ? (
+          <Link
+            href="/upload"
             style={{
-              backgroundColor: "#F0F4F8",
-              color: "#3D5A80",
-              fontSize: 12,
-              padding: "2px 10px",
-              borderRadius: 99,
-              fontFamily: "DM Mono, monospace"
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              padding: "6px 14px",
+              border: "1px solid var(--accent)",
+              borderRadius: 8,
+              color: "var(--accent)",
+              background: "transparent"
             }}
           >
-            {filtered.length}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select value={repoFilter} onChange={(e) => setRepoFilter(e.target.value)} style={selectStyle}>
-            <option value="all">All repositories</option>
-            <option value="pending_review">Pending review</option>
-            <option value="certified">Certified</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
-            <option value="all">All statuses</option>
-            <option value="ready_for_review">Ready for review</option>
-            <option value="ocr_in_progress">OCR running</option>
-            <option value="failed">Failed</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => {
-              setRepoFilter("all");
-              setStatusFilter("all");
-            }}
-            style={{
-              ...selectStyle,
-              cursor: "pointer",
-              backgroundColor: "#F0F4F8"
-            }}
-          >
-            Reset
-          </button>
-        </div>
+            <Upload size={14} />
+            Upload
+          </Link>
+        ) : null}
       </div>
 
-      <div className="card" style={{ overflow: "hidden", borderRadius: 12 }}>
-        {loading ? (
-          <LoadingSkeleton type="row" count={5} />
-        ) : documents.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No documents yet"
-            description="Upload your first warranty PDF to get started."
-            action={{ label: "Upload PDF", href: "/upload" }}
-          />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="No matching documents"
-            description="Try adjusting your filters."
-          />
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ backgroundColor: "#F0F4F8", borderBottom: "1px solid #D1DCE8" }}>
-                <th style={headerCell}>File Name</th>
-                <th style={headerCell}>Vehicle</th>
-                <th style={headerCell}>Repository</th>
-                <th style={headerCell}>Processing Status</th>
-                <th style={headerCell}>Uploaded</th>
-                <th style={{ ...headerCell, textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((doc: any, index: number) => (
-                <tr
-                  key={doc.id}
+      <div style={{ width: "100%" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 160px 140px 120px 40px",
+            gap: 12,
+            padding: "10px 12px",
+            fontSize: 11,
+            fontWeight: 500,
+            color: "var(--text-muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            borderBottom: "1px solid var(--border)"
+          }}
+        >
+          <span>Document</span>
+          <span>Type</span>
+          <span>Status</span>
+          <span>Uploaded</span>
+          <span />
+        </div>
+
+        {loading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  height: 48,
+                  margin: "4px 0",
+                  background: "var(--bg-raised)",
+                  borderRadius: 6,
+                  animation: "breathe 1.4s ease-in-out infinite",
+                  animationDelay: `${i * 200}ms`
+                }}
+              />
+            ))
+          : null}
+
+        {!loading && documents.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "48px 16px" }}>
+            <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>No documents yet</p>
+            <Link href="/upload" style={{ color: "var(--accent)", fontSize: 13 }}>
+              Upload your first document →
+            </Link>
+          </div>
+        ) : null}
+
+        {!loading &&
+          documents.map((doc) => (
+            <div
+              key={doc.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/documents/${doc.id}`)}
+              onKeyDown={(e) => e.key === "Enter" && router.push(`/documents/${doc.id}`)}
+              className="doc-row"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 160px 140px 120px 40px",
+                gap: 12,
+                alignItems: "center",
+                height: 48,
+                padding: "0 12px",
+                borderBottom: "1px solid var(--border)",
+                cursor: "pointer"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <FileText size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+                <span
                   style={{
-                    backgroundColor: index % 2 === 0 ? "#FAFBFC" : "#FFFFFF",
-                    borderBottom: "1px solid #F0F4F8"
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#F5F8FB";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLTableRowElement).style.backgroundColor =
-                      index % 2 === 0 ? "#FAFBFC" : "#FFFFFF";
+                    fontSize: 13,
+                    color: "var(--text-primary)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap"
                   }}
                 >
-                  <td style={{ padding: "14px 16px" }}>
-                    <Link
-                      href={`/documents/${doc.id}`}
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 500,
-                        color: "#0A1628",
-                        maxWidth: 220,
-                        display: "inline-block",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap"
-                      }}
-                    >
-                      {doc.originalFilename}
-                    </Link>
-                  </td>
-                  <td style={{ padding: "14px 16px", fontSize: 14, color: "#3D5A80" }}>
-                    {vehicleLabel(doc)}
-                  </td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <DocumentStatusBadge status={doc.currentRepository} />
-                  </td>
-                  <td style={{ padding: "14px 16px" }}>
-                    <DocumentStatusBadge status={doc.processingStatus} />
-                  </td>
-                  <td style={{ padding: "14px 16px", fontSize: 14, color: "#7A92A8" }}>
-                    {doc.uploadedAt
-                      ? new Date(doc.uploadedAt).toLocaleDateString()
-                      : "—"}
-                  </td>
-                  <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                    <Link
-                      href={`/documents/${doc.id}`}
-                      style={{
-                        display: "inline-flex",
-                        padding: 6,
-                        borderRadius: 6,
-                        color: "#7A92A8"
-                      }}
-                      aria-label="View"
-                    >
-                      <Eye size={16} />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                  {doc.originalFilename}
+                </span>
+              </div>
+              <div>
+                <TypePill docType={doc.documentType || "generic_document"} />
+              </div>
+              <div>
+                <StatusPill status={doc.processingStatus} />
+              </div>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {relativeDate(doc.uploadedAt)}
+              </span>
+              <ChevronRight
+                size={16}
+                className="row-chevron"
+                style={{ color: "var(--text-muted)", opacity: 0 }}
+              />
+            </div>
+          ))}
       </div>
+
+      <style jsx>{`
+        .doc-row:hover {
+          background: var(--bg-hover);
+        }
+        .doc-row:hover .row-chevron {
+          opacity: 1 !important;
+        }
+      `}</style>
     </div>
   );
 }

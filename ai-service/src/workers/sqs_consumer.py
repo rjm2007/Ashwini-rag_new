@@ -3,7 +3,7 @@ import json
 import logging
 import boto3
 from ..config import settings
-from .pipeline_orchestrator import process_document
+from .pipeline_orchestrator import run_act1_parse, run_act2_process
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,11 @@ async def start_sqs_consumer_loop() -> None:
                 continue
             for message in messages:
                 body = json.loads(message["Body"])
-                await process_document(body["documentId"], body.get("s3Path"))
+                stage = body.get("stage", "act1")
+                if stage == "act2":
+                    await run_act2_process(body["documentId"])
+                else:
+                    await run_act1_parse(body["documentId"], body.get("s3Path"))
                 sqs.delete_message(
                     QueueUrl=settings.sqs_queue_url,
                     ReceiptHandle=message["ReceiptHandle"],

@@ -1,11 +1,11 @@
 import axios from "axios";
+import type { PipelineEvent, SummaryPayload } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 });
 
 api.interceptors.request.use((config) => {
-  // This function adds JWT token to every outgoing request if available.
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -16,12 +16,36 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // This function handles auth failure by redirecting to login.
     if (typeof window !== "undefined" && error?.response?.status === 401) {
       window.location.href = "/";
     }
     return Promise.reject(error);
   }
 );
+
+export const getDocumentEvents = (docId: string) =>
+  api.get<PipelineEvent[]>(`/documents/${docId}/events`);
+
+export const getDocumentSummary = (docId: string) =>
+  api.get<SummaryPayload>(`/documents/${docId}/summary`);
+
+export const certifyDocument = (docId: string) =>
+  api.post(`/review/${docId}/admin-approve`, { comment: "Certified via UI" });
+
+export const raiseQuery = (payload: {
+  documentId?: string;
+  sessionId?: string;
+  question?: string;
+  answerSnapshot?: string;
+}) => api.post("/support/tickets", payload);
+
+export const createChatSession = (documentFilename: string) =>
+  api.post("/query/sessions", { title: documentFilename });
+
+export const getChatSession = (sessionId: string) =>
+  api.get(`/query/sessions/${sessionId}`);
+
+export const sendChatMessage = (sessionId: string, content: string) =>
+  api.post(`/query/sessions/${sessionId}/messages`, { content });
 
 export default api;

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Check, AlertCircle } from "lucide-react";
+import { Brain, Check, AlertCircle } from "lucide-react";
 import { login } from "../lib/auth";
 
 const FEATURES = [
-  "AI-Assisted Coverage Analysis",
-  "Governed Document Repository",
-  "Explainable Warranty Reasoning"
+  "Structured extraction from any document type",
+  "Live AI pipeline, fully transparent",
+  "Cited answers with confidence scoring"
 ];
 
 export default function LoginPage() {
@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.push("/documents");
     } catch {
       setError("Invalid credentials. Please try again.");
     } finally {
@@ -35,56 +35,31 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen">
       <section
-        className="relative hidden w-[55%] flex-col justify-between p-12 md:flex"
-        style={{ backgroundColor: "#06101E" }}
+        className="relative hidden flex-col justify-between p-12 md:flex"
+        style={{
+          width: "55%",
+          background: "#0D1117",
+          borderRight: "1px solid var(--border)"
+        }}
       >
-        <div>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              backgroundColor: "#FF6200",
-              borderRadius: 8,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
+        <div style={{ margin: "auto 0" }}>
+          <Brain size={40} style={{ color: "var(--accent)" }} />
+          <h1
+            className="mt-6"
+            style={{ fontSize: 22, fontWeight: 500, color: "var(--text-primary)", marginTop: 24 }}
           >
-            <ShieldCheck size={24} color="white" />
-          </div>
-          <h1 className="mt-6 text-3xl font-bold text-white">Warranty Intelligence Platform</h1>
-          <p className="mt-3 text-base" style={{ color: "#8BAABF" }}>
-            Governed AI-powered warranty document management
+            Document Intelligence
+          </h1>
+          <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+            AI-powered policy analysis for enterprise.
           </p>
-          <div
-            style={{
-              width: 48,
-              height: 3,
-              backgroundColor: "#FF6200",
-              borderRadius: 2,
-              marginTop: 20
-            }}
-          />
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4" style={{ marginBottom: 24 }}>
           {FEATURES.map((text) => (
             <div key={text} className="flex items-center gap-3">
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "50%",
-                  border: "1px solid #FF6200",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0
-                }}
-              >
-                <Check size={12} color="#FF6200" />
-              </div>
-              <span className="text-sm" style={{ color: "#8BAABF" }}>
+              <Check size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+              <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                 {text}
               </span>
             </div>
@@ -92,69 +67,84 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex w-full flex-col justify-center bg-white px-12 py-16 md:w-[45%]">
-        <form onSubmit={onSubmit} className="mx-auto w-full max-w-sm">
-          <h2 className="text-2xl font-bold" style={{ color: "#0A1628" }}>
-            Sign in to your account
+      <section
+        className="flex w-full flex-col justify-center px-12 py-16 md:w-[45%]"
+        style={{ background: "var(--bg-surface)" }}
+      >
+        <form onSubmit={onSubmit} className="mx-auto w-full" style={{ maxWidth: 320 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>
+            Sign in
           </h2>
-          <p className="mt-1 mb-8 text-sm" style={{ color: "#7A92A8" }}>
-            Warranty Intelligence Platform
-          </p>
 
-          <label className="mb-1.5 block text-sm font-medium" style={{ color: "#0A1628" }}>
+          <label
+            className="mb-1.5 mt-8 block text-sm font-medium"
+            style={{ color: "var(--text-secondary)" }}
+          >
             Email address
           </label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mb-4 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#FF6200]"
-            style={{ borderColor: "#D1DCE8" }}
+            className="mb-4 w-full rounded-lg px-3 py-2.5 text-sm outline-none"
+            style={{
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)"
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--accent)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--border)";
+            }}
             required
           />
 
-          <label className="mb-1.5 block text-sm font-medium" style={{ color: "#0A1628" }}>
+          <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
             Password
           </label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[#FF6200]"
-            style={{ borderColor: "#D1DCE8" }}
+            className="w-full rounded-lg px-3 py-2.5 text-sm outline-none"
+            style={{
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)"
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = "var(--accent)";
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = "var(--border)";
+            }}
             required
           />
 
           {error ? (
-            <div
-              className="mt-4 flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm"
-              style={{
-                background: "#FEF2F2",
-                borderColor: "#FCA5A5",
-                color: "#DC2626"
-              }}
-            >
-              <AlertCircle size={16} />
-              <span>{error}</span>
-            </div>
+            <p className="mt-4 text-sm" style={{ color: "var(--state-failed)" }}>
+              <AlertCircle size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
+              {error}
+            </p>
           ) : null}
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            style={{ backgroundColor: loading ? "#E05500" : "#FF6200" }}
-            onMouseEnter={(e) => {
-              if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#E05500";
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#FF6200";
+            className="mt-6 w-full rounded-lg py-2.5 text-sm font-medium disabled:opacity-60"
+            style={{
+              background: loading ? "var(--accent-hover)" : "var(--accent)",
+              color: "var(--bg-page)",
+              border: "none",
+              cursor: loading ? "wait" : "pointer"
             }}
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
-          <p className="mt-3 text-center text-xs" style={{ color: "#7A92A8" }}>
+          <p className="mt-3 text-center text-xs" style={{ color: "var(--text-muted)" }}>
             Demo credentials pre-filled for POC
           </p>
         </form>

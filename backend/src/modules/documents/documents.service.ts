@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
-import { ILike, Repository } from "typeorm";
+import { DataSource, ILike, Repository } from "typeorm";
 import { v4 as uuidv4 } from "uuid";
 import { sqsClient } from "../../config/aws.config";
 import { DocumentEntity } from "./entities/document.entity";
@@ -16,7 +16,8 @@ export class DocumentsService {
   constructor(
     @InjectRepository(DocumentEntity)
     private readonly documentsRepository: Repository<DocumentEntity>,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly dataSource: DataSource
   ) {}
 
   async uploadDocument(file: Express.Multer.File, userId: string) {
@@ -59,28 +60,46 @@ export class DocumentsService {
     await this.documentsRepository.save(document);
     this.logger.log(`uploadDocument postgres row created documentId=${documentId}`);
 
-    const queueUrl = process.env.SQS_QUEUE_URL;
-    if (!queueUrl) {
-      this.logger.warn(
-        `uploadDocument SQS_QUEUE_URL not set, skipping enqueue. AI processing must be triggered manually for documentId=${documentId}`
-      );
+    const aiUrl = process.env.AI_SERVICE_URL;
+    if (aiUrl) {
+      const parseUrl = `${aiUrl.replace(/\/$/, "")}/internal/parse/${documentId}`;
+      this.logger.log(`uploadDocument triggering Act 1 parse -> ${parseUrl}`);
+      fetch(parseUrl, { method: "POST" })
+        .then((res) => {
+          if (!res.ok) {
+            this.logger.warn(`Act 1 trigger returned ${res.status} for ${documentId}`);
+          } else {
+            this.logger.log(`Act 1 trigger accepted for ${documentId}`);
+          }
+        })
+        .catch((err) =>
+          this.logger.error(`Act 1 trigger failed for ${documentId}: ${err?.message ?? err}`)
+        );
     } else {
-      try {
-        await sqsClient.send(
-          new SendMessageCommand({
-            QueueUrl: queueUrl,
-            MessageBody: JSON.stringify({
-              documentId,
-              s3Path: s3Key,
-              uploadedBy: userId
+      const queueUrl = process.env.SQS_QUEUE_URL;
+      if (!queueUrl) {
+        this.logger.warn(
+          `AI_SERVICE_URL and SQS_QUEUE_URL not set; processing must be triggered manually for ${documentId}`
+        );
+      } else {
+        try {
+          await sqsClient.send(
+            new SendMessageCommand({
+              QueueUrl: queueUrl,
+              MessageBody: JSON.stringify({
+                documentId,
+                s3Path: s3Key,
+                uploadedBy: userId,
+                stage: "act1"
+              })
             })
-          })
-        );
-        this.logger.log(`uploadDocument sqs enqueued documentId=${documentId}`);
-      } catch (err: any) {
-        this.logger.error(
-          `uploadDocument sqs enqueue failed documentId=${documentId} error=${err?.message ?? err}`
-        );
+          );
+          this.logger.log(`uploadDocument sqs enqueued Act 1 documentId=${documentId}`);
+        } catch (err: any) {
+          this.logger.error(
+            `uploadDocument sqs enqueue failed documentId=${documentId} error=${err?.message ?? err}`
+          );
+        }
       }
     }
 
@@ -128,5 +147,25 @@ export class DocumentsService {
   async saveDocument(document: DocumentEntity) {
     // This function persists document changes made by review and pipeline modules.
     return this.documentsRepository.save(document);
+  }
+
+  async getPipelineEvents(documentId: string): Promise<any[]> {
+    return this.dataSource.query(
+      `SELECT id, act, stage, step_key, step_label, status, detail, duration_ms, sequence, created_at
+       FROM pipeline_events WHERE document_id = $1 ORDER BY sequence ASC`,
+      [documentId]
+    );
+  }
+
+  async getDocumentSummary(documentId: string): Promise<any> {
+    const aiUrl = process.env.AI_SERVICE_URL;
+    if (aiUrl) {
+      const res = await fetch(`${aiUrl.replace(/\/$/, "")}/internal/summary/${documentId}`);
+      if (res.ok) {
+        return res.json();
+      }
+    }
+    const doc = await this.getDocument(documentId);
+    return doc.masterSchemaJson || {};
   }
 }

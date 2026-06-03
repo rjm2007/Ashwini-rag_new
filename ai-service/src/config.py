@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # openai | none
     reranker_provider: str = "openai"
     docling_url: str = "http://docling:5001"
+    docling_serve_url: str = "http://docling:5001"
+    parser_primary: str = "docling_structured"
+    enable_section_classification: bool = True
+    enable_schema_pipeline: bool = True
+    gate_heavy_on_certify: bool = True
+    schema_max_text_chars: int = 40000
     ocr_method: str = "auto"
     textract_poll_interval: int = 3
     textract_timeout: int = 600

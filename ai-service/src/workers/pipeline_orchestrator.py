@@ -1,45 +1,340 @@
+"""Two-act pipeline: Act 1 on upload, Act 2 on certify."""
+
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
-import re
 from pathlib import Path
 
 from sqlalchemy import text
 
 from ..config import settings
 from ..database import SessionLocal
-from ..services.s3_service import S3Service
-from ..services.ocr_service import OcrService
-from ..services.extraction_service import ExtractionService
 from ..services.chunking_service import chunk_pages, chunk_text
 from ..services.coverage_row_parser import parse_chunk_structured_meta
+from ..services.docling_structure_service import check_health, parse_structured
 from ..services.embedding_service import prepare_chunks_for_upsert
+from ..services.event_emitter import finish_step, start_step
+from ..services.ocr_service import OcrService
 from ..services.qdrant_service import QdrantService
+from ..services.schema_extraction_service import extract_master_schema
+from ..services.section_classifier import classify_sections
+from ..services.s3_service import S3Service
 from ..services.strategic_chunker import parse_vin_chassis_from_text
 
 logger = logging.getLogger("pipeline")
 logger.setLevel(logging.INFO)
 
 
-async def update_document_status(document_id: str, status: str, repository: str | None = None) -> None:
-    """This function updates processing status and optional repository in Postgres."""
+async def _update_status(document_id: str, status: str, error: str | None = None) -> None:
     with SessionLocal() as session:
-        if repository:
-            session.execute(
-                text(
-                    "UPDATE documents SET processing_status = :status, current_repository = :repository, updated_at = NOW() WHERE id = :id"
-                ),
-                {"status": status, "repository": repository, "id": document_id},
-            )
-        else:
-            session.execute(
-                text("UPDATE documents SET processing_status = :status, updated_at = NOW() WHERE id = :id"),
-                {"status": status, "id": document_id},
-            )
+        session.execute(
+            text("""
+                UPDATE documents
+                SET processing_status = CAST(:status AS processing_status),
+                    error_message = :err,
+                    updated_at = NOW()
+                WHERE id = :id
+            """),
+            {"status": status, "err": error, "id": document_id},
+        )
         session.commit()
 
 
+async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
+    """ACT 1: parse → tree → classify → awaiting_certification (no embeddings)."""
+    logger.info("[%s] ACT 1 START", document_id)
+    s3 = S3Service()
+
+    if not s3_path:
+        with SessionLocal() as session:
+            row = session.execute(
+                text("SELECT s3_path FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+            s3_path = row[0] if row else None
+    if not s3_path:
+        logger.error("[%s] ACT 1 ABORT: no s3_path", document_id)
+        return
+
+    try:
+        step = start_step(document_id, 1, "parse", "pdf_received", "PDF received")
+        finish_step(step, {"s3_path": s3_path})
+        await _update_status(document_id, "parsing")
+
+        step = start_step(document_id, 1, "parse", "docling_parse", "Parsing document (Docling)")
+        structured: dict
+        try:
+            pdf_bytes = await s3.download_bytes(s3_path)
+            if settings.parser_primary in ("docling_structured", "auto") and check_health().get("ok"):
+                structured = parse_structured(pdf_bytes)
+            else:
+                raise RuntimeError("Docling structured parser unavailable")
+            await s3.upload_json(f"processing-artifacts/{document_id}/structure.json", structured)
+            finish_step(
+                step,
+                {
+                    "pages": len(structured.get("pages_text", [])),
+                    "tables": structured.get("table_count", 0),
+                    "headings": len(structured.get("headings", [])),
+                    "processing_time_s": round(structured.get("processing_time") or 0, 2),
+                },
+            )
+        except Exception as exc:
+            logger.warning("[%s] Docling failed, OCR fallback: %s", document_id, exc)
+            ocr = OcrService()
+            ocr_result = ocr.run_ocr(s3_path)
+            pages = ocr_result.get("pages", [])
+            plain = "\n".join(p.get("text", "") for p in pages)
+            structured = {
+                "pages_text": pages,
+                "plain_text": plain,
+                "md_content": "",
+                "hierarchy": [],
+                "headings": [],
+                "tables": [],
+                "table_count": 0,
+                "page_count": len(pages),
+                "processing_time": 0,
+            }
+            await s3.upload_json(f"processing-artifacts/{document_id}/structure.json", structured)
+            finish_step(step, {"pages": len(pages), "fallback": "ocr", "error": str(exc)[:200]})
+
+        step = start_step(document_id, 1, "structure", "document_tree", "Building document tree")
+        await _update_status(document_id, "structuring")
+        doc_tree = structured.get("hierarchy", [])
+        with SessionLocal() as session:
+            session.execute(
+                text("UPDATE documents SET document_tree_json = CAST(:tree AS jsonb), updated_at = NOW() WHERE id = :id"),
+                {"tree": json.dumps(doc_tree), "id": document_id},
+            )
+            session.commit()
+        finish_step(step, {"tree_nodes": len(doc_tree)})
+
+        step = start_step(document_id, 1, "classify", "section_classify", "Classifying sections")
+        await _update_status(document_id, "classifying")
+        doc_type = "generic_document"
+        try:
+            if settings.enable_section_classification:
+                classify_result = classify_sections(
+                    document_id=document_id,
+                    document_tree=doc_tree,
+                    headings=structured.get("headings", []),
+                    tables=structured.get("tables", []),
+                    md_content=structured.get("md_content", ""),
+                    plain_text=structured.get("plain_text", ""),
+                )
+                doc_type = classify_result.get("document_type", "generic_document")
+                finish_step(
+                    step,
+                    {
+                        "document_type": doc_type,
+                        "sections_labeled": len(classify_result.get("section_labels", [])),
+                    },
+                )
+            else:
+                finish_step(step, {"document_type": doc_type, "skipped": True})
+        except Exception as exc:
+            finish_step(step, {"error": str(exc)[:300]}, status="failed")
+
+        step = start_step(document_id, 1, "classify", "type_detect", "Detecting document type")
+        finish_step(step, {"document_type": doc_type})
+
+        await _update_status(document_id, "awaiting_certification")
+        await s3.upload_json(
+            f"processing-artifacts/{document_id}/act1_complete.json",
+            {"document_type": doc_type, "tree_nodes": len(doc_tree)},
+        )
+        logger.info("[%s] ACT 1 COMPLETE → awaiting_certification", document_id)
+    except Exception as exc:
+        logger.exception("[%s] ACT 1 FATAL: %s", document_id, exc)
+        await _update_status(document_id, "failed", error=str(exc))
+
+
+async def run_act2_process(document_id: str) -> None:
+    """ACT 2: schema extraction + embedding in parallel."""
+    logger.info("[%s] ACT 2 START", document_id)
+    await _update_status(document_id, "schema_extraction")
+    s3 = S3Service()
+
+    try:
+        structure_json = await s3.download_json(f"processing-artifacts/{document_id}/structure.json")
+    except Exception as exc:
+        logger.error("[%s] ACT 2: cannot load Act 1 artifacts: %s", document_id, exc)
+        with SessionLocal() as session:
+            row = session.execute(
+                text("SELECT s3_path FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+        if not row:
+            await _update_status(document_id, "failed", error="No structure artifact")
+            return
+        pdf_bytes = await s3.download_bytes(row[0])
+        structure_json = parse_structured(pdf_bytes)
+
+    md_content = structure_json.get("md_content", "")
+    plain_text = structure_json.get("plain_text", "")
+    pages_text = structure_json.get("pages_text", [])
+    page_count = structure_json.get("page_count")
+
+    with SessionLocal() as session:
+        row = session.execute(
+            text("SELECT document_type, s3_path FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+    document_type = (row[0] if row else None) or "generic_document"
+    s3_path = row[1] if row else ""
+
+    try:
+        await asyncio.gather(
+            _run_schema_pipeline(document_id, document_type, md_content, plain_text, page_count),
+            _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text),
+        )
+        await _update_status(document_id, "processing_complete")
+        logger.info("[%s] ACT 2 COMPLETE", document_id)
+    except Exception as exc:
+        logger.exception("[%s] ACT 2 FATAL: %s", document_id, exc)
+        await _update_status(document_id, "failed", error=str(exc))
+
+
+async def _run_schema_pipeline(
+    document_id: str,
+    document_type: str,
+    md_content: str,
+    plain_text: str,
+    page_count: int | None,
+) -> None:
+    step = start_step(document_id, 2, "schema", "schema_extract", "Per-section extraction")
+    try:
+        master_schema = extract_master_schema(
+            document_id=document_id,
+            document_type=document_type,
+            md_content=md_content,
+            plain_text=plain_text,
+            page_count=page_count,
+        )
+        finish_step(
+            step,
+            {
+                "extracted": master_schema.get("quality", {}).get("fields_extracted", 0),
+                "missing": master_schema.get("quality", {}).get("fields_missing", 0),
+            },
+        )
+    except Exception as exc:
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
+
+    step = start_step(document_id, 2, "schema", "schema_normalize", "Normalizing fields")
+    finish_step(step, {"document_type": document_type})
+
+    step = start_step(document_id, 2, "schema", "schema_merge", "Merging master schema")
+    finish_step(step, {"completeness": 0})
+
+    step = start_step(document_id, 2, "schema", "schema_save", "Saving to database")
+    finish_step(step, {"table": "documents.master_schema_json"})
+
+
+async def _run_embedding_pipeline(
+    document_id: str,
+    s3_path: str,
+    pages_text: list,
+    plain_text: str,
+) -> None:
+    with SessionLocal() as session:
+        row = session.execute(
+            text(
+                "SELECT make, model, year, warranty_type, country, metadata_json "
+                "FROM documents WHERE id = :id"
+            ),
+            {"id": document_id},
+        ).first()
+    metadata: dict = {}
+    if row:
+        metadata = {
+            "make": row[0],
+            "model": row[1],
+            "year": row[2],
+            "warrantyType": row[3],
+            "country": row[4],
+        }
+        raw_meta = row[5] or {}
+        if isinstance(raw_meta, dict):
+            if raw_meta.get("vin"):
+                metadata["vin"] = raw_meta["vin"]
+            if raw_meta.get("chassis_id"):
+                metadata["chassisId"] = raw_meta["chassis_id"]
+
+    if not metadata.get("vin") and plain_text:
+        parsed = parse_vin_chassis_from_text(plain_text)
+        if parsed.get("vin"):
+            metadata["vin"] = parsed["vin"]
+        if parsed.get("chassis_id"):
+            metadata["chassisId"] = parsed["chassis_id"]
+
+    step = start_step(document_id, 2, "embedding", "chunk_generate", "Generating chunks")
+    try:
+        chunks = chunk_pages(pages_text, document_id=document_id) if pages_text else chunk_text(plain_text)
+        finish_step(step, {"chunk_count": len(chunks)})
+    except Exception as exc:
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
+
+    step = start_step(document_id, 2, "embedding", "metadata_enrich", "Enriching metadata")
+    qdrant = QdrantService()
+    filename = Path(s3_path).name if s3_path else f"{document_id}.pdf"
+    chunks = prepare_chunks_for_upsert(
+        chunks,
+        plain_text,
+        enable_contextual=settings.enable_contextual_retrieval,
+        enable_sparse=qdrant.hybrid,
+    )
+    enriched = []
+    for chunk in chunks:
+        item = dict(chunk)
+        if not item.get("structuredMeta"):
+            item["structuredMeta"] = parse_chunk_structured_meta(item)
+        item["repository"] = "certified"
+        item["documentId"] = document_id
+        item["filename"] = filename
+        item.update(
+            {
+                "make": metadata.get("make"),
+                "model": metadata.get("model"),
+                "year": metadata.get("year"),
+                "country": metadata.get("country"),
+                "warrantyType": metadata.get("warrantyType"),
+                "vin": metadata.get("vin"),
+                "chassisId": metadata.get("chassisId"),
+            }
+        )
+        enriched.append(item)
+    finish_step(step, {"enriched": len(enriched)})
+
+    step = start_step(document_id, 2, "embedding", "embed_generate", "Creating embeddings (OpenAI)")
+    finish_step(step, {"chunks": len(enriched), "model": settings.small_model})
+
+    step = start_step(document_id, 2, "embedding", "qdrant_index", "Indexing (Qdrant)")
+    try:
+        qdrant.upsert_chunks(document_id, enriched)
+        finish_step(step, {"upserted": len(enriched), "collection": settings.qdrant_collection})
+    except Exception as exc:
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
+
+
 async def process_document(document_id: str, s3_path: str | None = None) -> None:
-    """This function runs OCR, extraction, chunking, embedding, and vector upsert."""
+    """Legacy entry point → Act 1 only when gate_heavy_on_certify is enabled."""
+    if settings.gate_heavy_on_certify:
+        await run_act1_parse(document_id, s3_path)
+    else:
+        await _legacy_process_document(document_id, s3_path)
+
+
+async def _legacy_process_document(document_id: str, s3_path: str | None = None) -> None:
+    """Full single-pass pipeline (pre-plan behavior) when gate is disabled."""
+    from ..services.extraction_service import ExtractionService
+
     s3 = S3Service()
     ocr = OcrService()
     extractor = ExtractionService()
@@ -53,130 +348,22 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
             s3_path = row[0]
 
     try:
-        logger.info("[%s] STEP 1/6 OCR start (s3=%s)", document_id, s3_path)
-        await update_document_status(document_id, "ocr_in_progress")
+        await _update_status(document_id, "ocr_in_progress")
         ocr_result = ocr.run_ocr(s3_path)
-        page_count = len(ocr_result.get("pages", []))
-        await s3.upload_json(f"ocr-output/{document_id}/ocr.json", ocr_result)
-        logger.info("[%s] STEP 1/6 OCR done (pages=%d)", document_id, page_count)
-
-        logger.info("[%s] STEP 2/6 Metadata extraction start", document_id)
-        await update_document_status(document_id, "extraction_in_progress")
-        plain_text = "\n".join([item["text"] for item in ocr_result.get("pages", [])])
+        plain_text = "\n".join(item["text"] for item in ocr_result.get("pages", []))
         metadata = extractor.extract_metadata(plain_text)
-        await s3.upload_json(f"extracted-text/{document_id}/text.json", {"text": plain_text})
-        await s3.upload_json(f"processing-artifacts/{document_id}/metadata.json", metadata)
-        logger.info(
-            "[%s] STEP 2/6 Metadata extracted (make=%s model=%s year=%s text_chars=%d)",
-            document_id,
-            metadata.get("make"),
-            metadata.get("model"),
-            metadata.get("year"),
-            len(plain_text),
-        )
-
-        # --- VIN/chassis regex fallback (LLM may miss these) ---
-        regex_parsed = parse_vin_chassis_from_text(plain_text)
-        if not metadata.get("vin") and regex_parsed.get("vin"):
-            metadata["vin"] = regex_parsed["vin"]
-            logger.info("[%s] VIN from regex fallback: %s", document_id, metadata["vin"])
-        if not metadata.get("chassis_id") and regex_parsed.get("chassis_id"):
-            metadata["chassis_id"] = regex_parsed["chassis_id"]
-            logger.info("[%s] Chassis from regex fallback: %s", document_id, metadata["chassis_id"])
-
-        # --- Derive year from effective_date if LLM didn't extract year ---
-        if not metadata.get("year") and metadata.get("effective_date"):
-            try:
-                metadata["year"] = int(str(metadata["effective_date"])[:4])
-                logger.info("[%s] Year derived from effective_date: %s", document_id, metadata["year"])
-            except (ValueError, TypeError):
-                pass
-
-        # --- Normalize make/model for consistent Qdrant filtering ---
-        raw_make = metadata.get("make") or ""
-        if raw_make.lower() in ("volvo", "volvo truck", "volvo trucks"):
-            metadata["make"] = "Volvo Truck"
-        raw_model = metadata.get("model") or ""
-        if raw_model:
-            metadata["model"] = re.sub(r"\s+N$", "", raw_model).strip()
-
-        logger.info(
-            "[%s] Post-processed metadata: make=%s model=%s year=%s vin=%s chassis=%s",
-            document_id,
-            metadata.get("make"),
-            metadata.get("model"),
-            metadata.get("year"),
-            metadata.get("vin"),
-            metadata.get("chassis_id"),
-        )
-
-        with SessionLocal() as session:
-            session.execute(
-                text(
-                    """
-                    UPDATE documents
-                    SET make = :make, model = :model, year = :year, warranty_type = :warranty_type,
-                        country = :country, metadata_json = CAST(:metadata AS jsonb), processing_status = 'extraction_complete',
-                        updated_at = NOW()
-                    WHERE id = :id
-                    """
-                ),
-                {
-                    "id": document_id,
-                    "make": metadata.get("make"),
-                    "model": metadata.get("model"),
-                    "year": metadata.get("year"),
-                    "warranty_type": metadata.get("warranty_type"),
-                    "country": metadata.get("country"),
-                    "metadata": json.dumps(metadata),
-                },
-            )
-            session.commit()
-
-        logger.info("[%s] STEP 3/6 DB metadata update done", document_id)
-
-        logger.info("[%s] STEP 4/6 Strategic chunking start", document_id)
         ocr_pages = ocr_result.get("pages", [])
         chunks = chunk_pages(ocr_pages, document_id=document_id) if ocr_pages else chunk_text(plain_text)
-        logger.info("[%s] STEP 4/6 Chunked into %d pieces", document_id, len(chunks))
-
-        filename = Path(s3_path).name if s3_path else f"{document_id}.pdf"
-
-        logger.info("[%s] STEP 5/6 Contextual embed + sparse vectors", document_id)
-        chunks = prepare_chunks_for_upsert(
-            chunks,
-            plain_text,
-            enable_contextual=settings.enable_contextual_retrieval,
-            enable_sparse=qdrant.hybrid,
-        )
-
+        chunks = prepare_chunks_for_upsert(chunks, plain_text, enable_contextual=settings.enable_contextual_retrieval, enable_sparse=qdrant.hybrid)
         enriched = []
         for chunk in chunks:
             item = dict(chunk)
-            if not item.get("structuredMeta"):
-                item["structuredMeta"] = parse_chunk_structured_meta(item)
             item["repository"] = "pending_review"
             item["documentId"] = document_id
-            item["filename"] = filename
-            item.update(
-                {
-                    "make": metadata.get("make"),
-                    "model": metadata.get("model"),
-                    "year": metadata.get("year"),
-                    "country": metadata.get("country"),
-                    "warrantyType": metadata.get("warranty_type"),
-                    "vin": metadata.get("vin"),
-                    "chassisId": metadata.get("chassis_id"),
-                    "coverageSummary": metadata.get("coverage_summary"),
-                }
-            )
             enriched.append(item)
-
         qdrant.upsert_chunks(document_id, enriched)
-        logger.info("[%s] STEP 6/6 Upserted %d chunks into Qdrant", document_id, len(enriched))
         new_s3_path = f"pending-review/{document_id}/original.pdf"
         await s3.move_object(s3_path, new_s3_path)
-        logger.info("[%s] S3 moved to %s", document_id, new_s3_path)
         with SessionLocal() as session:
             session.execute(
                 text(
@@ -186,14 +373,5 @@ async def process_document(document_id: str, s3_path: str | None = None) -> None
                 {"s3_path": new_s3_path, "id": document_id},
             )
             session.commit()
-        logger.info("[%s] DONE pipeline complete -> ready_for_review (s3_path=%s)", document_id, new_s3_path)
-    except Exception as error:  # pylint: disable=broad-except
-        logger.exception("[%s] FAILED pipeline error: %s", document_id, error)
-        with SessionLocal() as session:
-            session.execute(
-                text(
-                    "UPDATE documents SET processing_status = 'failed', error_message = :error, updated_at = NOW() WHERE id = :id"
-                ),
-                {"id": document_id, "error": str(error)},
-            )
-            session.commit()
+    except Exception as error:
+        await _update_status(document_id, "failed", error=str(error))

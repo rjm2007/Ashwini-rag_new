@@ -46,6 +46,18 @@ export class DocumentsController {
     return this.documentsService.listDocuments(query);
   }
 
+  @Get(":id/events")
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async getPipelineEvents(@Param("id") id: string) {
+    return this.documentsService.getPipelineEvents(id);
+  }
+
+  @Get(":id/summary")
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async getDocumentSummary(@Param("id") id: string) {
+    return this.documentsService.getDocumentSummary(id);
+  }
+
   @Get(":id")
   async getById(@Param("id") id: string) {
     // This function returns a single document by id.

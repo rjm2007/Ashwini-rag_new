@@ -42,6 +42,21 @@ services:
     networks:
       - warranty-net
 
+  docling:
+    image: quay.io/docling-project/docling-serve
+    container_name: warranty-docling
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      start_period: 120s
+      timeout: 15s
+      retries: 10
+    networks:
+      - warranty-net
+
   ai-service:
     build:
       context: ./ai-service
@@ -52,11 +67,20 @@ services:
       - .env
     environment:
       LOG_DIR: /app/logs
+      DOCLING_SERVE_URL: http://docling:5001
+      PARSER_PRIMARY: docling_structured
+      ENABLE_SECTION_CLASSIFICATION: "true"
+      ENABLE_SCHEMA_PIPELINE: "true"
+      GATE_HEAVY_ON_CERTIFY: "true"
     volumes:
       - ./logs/services/ai-service:/app/logs
     depends_on:
-      - postgres
-      - qdrant
+      docling:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+      qdrant:
+        condition: service_started
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
     networks:

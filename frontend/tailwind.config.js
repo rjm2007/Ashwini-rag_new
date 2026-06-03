@@ -4,19 +4,14 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"DM Sans"', "sans-serif"],
-        mono: ['"DM Mono"', "monospace"]
+        sans: ['Inter', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
       },
       colors: {
-        brand: {
-          orange: "#FF6200",
-          "orange-light": "#FFF0E6",
-          "orange-hover": "#E05500",
-          "orange-text": "#C24A00",
-          navy: "#06101E",
-          "navy-mid": "#0D1B2E",
-          "navy-light": "#1A2B42"
-        }
+        surface: '#161B22',
+        raised:  '#1E2430',
+        accent:  '#00D9C0',
+        border:  '#2D3748',
       }
     }
   },

@@ -2,149 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── GOOGLE FONTS ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+/* ── DIRECTION A TOKENS ───────────────────────── */
 :root {
-  /* ─── SURFACES ───────────────────────────────────────── */
-  --bg-primary: #F0F4F8;
-  --bg-secondary: #FFFFFF;
-  --bg-sidebar: #06101E;
-  --bg-sidebar-hover: #0D1B2E;
-  --bg-sidebar-active: #1A2B42;
+  --bg-page:          #0D1117;
+  --bg-surface:       #161B22;
+  --bg-raised:        #1E2430;
+  --bg-hover:         #242B38;
 
-  /* ─── TEXT COLORS ────────────────────────────────────── */
-  --text-primary: #0A1628;
-  --text-secondary: #3D5A80;
-  --text-muted: #7A92A8;
-  --text-sidebar: #8BAABF;
-  --text-sidebar-active: #FFFFFF;
+  --border:           #2D3748;
+  --border-strong:    #3D4F63;
 
-  /* ─── BRAND ACCENT — FIXYEE ORANGE ──────────────────── */
-  --accent: #FF6200;
-  --accent-light: #FFF0E6;
-  --accent-hover: #E05500;
-  --accent-text: #C24A00;
+  --text-primary:     #E2E8F0;
+  --text-secondary:   #94A3B8;
+  --text-muted:       #4A5568;
 
-  /* ─── STATUS COLORS ──────────────────────────────────── */
-  --status-success: #16A34A;
-  --status-success-bg: #F0FDF4;
-  --status-warning: #D97706;
-  --status-warning-bg: #FFFBEB;
-  --status-error: #DC2626;
-  --status-error-bg: #FEF2F2;
-  --status-info: #2563EB;
-  --status-info-bg: #EFF6FF;
-  --status-pending: #7C3AED;
-  --status-pending-bg: #F5F3FF;
+  --accent:           #00D9C0;
+  --accent-dim:       rgba(0, 217, 192, 0.12);
+  --accent-hover:     #00BFA9;
 
-  /* ─── BORDERS & SHADOWS ──────────────────────────────── */
-  --border: #D1DCE8;
-  --border-strong: #A8BCCF;
-  --shadow-sm: 0 1px 3px rgba(6, 16, 30, 0.06), 0 1px 2px rgba(6, 16, 30, 0.04);
-  --shadow-md: 0 4px 12px rgba(6, 16, 30, 0.10), 0 2px 6px rgba(6, 16, 30, 0.06);
-  --shadow-lg: 0 8px 24px rgba(6, 16, 30, 0.14), 0 4px 12px rgba(6, 16, 30, 0.08);
+  --state-running:    #00D9C0;
+  --state-done:       #48BB78;
+  --state-failed:     #FC8181;
+  --state-idle:       #4A5568;
 
-  /* ─── CONFIDENCE GAUGE COLORS ───────────────────────── */
-  --confidence-high: #16A34A;
-  --confidence-medium: #D97706;
-  --confidence-low: #DC2626;
+  --gate-color:       #D69E2E;
+  --gate-bg:          rgba(214, 158, 46, 0.08);
+
+  --confidence-high:  #48BB78;
+  --confidence-mid:   #ECC94B;
+  --confidence-low:   #FC8181;
+
+  --coverage-covered:      #48BB78;
+  --coverage-not-covered:  #FC8181;
+  --coverage-partial:      #ECC94B;
+  --coverage-insufficient: #4A5568;
 }
 
 body {
   margin: 0;
-  font-family: "DM Sans", sans-serif;
-  background: var(--bg-primary);
+  background: var(--bg-page);
   color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+a { color: inherit; text-decoration: none; }
+
+.mono { font-family: 'IBM Plex Mono', monospace; }
 
 .card {
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+  border-radius: 10px;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-@keyframes pulse-dot {
+@keyframes breathe {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  50%       { opacity: 0.35; }
 }
-.pulse {
-  animation: pulse-dot 1.8s ease-in-out infinite;
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes slide-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.animate-slide-in {
-  animation: slide-in-up 0.2s ease-out forwards;
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
 }
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-page-in {
-  animation: fade-in 0.2s ease-out forwards;
-}
-
-.confidence-bar-fill {
-  transition: width 0.5s ease-out;
-}
-
-button, a {
-  transition: all 0.15s ease;
-}
-
-/* Native disclosure toggles for evidence panels */
-details.evidence-sources > summary::-webkit-details-marker,
-details.evidence-sources summary::-webkit-details-marker,
-details > summary::-webkit-details-marker {
-  display: none;
-}
-details.evidence-sources[open] > summary,
-details[open] > summary .evidence-chevron {
-  color: #C24A00;
-}
-details > summary {
-  outline: none;
-}
-details > summary:focus-visible {
-  box-shadow: 0 0 0 2px #FF6200;
-  border-radius: 6px;
-}
-
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-breathe    { animation: breathe 1.4s ease-in-out infinite; }
+.animate-fade-slide { animation: fadeSlideUp 150ms ease-out forwards; }
+.animate-fade-in    { animation: fadeIn 200ms ease-out forwards; }
+.animate-scale-in   { animation: scaleIn 200ms ease-out forwards; }
+
+.border-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }

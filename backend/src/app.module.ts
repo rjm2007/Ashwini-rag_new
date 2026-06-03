@@ -7,6 +7,7 @@ import { DocumentsModule } from "./modules/documents/documents.module";
 import { ReviewModule } from "./modules/review/review.module";
 import { QueryModule } from "./modules/query/query.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { SupportModule } from "./modules/support/support.module";
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
     DocumentsModule,
     ReviewModule,
     QueryModule,
-    DashboardModule
+    DashboardModule,
+    SupportModule
   ]
 })
 export class AppModule implements NestModule {

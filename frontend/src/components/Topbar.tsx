@@ -1,26 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getUser } from "../lib/auth";
-import api from "../lib/api";
-
-const PAGE_NAMES: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/upload": "Upload",
-  "/documents": "Documents",
-  "/review": "Review Queue",
-  "/chat": "Chat"
-};
-
-function getPageName(pathname: string): string {
-  if (PAGE_NAMES[pathname]) return PAGE_NAMES[pathname];
-  if (pathname.startsWith("/documents/")) return "Document Detail";
-  if (pathname.startsWith("/review/")) return "Review Detail";
-  if (pathname.startsWith("/chat/")) return "Chat Session";
-  return "Page";
-}
 
 function getInitials(email: string): string {
   const parts = email.split("@")[0].split(/[._-]/);
@@ -28,85 +10,73 @@ function getInitials(email: string): string {
   return email.substring(0, 2).toUpperCase();
 }
 
-export default function Topbar() {
+function getBreadcrumb(pathname: string): string {
+  if (pathname === "/documents") return "Documents";
+  if (pathname === "/upload") return "Upload";
+  if (pathname.startsWith("/documents/")) {
+    const parts = pathname.split("/");
+    return `Documents / ${parts[parts.length - 1].slice(0, 8)}…`;
+  }
+  if (pathname.startsWith("/review")) return "Review";
+  return "Document Intelligence";
+}
+
+export default function Topbar({ breadcrumbOverride }: { breadcrumbOverride?: string }) {
   const pathname = usePathname();
-  const [user, setUser] = useState<any>(null);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [user, setUser] = useState<{ email?: string; role?: string } | null>(null);
 
   useEffect(() => {
     setUser(getUser());
   }, []);
 
-  useEffect(() => {
-    api
-      .get("/review/pending")
-      .then((r) => setPendingCount(Array.isArray(r.data) ? r.data.length : 0))
-      .catch(() => {});
-  }, []);
-
-  const pageName = getPageName(pathname || "");
+  const breadcrumb = breadcrumbOverride || getBreadcrumb(pathname || "");
   const initials = user?.email ? getInitials(user.email) : "??";
+  const role = user?.role || "user";
 
   return (
     <header
       style={{
-        height: 64,
-        backgroundColor: "#FFFFFF",
-        borderBottom: "1px solid #D1DCE8",
-        boxShadow: "0 1px 3px rgba(6,16,30,0.06)",
+        height: 48,
+        background: "var(--bg-surface)",
+        borderBottom: "1px solid var(--border)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 24px",
-        position: "sticky",
-        top: 0,
-        zIndex: 10
+        padding: "0 20px",
+        flexShrink: 0
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 13, color: "#7A92A8" }}>Warranty AI</span>
-        <span style={{ color: "#D1DCE8" }}>/</span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#0A1628" }}>{pageName}</span>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <div style={{ position: "relative" }}>
-          <Bell size={18} color="#7A92A8" />
-          {pendingCount > 0 && (
-            <span
-              style={{
-                position: "absolute",
-                top: -4,
-                right: -4,
-                width: 8,
-                height: 8,
-                backgroundColor: "#FF6200",
-                borderRadius: "50%",
-                border: "1.5px solid white"
-              }}
-            />
-          )}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 13, color: "#3D5A80" }}>{user?.email || "Guest"}</span>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              backgroundColor: "#FF6200",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#FFFFFF",
-              fontSize: 11,
-              fontWeight: 700,
-              fontFamily: "DM Mono, monospace",
-              flexShrink: 0
-            }}
-          >
-            {initials}
-          </div>
+      <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{breadcrumb}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 500,
+            padding: "2px 8px",
+            borderRadius: 99,
+            border: "1px solid var(--border)",
+            color: "var(--text-secondary)",
+            textTransform: "uppercase"
+          }}
+        >
+          {role}
+        </span>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: "var(--accent)",
+            color: "var(--bg-page)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 10,
+            fontWeight: 600,
+            fontFamily: "IBM Plex Mono, monospace"
+          }}
+        >
+          {initials}
         </div>
       </div>
     </header>

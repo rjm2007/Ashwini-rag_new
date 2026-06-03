@@ -3,12 +3,110 @@ export interface DocumentItem {
   originalFilename: string;
   currentRepository: string;
   processingStatus: string;
+  documentType?: string;
+  uploadedAt?: string;
 }
 
-export interface ChatMessage {
+export interface DocumentDetail extends DocumentItem {
+  make?: string;
+  model?: string;
+  year?: number;
+  metadataJson?: Record<string, unknown>;
+  confidenceScore?: number;
+  errorMessage?: string;
+}
+
+export interface PipelineEvent {
+  id: string;
+  document_id?: string;
+  documentId?: string;
+  act: 1 | 2;
+  stage: string;
+  step_key: string;
+  step_label: string;
+  status: "running" | "done" | "failed" | "idle";
+  detail: Record<string, unknown>;
+  duration_ms: number | null;
+  sequence: number;
+  created_at: string;
+}
+
+export type FieldStatus = "extracted" | "missing" | "low_confidence" | "not_applicable";
+
+export interface FieldWrapper {
+  value: string | number | boolean | null;
+  status: FieldStatus;
+  confidence: number;
+  page?: number | null;
+}
+
+export interface MasterSchema {
+  document: Record<string, FieldWrapper>;
+  vehicle: Record<string, FieldWrapper>;
+  profiles: {
+    warranty_certificate?: WarrantyCertificateProfile;
+    coverage_code_table?: CoverageCodeTableProfile;
+    repair_invoice?: RepairInvoiceProfile;
+    insurance_policy?: Record<string, FieldWrapper>;
+    generic_document?: Record<string, FieldWrapper>;
+  };
+  extensions?: ExtensionSection[];
+  quality?: {
+    fields_extracted?: number;
+    fields_missing?: number;
+    fields_low_confidence?: number;
+    overall_completeness?: number;
+  };
+}
+
+export interface ExtensionSection {
+  section_id?: string;
+  label?: string;
+  heading?: string;
+  summary?: string;
+  raw_fields?: Record<string, FieldWrapper>;
+  page?: number;
+}
+
+export interface WarrantyCertificateProfile {
+  coverage_summary?: Record<string, FieldWrapper>;
+  covered_components?: Array<Record<string, FieldWrapper>>;
+  exclusions?: Array<{ clause_no?: FieldWrapper; title?: FieldWrapper; text?: FieldWrapper }>;
+  towing?: Record<string, FieldWrapper>;
+}
+
+export interface CoverageCodeTableProfile {
+  coverage_codes?: Array<Record<string, FieldWrapper>>;
+}
+
+export interface RepairInvoiceProfile {
+  invoice_no?: FieldWrapper;
+  ro_no?: FieldWrapper;
+  invoice_date?: FieldWrapper;
+  customer?: FieldWrapper;
+  complaint?: FieldWrapper;
+  correction?: FieldWrapper;
+  line_items?: Array<Record<string, FieldWrapper>>;
+  totals?: Record<string, FieldWrapper>;
+}
+
+export type SummaryPayload = MasterSchema;
+
+export interface ChatMessageItem {
   id: string;
   role: "user" | "assistant";
   content: string;
-  evidenceJson?: unknown[];
+  evidenceJson?: Array<{ text?: string; page?: number; documentId?: string }>;
   confidenceScore?: number;
+  metadataFiltersAppliedJson?: Record<string, unknown>;
+  coverageDecision?: CoverageDecision;
 }
+
+export type CoverageDecision =
+  | "covered"
+  | "not_covered"
+  | "partial"
+  | "insufficient_evidence"
+  | "covered_with_limits";
+
+export type ConfidenceBand = "high" | "medium" | "low";
