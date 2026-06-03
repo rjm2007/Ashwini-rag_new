@@ -1,0 +1,131 @@
+{
+  "run_at": "2026-05-25T00:04:39.316046",
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "id": "Q1",
+      "question": "Is the frame and crossmembers covered under warranty for unit 1168 (VIN 4V4NC9EH5LN218365)?",
+      "answer": "Yes. The certified coverage table lists:\n- U030 \u2014 72 Months / 750,000 Miles \u2014 Frame & Crossmembers; start 2019-03-21, end 2025-03-21 [1]\n\nThis shows frame and crossmembers were covered for VIN 4V4NC9EH5LN218365 under U030, subject to the listed time and mileage limits. If the repair/claim date is after 2025-03-21 or the unit has exceeded 750,000 miles, the evidence does not show active coverage.",
+      "confidence": 0.93,
+      "evidenceCount": 2,
+      "coverageDecision": "covered_with_limits",
+      "intent": "warranty_coverage",
+      "filtersApplied": {
+        "make": "Volvo Truck",
+        "vin": "4V4NC9EH5LN218365"
+      },
+      "elapsed": 27.25,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q2",
+      "question": "My truck with VIN 4V4NC9EH5LN218365 has 200,000 miles on it. Is the engine still covered under the standard engine warranty?",
+      "answer": "No. The standard engine warranty for VIN 4V4NC9EH5LN218365 is U06 \u2014 Standard Engine Warranty: 24 months/250,000 miles \u2014 with coverage from 2019-03-21 to 2021-03-21. At 200,000 miles, the truck is under the mileage limit, but the warranty end date has passed, so it is not still covered under the standard engine warranty.",
+      "confidence": 0.95,
+      "evidenceCount": 1,
+      "coverageDecision": "not_covered",
+      "intent": "warranty_coverage",
+      "filtersApplied": {
+        "make": "Volvo Truck",
+        "vin": "4V4NC9EH5LN218365"
+      },
+      "elapsed": 44.73,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q3",
+      "question": "Compare the transmission warranty coverage between unit 1168 (chassis 218365) and unit 1118 (chassis 180032). Which one has longer coverage?",
+      "answer": "For chassis 218365 (user-stated unit 1168), the transmission-related rows shown are:\n- TOW4 \u2014 24 months / 250,000 miles \u2014 TOWING on warrantable transmission failures; 2019-03-21 to 2021-03-21 [2]\n- U065 \u2014 60 Months / 750,000 Miles \u2014 Auto/Manual Transmission (AMT); 2019-03-21 to 2024-03-21 [2]\n- U0650 \u2014 36 Months / 300,000 Miles \u2014 AMT Clutch; 2019-03-21 to 2022-03-21 [2]\n\nFor chassis 180032 (user-stated unit 1118), the transmission-related rows shown are:\n- TOW4 \u2014 24 months / 250,000 miles \u2014 TOWING on warrantable transmission failures; 2014-06-16 to 2016-06-16 [3]\n- U065 \u2014 60 Months / 750,000 Miles \u2014 Auto/Manual Transmission (AMT); 2014-06-16 to 2019-06-16 [3]\n- U0650 \u2014 36 Months / 300,000 Miles \u2014 AMT Clutch; 2014-06-16 to 2017-06-16 [3]\n\nWhich has longer coverage: neither has longer duration or mileage for the matching transmission-related coverages shown. The U065 AMT coverage is 60 Months/750,000 Miles for both chassis. However, chassis 218365 has later calendar coverage dates because its coverage starts and ends later.",
+      "confidence": 0.9,
+      "evidenceCount": 2,
+      "coverageDecision": "covered",
+      "intent": "comparison",
+      "filtersApplied": {},
+      "elapsed": 59.25,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q4",
+      "question": "Is the turbocharger covered on the Volvo truck with VIN 4V4NC9EH7LN218366?",
+      "answer": "The certified evidence for VIN 4V4NC9EH7LN218366 does not specifically mention a turbocharger. It lists engine-related coverages, including E6460 \u2014 48 months / 600K miles \u2014 ENGINE PLAN 2, and U06 \u2014 24 months / 250,000 miles \u2014 Standard Engine Warranty, but the evidence does not state that a turbocharger is included. Therefore, I cannot confirm turbocharger coverage from the provided certified documents.",
+      "confidence": 0.7,
+      "evidenceCount": 1,
+      "coverageDecision": "insufficient_evidence",
+      "intent": "warranty_coverage",
+      "filtersApplied": {
+        "make": "Volvo Truck",
+        "vin": "4V4NC9EH7LN218366"
+      },
+      "elapsed": 51.52,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q5",
+      "question": "What emission-related warranties exist for unit 1117 (VIN 4V4NC9EH6GN928218) and are any of them still active?",
+      "answer": "For VIN 4V4NC9EH6GN928218, the only emission-related warranty shown is U15, described as \u201cEngine Emission EPA14,\u201d with 60 months/100,000 miles coverage [1]. It started on 2015-06-08 and ended on 2020-06-08, so it is not active as of 2026-05-24 by the listed end date [1]. The retrieved record\u2019s unit number is shown as 1-14-285, not unit 1117, though the VIN matches the user\u2019s VIN [1].",
+      "confidence": 0.87,
+      "evidenceCount": 1,
+      "coverageDecision": "not_covered",
+      "intent": "warranty_metadata_lookup",
+      "filtersApplied": {
+        "make": "Volvo Truck",
+        "vin": "4V4NC9EH6GN928218"
+      },
+      "elapsed": 48.14,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q6",
+      "question": "If my Volvo truck with chassis 218366 has a transmission breakdown at 200,000 miles, am I covered for towing?",
+      "answer": "For chassis 218366, the Volvo coverage table lists T0W4 as towing on warrantable transmission failures for 24 months/250,000 miles, from 2019-03-21 to 2021-03-21 [1]. At 200,000 miles, you are within the 250,000-mile towing mileage limit, but towing also depends on the breakdown date being within that date window and the transmission failure being warrantable [1]. I would treat this as partial/conditional coverage because the breakdown date was not provided [1].",
+      "confidence": 0.95,
+      "evidenceCount": 1,
+      "coverageDecision": "partial",
+      "intent": "warranty_coverage",
+      "filtersApplied": {
+        "make": "Volvo Truck",
+        "model": "truck",
+        "chassisId": "218366"
+      },
+      "elapsed": 69.71,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q7",
+      "question": "What is the recommended oil change interval for a Volvo VNL?",
+      "answer": "I can only help with warranty coverage questions based on your certified warranty documents. Try asking whether a component is covered, what the warranty period is, or what applies to a specific VIN.",
+      "confidence": 0.1,
+      "evidenceCount": 0,
+      "coverageDecision": "insufficient_evidence",
+      "intent": "out_of_scope",
+      "filtersApplied": {},
+      "elapsed": 21.57,
+      "error": null,
+      "passed": true
+    },
+    {
+      "id": "Q8",
+      "question": "Is the alternator covered on a 2023 Freightliner Cascadia?",
+      "answer": "The certified evidence provided does not mention alternator coverage for a 2023 Freightliner Cascadia, so I cannot determine whether the alternator is covered.",
+      "confidence": 0.0,
+      "evidenceCount": 0,
+      "coverageDecision": "insufficient_evidence",
+      "intent": "warranty_coverage",
+      "filtersApplied": {
+        "make": "Freightliner",
+        "model": "Cascadia",
+        "year": 2023
+      },
+      "elapsed": 30.71,
+      "error": null,
+      "passed": true
+    }
+  ]
+}

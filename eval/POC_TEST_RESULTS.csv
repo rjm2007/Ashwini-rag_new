@@ -1,0 +1,21 @@
+"id","question","answer","confidence","evidenceCount","coverageDecision","intent","elapsed"
+"Q1","Is the frame and crossmembers covered under warranty for unit 1168 (VIN 4V4NC9EH5LN218365)?","The certified documents show coverage code U030 for this VIN: U030 ??? 72 Months/750,000 Miles ??? Frame & Crossmembers, start 2019-03-21, end 2025-03-21 [1]. As of the current date, that end date has passed, so it is not currently active by time; mileage at repair is not provided.","0.91","2","not_covered","warranty_coverage","43.9446596"
+"Q2","My truck with VIN 4V4NC9EH5LN218365 has 200,000 miles on it. Is the engine still covered under the standard engine warranty?","The certified evidence provided does not include any warranty terms, engine warranty coverage row, duration, mileage limit, or VIN-specific applicability for VIN 4V4NC9EH5LN218365. I cannot determine whether the engine is still covered at 200,000 miles from the provided evidence.","0.0","0","insufficient_evidence","warranty_coverage","31.6119771"
+"Q3","Compare the transmission warranty coverage between unit 1168 (chassis 218365) and unit 1118 (chassis 180032). Which one has longer coverage?","Comparing the transmission-related coverage rows by the requested chassis IDs:
+
+Chassis 218365:
+- TOW4 ??? 24 months / 250,000 miles ??? TOWING on warrantable transmission failures; 2019-03-21 to 2021-03-21 [1]
+- U065 ??? 60 Months / 750,000 Miles ??? Auto/Manual Transmission (AMT); 2019-03-21 to 2024-03-21 [1]
+- U0650 ??? 36 Months / 300,000 Miles ??? AMT Clutch; 2019-03-21 to 2022-03-21 [1]
+
+Chassis 180032:
+- TOW4 ??? 24 months / 250,000 miles ??? TOWING on warrantable transmission failures; 2014-06-16 to 2016-06-16 [4]
+- U065 ??? 60 Months / 750,000 Miles ??? Auto/Manual Transmission (AMT); 2014-06-16 to 2019-06-16 [4]
+- U0650 ??? 36 Months / 300,000 Miles ??? AMT Clutch; 2014-06-16 to 2017-06-16 [4]
+
+Which has longer coverage? By stated duration and mileage limits, neither is longer: both chassis show the same transmission-related coverage limits for TOW4, U065, and U0650. By calendar end date, chassis 218365 ends later because its coverage starts in 2019, while chassis 180032 starts in 2014.","0.92","2","covered","comparison","51.1860148"
+"Q4","Is the turbocharger covered on the Volvo truck with VIN 4V4NC9EH7LN218366?","The certified evidence provided does not mention turbocharger coverage for VIN 4V4NC9EH7LN218366.","0.0","0","insufficient_evidence","warranty_coverage","30.821305"
+"Q5","What emission-related warranties exist for unit 1117 (VIN 4V4NC9EH6GN928218) and are any of them still active?","I cannot determine what emission-related warranties exist or whether any are still active because no certified evidence chunks were provided.","0.0","0","insufficient_evidence","warranty_metadata_lookup","40.6322306"
+"Q6","If my Volvo truck with chassis 218366 has a transmission breakdown at 200,000 miles, am I covered for towing?","I cannot determine whether towing is covered for a transmission breakdown on Volvo chassis 218366 at 200,000 miles because no certified evidence chunks were provided.","0.0","0","insufficient_evidence","warranty_coverage","37.718123"
+"Q7","What is the recommended oil change interval for a Volvo VNL?","I don???t have enough certified evidence in the provided chunks to state a recommended oil change interval for a Volvo VNL.","0.0","0","insufficient_evidence","warranty_metadata_lookup","39.7462204"
+"Q8","Is the alternator covered on a 2023 Freightliner Cascadia?","The certified evidence provided does not mention alternator coverage for a 2023 Freightliner Cascadia, so I cannot determine whether it is covered.","0.0","0","insufficient_evidence","warranty_coverage","30.6701039"

@@ -37,6 +37,8 @@ semantic recall without changing meaning.
   "defect_or_symptom": string | null,
   "mileage": integer | null,
   "mileage_unit": "miles" | "km" | null,
+  "vin": string | null,
+  "chassis_id": string | null,
   "purchase_date": string | null,
   "in_service_date": string | null,
   "rewritten_query": string,
@@ -68,6 +70,11 @@ Valid year range: 1980–2030. Any number outside that range is NOT a model year
 - mileage / mileage_unit: Integer odometer reading and its unit, if stated.
   Strip commas. If only "km" or "miles" is implied by region, set unit but
   keep mileage null.
+- vin: Full 17-character Vehicle Identification Number when present in the
+  question. Example: 4V4NC9EH5LN218365. Extract exactly as the user typed it.
+- chassis_id: Chassis or unit ID, typically a 5-6 digit number. When user says
+  "chassis 218365" or "chassis ID NR 218366", extract the numeric part: "218365"
+  or "218366". Do NOT map unit numbers (like "unit 1168") to chassis IDs.
 - purchase_date / in_service_date: ISO-like date string only if explicitly
   stated; otherwise null.
 - rewritten_query: A concise, retrieval-friendly rewrite of the user's
@@ -114,6 +121,8 @@ OUTPUT:
   "defect_or_symptom": null,
   "mileage": 312000,
   "mileage_unit": "miles",
+  "vin": null,
+  "chassis_id": null,
   "purchase_date": null,
   "in_service_date": null,
   "rewritten_query": "Coverage of turbocharger on 2023 Freightliner Cascadia at 312,000 miles.",
@@ -141,6 +150,8 @@ OUTPUT:
   "defect_or_symptom": null,
   "mileage": null,
   "mileage_unit": null,
+  "vin": null,
+  "chassis_id": null,
   "purchase_date": null,
   "in_service_date": null,
   "rewritten_query": "Transmission coverage status for 2021 Toyota Camry.",
@@ -165,12 +176,40 @@ OUTPUT:
   "defect_or_symptom": null,
   "mileage": null,
   "mileage_unit": null,
+  "vin": null,
+  "chassis_id": null,
   "purchase_date": null,
   "in_service_date": null,
   "rewritten_query": "is it covered?",
   "semantic_keywords": [],
   "ambiguity_notes": "No identifiers provided; cannot apply payload filters.",
   "extraction_confidence": 0.15
+}
+
+## Example D
+HISTORY: []
+USER: "Is the turbocharger covered on the Volvo truck with VIN 4V4NC9EH7LN218366?"
+OUTPUT:
+{
+  "make": "Volvo",
+  "model": null,
+  "year": null,
+  "year_range": { "from": null, "to": null },
+  "country": null,
+  "warranty_type": null,
+  "component": "turbocharger",
+  "component_synonyms": ["turbo", "turbo unit", "boost system"],
+  "defect_or_symptom": null,
+  "mileage": null,
+  "mileage_unit": null,
+  "vin": "4V4NC9EH7LN218366",
+  "chassis_id": null,
+  "purchase_date": null,
+  "in_service_date": null,
+  "rewritten_query": "Turbocharger warranty coverage for Volvo truck VIN 4V4NC9EH7LN218366",
+  "semantic_keywords": ["turbocharger", "turbo", "powertrain", "volvo", "4V4NC9EH7LN218366"],
+  "ambiguity_notes": "Model and year not stated; VIN may identify them.",
+  "extraction_confidence": 0.85
 }
 
 # FINAL REMINDER

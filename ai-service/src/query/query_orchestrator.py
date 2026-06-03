@@ -3,6 +3,7 @@ import logging
 from .intent_classifier import classify_intent
 from .metadata_filter import extract_metadata_filters, qdrant_filters_from_metadata, _is_valid_year
 from ..config import settings
+from ..services.aggregation_engine import is_aggregation_query, aggregate
 from ..services.reranker_service import is_list_or_filter_question
 from ..services.structured_query_engine import is_simple_retrieval_query, is_structured_query
 from .query_mode import is_hallucination_probe
@@ -63,6 +64,11 @@ async def answer_question(question: str, conversation_history: list[dict]) -> di
             "intent": "greeting_or_smalltalk",
         }
 
+    # Count / group-by / "all vehicles" → deterministic full-scan, not retrieval.
+    if is_aggregation_query(question):
+        logger.info("Aggregation path engaged for question: %.80s", question)
+        return aggregate(question)
+
     classification = classify_intent(question, conversation_history)
     intent = classification.get("intent", "warranty_coverage")
 
@@ -111,7 +117,8 @@ async def answer_question(question: str, conversation_history: list[dict]) -> di
 
     logger.info(
         "Query filters applied: %s | Query: %.80s | "
-        "Extracted metadata: make=%s, model=%s, year=%s (valid=%s), mileage=%s",
+        "Extracted metadata: make=%s, model=%s, year=%s (valid=%s), "
+        "mileage=%s, vin=%s, chassisId=%s",
         filters,
         question,
         metadata.get("make"),
@@ -119,6 +126,8 @@ async def answer_question(question: str, conversation_history: list[dict]) -> di
         metadata.get("year"),
         _is_valid_year(metadata.get("year")),
         metadata.get("mileage"),
+        metadata.get("vin"),
+        metadata.get("chassis_id") or metadata.get("chassisId"),
     )
 
     list_mode = is_list_or_filter_question(question)
