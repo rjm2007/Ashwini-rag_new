@@ -318,7 +318,7 @@ async def _run_schema_pipeline(
                     make                    = COALESCE(:make, make),
                     model                   = COALESCE(:model, model),
                     year                    = COALESCE(:year, year),
-                    metadata_json           = COALESCE(metadata_json, '{{}}'::jsonb)
+                    metadata_json           = COALESCE(metadata_json, '{}'::jsonb)
                                               || CAST(:meta AS jsonb),
                     updated_at              = NOW()
                 WHERE id = :id
