@@ -66,6 +66,9 @@ export class DocumentEntity {
   @Column({ name: 'section_extracts_json', type: 'jsonb', nullable: true })
   sectionExtractsJson?: Record<string, unknown>[];
 
+    @Column({ name: 'document_sections_json', type: 'jsonb', default: () => "'[]'::jsonb" })
+    documentSectionsJson?: Record<string, unknown>[];
+
   @CreateDateColumn({ name: "uploaded_at" })
   uploadedAt!: Date;
 

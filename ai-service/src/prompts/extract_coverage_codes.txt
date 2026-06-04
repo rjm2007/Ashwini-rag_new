@@ -15,6 +15,15 @@ Extract EVERY row from the coverage code table in SECTION_TEXT.
    U071/U092→cab, U13/U15→emissions, Z→info_only.
 10. start_date / end_date: format as YYYY-MM from the table columns.
 
+# STATUS VALUES — STRICT ENUM
+The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):
+  - "extracted"        → value is present and clearly stated in the text
+  - "missing"          → value is not present in the text (value MUST be null)
+  - "low_confidence"   → value is present but ambiguous, partial, or inferred
+
+DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
+Output is REJECTED if status is anything other than the three allowed strings.
+
 # OUTPUT
 {
   "profiles": {

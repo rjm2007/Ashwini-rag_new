@@ -127,6 +127,10 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
                     plain_text=structured.get("plain_text", ""),
                 )
                 doc_type = classify_result.get("document_type", "generic_document")
+                # Persist enriched_sections into the structure artifact
+                structured["enriched_sections"] = classify_result.get("enriched_sections", [])
+                structured["enriched_tree"] = classify_result.get("enriched_tree", [])
+                await s3.upload_json(f"processing-artifacts/{document_id}/structure.json", structured)
                 finish_step(
                     step,
                     {
@@ -204,10 +208,11 @@ async def run_act2_process(document_id: str) -> None:
     s3_path = row[1] if row else ""
 
     # Load sections from structure artifact for per-section extraction
-    sections = structure_json.get("sections", [])
+    enriched_sections = structure_json.get("enriched_sections") or structure_json.get("sections", [])
+    full_texts = structure_json.get("full_texts", [])
 
     try:
-        await asyncio.gather(
+        results = await asyncio.gather(
             _run_schema_pipeline(
                 document_id,
                 document_type,
@@ -215,11 +220,29 @@ async def run_act2_process(document_id: str) -> None:
                 plain_text,
                 page_count,
                 tables_text=structure_json.get("tables_text", ""),
-                sections=sections,
+                sections=enriched_sections,
+                full_texts=full_texts,
             ),
             _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text),
+            return_exceptions=True,
         )
-        await _update_status(document_id, "processing_complete")
+
+        # Check both results explicitly
+        schema_err = results[0] if isinstance(results[0], Exception) else None
+        embed_err = results[1] if isinstance(results[1], Exception) else None
+
+        if schema_err and embed_err:
+            logger.error("[%s] BOTH pipelines failed: schema=%s embed=%s",
+                         document_id, schema_err, embed_err)
+            await _update_status(document_id, "failed", error=f"schema:{schema_err}; embed:{embed_err}")
+        elif schema_err:
+            logger.error("[%s] Schema pipeline failed: %s — embedding completed", document_id, schema_err)
+            await _update_status(document_id, "processing_complete", error=f"schema:{schema_err}")
+        elif embed_err:
+            logger.error("[%s] Embedding pipeline failed: %s — schema completed", document_id, embed_err)
+            await _update_status(document_id, "processing_complete", error=f"embed:{embed_err}")
+        else:
+            await _update_status(document_id, "processing_complete")
         logger.info("[%s] ACT 2 COMPLETE", document_id)
     except Exception as exc:
         logger.exception("[%s] ACT 2 FATAL: %s", document_id, exc)
@@ -233,11 +256,13 @@ async def _run_schema_pipeline(
     plain_text: str,
     page_count: int | None,
     tables_text: str = "",
-    sections: list | None = None,
+    sections: list[dict] | None = None,
+    full_texts: list[dict] | None = None,
 ) -> None:
     from ..services.schema_extraction_service import (
         SECTION_EXTRACTION_MAP, _run_section_extraction,
         _merge_section_extracts, _normalize, _compute_quality,
+        _normalize_field_wrappers_deep, _count_extracted_in,
         _clean_text, _fw_value,
     )
     from ..services.llm_service import LlmService
@@ -248,6 +273,7 @@ async def _run_schema_pipeline(
 
     llm = LlmService()
     sections = sections or []
+    full_texts = full_texts or []
     effective_md = tables_text.strip() + "\n\n" + (md_content or "") if tables_text.strip() else (md_content or "")
     effective_md = _clean_text(effective_md)
 
@@ -258,53 +284,71 @@ async def _run_schema_pipeline(
     section_extracts = []
     master = {"document": {}, "vehicle": {}, "profiles": {document_type: {}}, "extensions": []}
 
-    # ── Per-section extraction steps ─────────────────────────────────────────
+    # ── 1) PER-SECTION EXTRACTION ────────────────────────────────────────
     for group in extraction_groups:
-        step = start_step(
-            document_id, 2, "schema",
-            f"schema_{group['name']}", group["event_label"]
-        )
+        step_key = f"schema_{group['name']}"
+        step_label = group.get("event_label", f"Extracting: {group['name']}")
+        step = start_step(document_id, 2, "schema", step_key, step_label)
         try:
-            extracted = _run_section_extraction(group, document_type, sections, effective_md, plain_text, llm)
-            section_extracts.append({"name": group["name"], "labels": group["labels"], "extracted": extracted})
-            # merge
+            extracted = _run_section_extraction(
+                group, document_type, sections, effective_md, plain_text, llm,
+                full_texts=full_texts,
+            )
+            extracted = _normalize_field_wrappers_deep(extracted)
+            section_extracts.append({
+                "name": group["name"],
+                "labels": group["labels"],
+                "extracted": extracted,
+            })
+            # Merge into master based on group identity
             if group["name"] in ("vehicle_identification", "vehicle_and_header"):
                 _merge_section_extracts("vehicle", extracted.get("vehicle", extracted), master["vehicle"])
                 _merge_section_extracts("document", extracted.get("document", {}), master["document"])
                 profile = master["profiles"].setdefault(document_type, {})
-                for k in ("invoice_no","ro_no","invoice_date","customer","complaint","correction"):
-                    if k in extracted: profile.setdefault(k, extracted[k])
-            elif group["name"] in ("coverage_summary","coverage_codes","line_items","exclusions","claim_procedure"):
+                for k in ("invoice_no", "ro_no", "invoice_date", "customer", "complaint", "correction"):
+                    if k in extracted:
+                        profile.setdefault(k, extracted[k])
+            elif group["name"] in ("coverage_summary", "coverage_codes", "line_items", "exclusions", "claim_procedure"):
                 profile = master["profiles"].setdefault(document_type, {})
-                _merge_section_extracts(group["name"], extracted, profile)
+                profile_extracts = (extracted.get("profiles", {}) or {}).get(document_type, extracted)
+                _merge_section_extracts(group["name"], profile_extracts, profile)
             elif group["name"] == "full_document":
                 _merge_section_extracts("document", extracted.get("document", {}), master["document"])
                 _merge_section_extracts("vehicle", extracted.get("vehicle", {}), master["vehicle"])
-                master["extensions"].extend(extracted.get("extensions", []))
+                for ext in extracted.get("extensions", []):
+                    master["extensions"].append(ext)
 
             finish_step(step, {
                 "name": group["name"],
-                "keys_extracted": len([k for k,v in extracted.items() if isinstance(v, dict) and v.get("status") == "extracted"]),
+                "fields_in_section": _count_extracted_in(extracted),
+                "section_labels_used": group["labels"],
             })
         except Exception as exc:
-            finish_step(step, {"error": str(exc)[:300]}, status="failed")
-            # Soft failure — continue with other sections
+            logger.warning("[%s] Section %s extraction failed: %s", document_id, group["name"], exc)
+            finish_step(step, {"name": group["name"], "error": str(exc)[:300]}, status="failed")
 
-    # ── Normalize + quality ───────────────────────────────────────────────────
+    # ── 2) NORMALIZE + QUALITY ───────────────────────────────────────────
     step = start_step(document_id, 2, "schema", "schema_normalize", "Normalizing & validating fields")
+    master = _normalize_field_wrappers_deep(master)
     master = _normalize(master)
     quality = _compute_quality(master, page_count)
     master["quality"] = quality
-    finish_step(step, {"completeness": quality["overall_completeness"]})
+    finish_step(step, {
+        "completeness": quality["overall_completeness"],
+        "extracted": quality["fields_extracted"],
+        "missing": quality["fields_missing"],
+        "low_confidence": quality["fields_low_confidence"],
+    })
 
-    # ── Merge + save ─────────────────────────────────────────────────────────
+    # ── 3) SAVE MASTER SCHEMA ────────────────────────────────────────────
     step = start_step(document_id, 2, "schema", "schema_save", "Saving master schema to database")
     vehicle = master.get("vehicle", {}) or {}
-    required_missing = not all([
-        _fw_value(vehicle.get("vin")) or _fw_value(vehicle.get("chassis_id")),
-        _fw_value(vehicle.get("make")),
-        _fw_value(vehicle.get("model")),
-    ])
+    vin_val = _fw_value(vehicle.get("vin"))
+    chassis_val = _fw_value(vehicle.get("chassis_id"))
+    make_val = _fw_value(vehicle.get("make"))
+    model_val = _fw_value(vehicle.get("model"))
+    year_val = _fw_value(vehicle.get("model_year"))
+    required_missing = not all([vin_val or chassis_val, make_val, model_val])
 
     from sqlalchemy import text as sqla_text
     with SessionLocal() as session:
@@ -324,14 +368,13 @@ async def _run_schema_pipeline(
                 WHERE id = :id
             """),
             {
-                "schema": json.dumps(master), "extracts": json.dumps(section_extracts),
-                "comp": quality["overall_completeness"], "req": required_missing,
-                "make": _fw_value(vehicle.get("make")),
-                "model": _fw_value(vehicle.get("model")),
-                "year": _fw_value(vehicle.get("model_year")),
+                "schema": json.dumps(master),
+                "extracts": json.dumps(section_extracts),
+                "comp": quality["overall_completeness"],
+                "req": required_missing,
+                "make": make_val, "model": model_val, "year": year_val,
                 "meta": json.dumps({k: v for k, v in {
-                    "vin": _fw_value(vehicle.get("vin")),
-                    "chassis_id": _fw_value(vehicle.get("chassis_id")),
+                    "vin": vin_val, "chassis_id": chassis_val,
                 }.items() if v}),
                 "id": document_id,
             },
@@ -343,14 +386,14 @@ async def _run_schema_pipeline(
         "required_missing": required_missing,
     })
 
-    # ── Generate AI narrative summary ────────────────────────────────────────
+    # ── 4) AI NARRATIVE SUMMARY ──────────────────────────────────────────
     step = start_step(document_id, 2, "schema", "summary_generate", "Generating AI summary")
     try:
         summary_text = generate_document_summary(document_id, master)
         finish_step(step, {"summary_chars": len(summary_text)})
     except Exception as exc:
+        logger.warning("[%s] Summary generation failed: %s", document_id, exc)
         finish_step(step, {"error": str(exc)[:200]}, status="failed")
-        # Non-fatal — schema is still saved
 
 
 async def _run_embedding_pipeline(

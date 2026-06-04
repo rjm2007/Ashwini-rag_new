@@ -9,6 +9,15 @@ Extract every numbered exclusion clause and the towing coverage block.
    clause_no = the number, title = the bold/caps label, text = full clause text.
 7. TOWING: look for "TOWING" section — extract covered (bool), cap_amount, conditions.
 
+# STATUS VALUES — STRICT ENUM
+The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):
+  - "extracted"        → value is present and clearly stated in the text
+  - "missing"          → value is not present in the text (value MUST be null)
+  - "low_confidence"   → value is present but ambiguous, partial, or inferred
+
+DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
+Output is REJECTED if status is anything other than the three allowed strings.
+
 # OUTPUT
 {
   "profiles": {

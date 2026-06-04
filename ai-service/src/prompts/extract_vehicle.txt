@@ -12,6 +12,15 @@ Extract all vehicle identification and document header fields from the SECTION_T
 5. VIN: 17-char alphanumeric (no I/O/Q). If unsure → status:"low_confidence".
 6. chassis_id: numeric/alphanumeric near "NR", "Chassis", or "Unit Number".
 
+# STATUS VALUES — STRICT ENUM
+The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):
+  - "extracted"        → value is present and clearly stated in the text
+  - "missing"          → value is not present in the text (value MUST be null)
+  - "low_confidence"   → value is present but ambiguous, partial, or inferred
+
+DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
+Output is REJECTED if status is anything other than the three allowed strings.
+
 # FIELD_WRAPPER: {value, status, confidence, page, evidence_quote}
 
 # OUTPUT

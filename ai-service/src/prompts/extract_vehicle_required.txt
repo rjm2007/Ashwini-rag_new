@@ -17,6 +17,15 @@ Extract make, model, model_year, vin, chassis_id from the text. Use literal valu
 4. If model is not stated, leave model null (do not invent).
 5. Return FIELD_WRAPPER for each field.
 
+# STATUS VALUES — STRICT ENUM
+The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):
+  - "extracted"        → value is present and clearly stated in the text
+  - "missing"          → value is not present in the text (value MUST be null)
+  - "low_confidence"   → value is present but ambiguous, partial, or inferred
+
+DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
+Output is REJECTED if status is anything other than the three allowed strings.
+
 # OUTPUT (JSON only)
 {
   "vehicle": {

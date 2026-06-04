@@ -9,6 +9,15 @@ Extract coverage summary and all covered components from the SECTION_TEXT.
 6. DURATION: preserve exactly as written ("24 months or 250,000 miles (402 336 km)").
 7. COMPONENTS: extract EVERY component listed. tier = "standard" or "major".
 
+# STATUS VALUES — STRICT ENUM
+The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):
+  - "extracted"        → value is present and clearly stated in the text
+  - "missing"          → value is not present in the text (value MUST be null)
+  - "low_confidence"   → value is present but ambiguous, partial, or inferred
+
+DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
+Output is REJECTED if status is anything other than the three allowed strings.
+
 # OUTPUT
 {
   "profiles": {

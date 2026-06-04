@@ -46,6 +46,91 @@ def _clean_text(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
+# ─── Status normalization ─────────────────────────────────────────────────────
+
+# Status synonyms the LLM may produce — normalized to canonical values.
+_STATUS_EXTRACTED = {"extracted", "found", "present", "ok", "yes", "true"}
+_STATUS_MISSING   = {"missing", "absent", "not_found", "none", "null", "n/a", ""}
+_STATUS_LOW       = {"low_confidence", "low", "uncertain", "ambiguous"}
+
+
+def _canonical_status(raw: object) -> str:
+    """Map any LLM-produced status string to canonical extracted|missing|low_confidence."""
+    if not isinstance(raw, str):
+        return "missing"
+    s = raw.strip().lower()
+    if s in _STATUS_EXTRACTED:
+        return "extracted"
+    if s in _STATUS_LOW:
+        return "low_confidence"
+    if s in _STATUS_MISSING:
+        return "missing"
+    # Unknown values default to extracted if there's a value present, else missing
+    return "extracted"
+
+
+def _normalize_field_wrapper(fw: object) -> object:
+    """
+    Coerce a single field wrapper to canonical form:
+      - status: extracted | missing | low_confidence
+      - value: None when missing
+      - missing keys filled with safe defaults
+    """
+    if not isinstance(fw, dict):
+        return fw  # not a wrapper, leave alone
+    if "value" not in fw and "status" not in fw:
+        return fw  # plain dict, not a wrapper
+
+    val = fw.get("value")
+    has_value = val is not None and val != "" and val != []
+
+    raw_status = fw.get("status")
+    canonical = _canonical_status(raw_status)
+
+    # Auto-correct: status says missing but value is present → extracted
+    if canonical == "missing" and has_value:
+        canonical = "extracted"
+    # Auto-correct: status says extracted but value is empty → missing
+    if canonical in ("extracted", "low_confidence") and not has_value:
+        canonical = "missing"
+        val = None
+
+    return {
+        "value": val,
+        "status": canonical,
+        "confidence": float(fw.get("confidence") or (0.0 if canonical == "missing" else 0.8)),
+        "page": fw.get("page"),
+        "evidence_quote": fw.get("evidence_quote"),
+    }
+
+
+def _normalize_field_wrappers_deep(obj):
+    """Recursively normalize every field wrapper anywhere in the structure."""
+    if isinstance(obj, dict):
+        if "value" in obj and "status" in obj:
+            return _normalize_field_wrapper(obj)
+        return {k: _normalize_field_wrappers_deep(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_normalize_field_wrappers_deep(item) for item in obj]
+    return obj
+
+
+def _count_extracted_in(obj) -> int:
+    """Count how many field wrappers have status == 'extracted'."""
+    n = 0
+    def _walk(o):
+        nonlocal n
+        if isinstance(o, dict):
+            if o.get("status") == "extracted" and o.get("value") not in (None, ""):
+                n += 1
+            else:
+                for v in o.values(): _walk(v)
+        elif isinstance(o, list):
+            for x in o: _walk(x)
+    _walk(obj)
+    return n
+
+
 # ─── Section groupings per document type ──────────────────────────────────────
 
 # Maps (document_type, section_label) → which extraction module to call
@@ -130,25 +215,38 @@ def _collect_section_text(
     target_labels: list[str],
     md_content: str,
     plain_text: str,
+    full_texts: list[dict] | None = None,
 ) -> str:
     """
-    Gather text for sections whose section_label is in target_labels.
-    Falls back to full document text if no labeled sections match.
+    Returns extraction text for the requested classifier labels.
+
+    - If sections matching target_labels are found:
+        - For table-related labels → use md_content (Docling renders tables as md)
+        - Otherwise → join the full text of matched sections (preview only as fallback)
+    - If no labeled sections match → use full md_content (cleaned), then plain_text.
     """
-    matching_previews = [
-        s.get("text_preview", "")
-        for s in sections
-        if s.get("section_label") in target_labels or s.get("label") in target_labels
-    ]
-    if matching_previews:
-        section_text = "\n\n".join(p for p in matching_previews if p)
-        # Also include the markdown slice for tables (coverage code tables need it)
-        if "coverage_code_row" in target_labels or "invoice_line_item" in target_labels:
-            # Prefer md_content for table-heavy sections
-            return _clean_text(md_content)[:settings.schema_max_text_chars]
-        return section_text[:settings.schema_max_text_chars]
-    # No labeled sections found — use full document text
-    return _clean_text(md_content or plain_text)[:settings.schema_max_text_chars]
+    table_labels = {"coverage_code_row", "invoice_line_item"}
+    use_md_table = bool(table_labels.intersection(target_labels))
+
+    if use_md_table:
+        return _clean_text(md_content or "")[: settings.schema_max_text_chars]
+
+    matching = [s for s in sections if s.get("section_label") in target_labels]
+    if matching:
+        # Prefer full text from full_texts (if available) over previews
+        if full_texts:
+            idx_to_full = {t.get("index"): (t.get("text") or "") for t in full_texts}
+            joined = "\n\n".join(
+                idx_to_full.get(s.get("index")) or s.get("text_preview", "")
+                for s in matching
+            )
+        else:
+            joined = "\n\n".join(s.get("text_preview", "") for s in matching)
+        if joined.strip():
+            return joined[: settings.schema_max_text_chars]
+
+    # No labeled match → fall back to whole document
+    return _clean_text(md_content or plain_text)[: settings.schema_max_text_chars]
 
 
 def _run_section_extraction(
@@ -158,6 +256,7 @@ def _run_section_extraction(
     md_content: str,
     plain_text: str,
     llm: LlmService,
+    full_texts: list[dict] | None = None,
 ) -> dict:
     """Run one LLM extraction call for a section group. Returns field dict."""
     prompt_path = _PROMPT_DIR / section_config["prompt_file"]
@@ -171,6 +270,7 @@ def _run_section_extraction(
         section_config["labels"],
         md_content,
         plain_text,
+        full_texts=full_texts,
     )
 
     full_prompt = (
@@ -194,26 +294,42 @@ def _run_section_extraction(
 def _merge_section_extracts(section_name: str, extracted: dict, master: dict) -> dict:
     """
     Merge section extract into the master schema dict.
-    Strategy: for each key in extracted, if it's a list, extend master's list;
-    if it's a dict with 'value' key (field wrapper), prefer extracted if not missing.
+
+    Upgrade rules:
+      - missing       can be overwritten by extracted, low_confidence
+      - low_confidence can be overwritten by extracted (higher confidence wins)
+      - extracted     can be overwritten by extracted IF new confidence is higher
     """
     for key, val in extracted.items():
         if key in ("document", "vehicle", "profiles"):
-            # nested — recurse one level
             master.setdefault(key, {})
             _merge_section_extracts(key, val, master[key])
         elif isinstance(val, list) and key in master and isinstance(master[key], list):
-            # Extend array fields (coverage_codes, exclusions, etc.)
             master[key].extend(val)
-        elif isinstance(val, dict) and "value" in val:
-            # Field wrapper — overwrite empty slots or missing status
+        elif isinstance(val, list):
+            # New array field — set directly
+            master[key] = val
+        elif isinstance(val, dict) and "value" in val and "status" in val:
             existing = master.get(key)
-            if (
-                not isinstance(existing, dict)
-                or "value" not in existing
-                or existing.get("status") == "missing"
-            ):
+            new_status = val.get("status")
+            new_conf = float(val.get("confidence") or 0)
+            if not isinstance(existing, dict) or "value" not in existing:
                 master[key] = val
+            else:
+                existing_status = existing.get("status")
+                existing_conf = float(existing.get("confidence") or 0)
+                # Upgrade rules
+                if existing_status == "missing" and new_status != "missing":
+                    master[key] = val
+                elif existing_status == "low_confidence" and new_status == "extracted":
+                    master[key] = val
+                elif existing_status == "extracted" and new_status == "extracted" and new_conf > existing_conf:
+                    master[key] = val
+                # Otherwise keep existing
+        elif isinstance(val, dict):
+            master.setdefault(key, {})
+            if isinstance(master[key], dict):
+                _merge_section_extracts(key, val, master[key])
         else:
             master.setdefault(key, val)
     return master
@@ -260,6 +376,7 @@ def extract_master_schema(
         extracted = _run_section_extraction(
             group, document_type, sections, effective_md, plain_text, llm
         )
+        extracted = _normalize_field_wrappers_deep(extracted)
 
         # Store intermediate extract
         section_extracts.append({
@@ -291,7 +408,8 @@ def extract_master_schema(
             for ext in extracted.get("extensions", []):
                 master["extensions"].append(ext)
 
-    # Normalize make/model/VIN
+    # Normalize all field wrappers to canonical status, then make/model/VIN
+    master = _normalize_field_wrappers_deep(master)
     master = _normalize(master)
 
     # Quality
@@ -320,7 +438,7 @@ def extract_master_schema(
                     make                     = COALESCE(:make, make),
                     model                    = COALESCE(:model, model),
                     year                     = COALESCE(:year, year),
-                    metadata_json            = COALESCE(metadata_json, '{{}}'::jsonb)
+                    metadata_json            = COALESCE(metadata_json, '{}'::jsonb)
                                                || CAST(:meta AS jsonb),
                     updated_at               = NOW()
                 WHERE id = :id
@@ -351,41 +469,78 @@ def extract_master_schema(
 def _normalize(schema: dict) -> dict:
     vehicle = schema.get("vehicle", {})
     if isinstance(vehicle, dict):
+        # Make
         raw_make = _fw_value(vehicle.get("make")) or ""
         if raw_make.lower() in ("volvo", "volvo truck", "volvo trucks"):
             if isinstance(vehicle.get("make"), dict):
                 vehicle["make"]["value"] = "Volvo Truck"
+
+        # Model — strip trailing N
         raw_model = _fw_value(vehicle.get("model")) or ""
         if raw_model and isinstance(vehicle.get("model"), dict):
-            vehicle["model"]["value"] = re.sub(r"\s+N$", "", raw_model).strip()
-        # VIN regex validation
-        raw_vin = _fw_value(vehicle.get("vin")) or ""
-        if raw_vin and not re.match(r"^[A-HJ-NPR-Z0-9]{17}$", raw_vin, re.IGNORECASE):
-            if isinstance(vehicle.get("vin"), dict):
-                vehicle["vin"]["status"] = "low_confidence"
+            vehicle["model"]["value"] = re.sub(r"\s+N$", "", str(raw_model)).strip()
+
+        # VIN — uppercase + 17-char validation
+        raw_vin = _fw_value(vehicle.get("vin"))
+        if raw_vin and isinstance(vehicle.get("vin"), dict):
+            vin_upper = str(raw_vin).strip().upper()
+            if re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin_upper):
+                vehicle["vin"]["value"] = vin_upper
+            else:
+                # Doesn't match VIN format — downgrade confidence
+                vehicle["vin"]["value"] = vin_upper if vin_upper else None
+                vehicle["vin"]["status"] = "low_confidence" if vin_upper else "missing"
+
+        # model_year — coerce to int if string
+        my_fw = vehicle.get("model_year")
+        if isinstance(my_fw, dict) and isinstance(my_fw.get("value"), str):
+            m = re.search(r"\b(19|20)\d{2}\b", my_fw["value"])
+            if m:
+                my_fw["value"] = int(m.group(0))
+            else:
+                my_fw["value"] = None
+                my_fw["status"] = "missing"
     return schema
 
 
 def _compute_quality(schema: dict, page_count: int | None) -> dict:
     extracted = missing = low_conf = 0
+    unknown_statuses: list[str] = []
+
     def _walk(obj):
         nonlocal extracted, missing, low_conf
         if isinstance(obj, dict):
             if "status" in obj and "value" in obj:
-                st = obj["status"]
-                if st == "extracted": extracted += 1
-                elif st == "missing": missing += 1
-                elif st == "low_confidence": low_conf += 1; extracted += 1
+                st = obj.get("status")
+                if st == "extracted":
+                    extracted += 1
+                elif st == "low_confidence":
+                    low_conf += 1
+                    extracted += 1
+                elif st == "missing":
+                    missing += 1
+                else:
+                    unknown_statuses.append(str(st))
+                    # Defensive: count as missing so we don't inflate completeness
+                    missing += 1
             else:
-                for v in obj.values(): _walk(v)
+                for v in obj.values():
+                    _walk(v)
         elif isinstance(obj, list):
-            for item in obj: _walk(item)
+            for item in obj:
+                _walk(item)
+
     _walk(schema)
+    if unknown_statuses:
+        logger.warning("Unknown statuses after normalization: %s", list(set(unknown_statuses))[:10])
+
     total = extracted + missing
     return {
         "overall_completeness": round(extracted / total, 3) if total > 0 else 0.0,
-        "fields_extracted": extracted, "fields_missing": missing,
-        "fields_low_confidence": low_conf, "extraction_warnings": [],
+        "fields_extracted": extracted,
+        "fields_missing": missing,
+        "fields_low_confidence": low_conf,
+        "extraction_warnings": [f"unknown_status:{s}" for s in list(set(unknown_statuses))[:5]],
     }
 
 

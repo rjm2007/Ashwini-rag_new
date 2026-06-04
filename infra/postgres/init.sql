@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS required_fields_missing BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS ai_summary_text        TEXT;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS section_extracts_json  JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS document_sections_json JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 INSERT INTO users (email, password_hash, name, role)
 VALUES

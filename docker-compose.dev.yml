@@ -1,0 +1,5 @@
+services:
+  ai-service:
+    volumes:
+      - ./ai-service/src:/app/src:ro
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

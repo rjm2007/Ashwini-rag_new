@@ -35,6 +35,7 @@ def parse_structured(pdf_bytes: bytes) -> dict[str, Any]:
             "readable_text": readable,
             "plain_text": readable or _extract_plain_text(raw),
             "md_content": _extract_markdown(raw),
+            "full_texts": _extract_full_texts(raw),
         }
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -219,6 +220,22 @@ def _build_hierarchy(body: dict, texts: list) -> list[dict]:
             "preview": preview,
         })
     return nodes
+
+
+def _extract_full_texts(api_response: dict) -> list[dict]:
+    """Return every text item with its full text + index + label + page."""
+    doc = _unwrap_document(api_response)
+    out = []
+    for i, t in enumerate(doc.get("texts") or []):
+        if not isinstance(t, dict):
+            continue
+        out.append({
+            "index": i,
+            "label": (t.get("label") or "text").lower(),
+            "page": _page_no(t),
+            "text": (t.get("text") or t.get("orig") or "").strip(),
+        })
+    return out
 
 
 def _extract_pages_text(api_response: dict) -> list[dict]:
