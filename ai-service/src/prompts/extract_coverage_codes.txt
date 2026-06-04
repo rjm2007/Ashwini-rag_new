@@ -24,6 +24,8 @@ The "status" field MUST be exactly one of these three strings (lowercase, no syn
 DO NOT use: "found", "present", "ok", "yes", "true", "absent", "not_found", "none", "null", "n/a", "unknown".
 Output is REJECTED if status is anything other than the three allowed strings.
 
+# FIELD_WRAPPER: {value, status, confidence, page, evidence_quote}
+
 # OUTPUT
 {
   "profiles": {
@@ -35,3 +37,4 @@ Output is REJECTED if status is anything other than the three allowed strings.
     }
   }
 }
+Return empty FW (value:null, status:"missing") for fields not found.

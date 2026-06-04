@@ -201,11 +201,21 @@ async def run_act2_process(document_id: str) -> None:
 
     with SessionLocal() as session:
         row = session.execute(
-            text("SELECT document_type, s3_path FROM documents WHERE id = :id"),
+            text("SELECT document_type, s3_path, make, model, year, metadata_json FROM documents WHERE id = :id"),
             {"id": document_id},
         ).first()
     document_type = (row[0] if row else None) or "generic_document"
     s3_path = row[1] if row else ""
+    
+    existing_vehicle = {}
+    if row:
+        existing_vehicle["make"] = row[2]
+        existing_vehicle["model"] = row[3]
+        existing_vehicle["model_year"] = row[4]
+        meta = row[5] or {}
+        if isinstance(meta, dict):
+            existing_vehicle["vin"] = meta.get("vin")
+            existing_vehicle["chassis_id"] = meta.get("chassis_id")
 
     # Load sections from structure artifact for per-section extraction
     enriched_sections = structure_json.get("enriched_sections") or structure_json.get("sections", [])
@@ -222,6 +232,7 @@ async def run_act2_process(document_id: str) -> None:
                 tables_text=structure_json.get("tables_text", ""),
                 sections=enriched_sections,
                 full_texts=full_texts,
+                existing_vehicle=existing_vehicle,
             ),
             _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text),
             return_exceptions=True,
@@ -258,6 +269,7 @@ async def _run_schema_pipeline(
     tables_text: str = "",
     sections: list[dict] | None = None,
     full_texts: list[dict] | None = None,
+    existing_vehicle: dict | None = None,
 ) -> None:
     from ..services.schema_extraction_service import (
         SECTION_EXTRACTION_MAP, _run_section_extraction,
@@ -283,6 +295,10 @@ async def _run_schema_pipeline(
 
     section_extracts = []
     master = {"document": {}, "vehicle": {}, "profiles": {document_type: {}}, "extensions": []}
+    if existing_vehicle:
+        for k, v in existing_vehicle.items():
+            if v:
+                master["vehicle"][k] = {"value": v, "status": "extracted", "confidence": 1.0}
 
     # ── 1) PER-SECTION EXTRACTION ────────────────────────────────────────
     for group in extraction_groups:
