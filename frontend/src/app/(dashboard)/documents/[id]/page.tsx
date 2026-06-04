@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, FileText } from "lucide-react";
+import { AlertTriangle, ChevronLeft, FileText } from "lucide-react";
 import { getUser } from "../../../../lib/auth";
 import { certifyDocument, getDocumentSummary } from "../../../../lib/api";
 import { useDocument } from "../../../../hooks/useDocument";
@@ -10,9 +10,10 @@ import { usePipelineEvents } from "../../../../hooks/usePipelineEvents";
 import StatusPill from "../../../../components/ui/StatusPill";
 import TypePill from "../../../../components/ui/TypePill";
 import PipelineView from "../../../../components/pipeline/PipelineView";
+import RequiredFieldsForm from "../../../../components/review/RequiredFieldsForm";
 import SummaryView, { SummarySkeleton } from "../../../../components/summary/SummaryView";
 import ChatSidebar from "../../../../components/chat/ChatSidebar";
-import type { MasterSchema } from "../../../../lib/types";
+import type { MasterSchema, SummaryPayload } from "../../../../lib/types";
 
 export default function DocumentDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
   const processingStatus = doc?.processingStatus || "";
   const { events } = usePipelineEvents(params.id, processingStatus);
   const [leftTab, setLeftTab] = useState<"pipeline" | "summary">("pipeline");
-  const [summary, setSummary] = useState<MasterSchema | null>(null);
+  const [summaryPayload, setSummaryPayload] = useState<SummaryPayload | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [certifyConfirm, setCertifyConfirm] = useState(false);
   const [certifyError, setCertifyError] = useState("");
@@ -37,13 +38,13 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     if (processingStatus !== "processing_complete") {
-      setSummary(null);
+      setSummaryPayload(null);
       return;
     }
     setSummaryLoading(true);
     getDocumentSummary(params.id)
-      .then((r) => setSummary(r.data as MasterSchema))
-      .catch(() => setSummary(null))
+      .then((r) => setSummaryPayload(r.data))
+      .catch(() => setSummaryPayload(null))
       .finally(() => setSummaryLoading(false));
   }, [params.id, processingStatus]);
 
@@ -121,9 +122,28 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         >
           {doc.originalFilename}
         </span>
-        {doc.documentType ? <TypePill docType={doc.documentType} /> : null}
+        {doc.documentType ? <TypePill type={doc.documentType} /> : null}
         <StatusPill status={doc.processingStatus} />
         <div style={{ flex: 1 }} />
+        {doc.processingStatus === "awaiting_certification" && (doc.requiredFieldsMissing ?? true) ? (
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              fontWeight: 500,
+              color: "var(--state-failed)",
+              background: "var(--warn-bg)",
+              border: "1px solid var(--warn-border)",
+              borderRadius: 99,
+              padding: "2px 10px"
+            }}
+          >
+            <AlertTriangle size={12} />
+            Fields required
+          </span>
+        ) : null}
         {isAdmin && doc.processingStatus === "awaiting_certification" && !certifyConfirm ? (
           <button
             type="button"
@@ -239,6 +259,9 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
           ) : null}
 
           <div style={{ flex: 1, overflowY: "auto" }}>
+            {doc.processingStatus === "awaiting_certification" ? (
+              <RequiredFieldsForm document={doc} onSaved={refresh} />
+            ) : null}
             {leftTab === "pipeline" || !showTabs ? (
               <PipelineView
                 events={events}
@@ -248,8 +271,12 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
               />
             ) : summaryLoading ? (
               <SummarySkeleton />
-            ) : summary ? (
-              <SummaryView summary={summary} fallbackTitle={doc.originalFilename} />
+            ) : summaryPayload?.masterSchema ? (
+              <SummaryView
+                summary={summaryPayload.masterSchema as MasterSchema}
+                fallbackTitle={doc.originalFilename}
+                aiSummaryText={summaryPayload.aiSummaryText}
+              />
             ) : (
               <div
                 style={{

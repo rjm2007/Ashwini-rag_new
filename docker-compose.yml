@@ -71,6 +71,7 @@ services:
       PARSER_PRIMARY: docling_structured
       ENABLE_SECTION_CLASSIFICATION: "true"
       ENABLE_SCHEMA_PIPELINE: "true"
+      ENABLE_VEHICLE_LLM_FALLBACK: "true"
       GATE_HEAVY_ON_CERTIFY: "true"
     volumes:
       - ./logs/services/ai-service:/app/logs

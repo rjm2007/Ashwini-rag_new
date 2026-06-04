@@ -22,6 +22,7 @@ from ..services.schema_extraction_service import extract_master_schema
 from ..services.section_classifier import classify_sections
 from ..services.s3_service import S3Service
 from ..services.strategic_chunker import parse_vin_chassis_from_text
+from ..services.vehicle_fallback_service import run_vehicle_fallback
 
 logger = logging.getLogger("pipeline")
 logger.setLevel(logging.INFO)
@@ -140,6 +141,22 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
 
         step = start_step(document_id, 1, "classify", "type_detect", "Detecting document type")
         finish_step(step, {"document_type": doc_type})
+
+        step = start_step(
+            document_id,
+            1,
+            "parse",
+            "vehicle_llm_fallback",
+            "Recovering vehicle fields (regex + LLM)",
+        )
+        try:
+            fallback_detail = run_vehicle_fallback(
+                document_id, structured, doc_type, s3_path=s3_path
+            )
+            finish_step(step, fallback_detail)
+        except Exception as exc:
+            logger.warning("[%s] Vehicle fallback failed: %s", document_id, exc)
+            finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
 
         await _update_status(document_id, "awaiting_certification")
         await s3.upload_json(

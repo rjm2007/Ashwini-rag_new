@@ -158,14 +158,20 @@ export class DocumentsService {
   }
 
   async getDocumentSummary(documentId: string): Promise<any> {
-    const aiUrl = process.env.AI_SERVICE_URL;
-    if (aiUrl) {
-      const res = await fetch(`${aiUrl.replace(/\/$/, "")}/internal/summary/${documentId}`);
-      if (res.ok) {
-        return res.json();
-      }
+    const doc = await this.documentsRepository.findOne({ where: { id: documentId } });
+    if (!doc) {
+      throw new NotFoundException("Document not found");
     }
-    const doc = await this.getDocument(documentId);
-    return doc.masterSchemaJson || {};
+
+    return {
+      documentId: doc.id,
+      filename: doc.originalFilename,
+      documentType: doc.documentType ?? null,
+      completeness: doc.completeness ?? 0,
+      requiredFieldsMissing: doc.requiredFieldsMissing ?? true,
+      aiSummaryText: doc.aiSummaryText ?? null,
+      masterSchema: doc.masterSchemaJson ?? {},
+      sectionExtracts: doc.sectionExtractsJson ?? []
+    };
   }
 }

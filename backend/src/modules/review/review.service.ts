@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { UserRole } from "../../common/enums/user-role.enum";
 import { DocumentsService } from "../documents/documents.service";
 import { DocumentEntity } from "../documents/entities/document.entity";
@@ -19,7 +19,8 @@ export class ReviewService {
     @InjectRepository(DocumentEntity)
     private readonly documentsRepository: Repository<DocumentEntity>,
     private readonly documentsService: DocumentsService,
-    private readonly s3Service: S3Service
+    private readonly s3Service: S3Service,
+    private readonly dataSource: DataSource
   ) {}
 
   async getPendingDocuments(role: UserRole) {
@@ -72,17 +73,84 @@ export class ReviewService {
   }
 
   async updateMetadata(documentId: string, metadata: UpdateMetadataDto) {
-    // This function updates document metadata before final certification.
     const document = await this.documentsService.getDocument(documentId);
+
     Object.assign(document, {
       make: metadata.make ?? document.make,
       model: metadata.model ?? document.model,
       year: metadata.year ?? document.year,
       warrantyType: metadata.warrantyType ?? document.warrantyType,
-      country: metadata.country ?? document.country,
-      metadataJson: metadata.metadataJson ?? document.metadataJson
+      country: metadata.country ?? document.country
     });
-    return this.documentsService.saveDocument(document);
+
+    if (metadata.metadataJson) {
+      document.metadataJson = metadata.metadataJson;
+    }
+    if (metadata.vin || metadata.chassisId) {
+      const existingMeta = (document.metadataJson as Record<string, unknown>) || {};
+      document.metadataJson = {
+        ...existingMeta,
+        ...(metadata.vin ? { vin: metadata.vin } : {}),
+        ...(metadata.chassisId ? { chassis_id: metadata.chassisId } : {})
+      };
+    }
+
+    const make = metadata.make ?? document.make ?? null;
+    const model = metadata.model ?? document.model ?? null;
+    const year = metadata.year ?? document.year ?? null;
+    const vin = metadata.vin ?? (document.metadataJson as Record<string, unknown>)?.vin ?? null;
+    const chassisId =
+      metadata.chassisId ??
+      (document.metadataJson as Record<string, unknown>)?.chassis_id ??
+      null;
+
+    if (metadata.vin || metadata.chassisId || metadata.make || metadata.model || metadata.year) {
+      await this.dataSource.query(
+        `UPDATE documents
+         SET master_schema_json = jsonb_set(
+           jsonb_set(
+             jsonb_set(
+               jsonb_set(
+                 jsonb_set(
+                   COALESCE(master_schema_json, '{"vehicle":{}}'::jsonb),
+                   '{vehicle,vin}',
+                   CASE WHEN $2::text IS NOT NULL
+                     THEN jsonb_build_object('value',$2,'status','extracted','confidence',1.0,'page',null)
+                     ELSE COALESCE(master_schema_json->'vehicle'->'vin', 'null'::jsonb) END
+                 ),
+                 '{vehicle,chassis_id}',
+                 CASE WHEN $3::text IS NOT NULL
+                   THEN jsonb_build_object('value',$3,'status','extracted','confidence',1.0,'page',null)
+                   ELSE COALESCE(master_schema_json->'vehicle'->'chassis_id', 'null'::jsonb) END
+               ),
+               '{vehicle,make}',
+               CASE WHEN $4::text IS NOT NULL
+                 THEN jsonb_build_object('value',$4,'status','extracted','confidence',1.0,'page',null)
+                 ELSE COALESCE(master_schema_json->'vehicle'->'make', 'null'::jsonb) END
+             ),
+             '{vehicle,model}',
+             CASE WHEN $5::text IS NOT NULL
+               THEN jsonb_build_object('value',$5,'status','extracted','confidence',1.0,'page',null)
+               ELSE COALESCE(master_schema_json->'vehicle'->'model', 'null'::jsonb) END
+           ),
+           '{vehicle,model_year}',
+           CASE WHEN $6::int IS NOT NULL
+             THEN jsonb_build_object('value',$6,'status','extracted','confidence',1.0,'page',null)
+             ELSE COALESCE(master_schema_json->'vehicle'->'model_year', 'null'::jsonb) END
+         ),
+         required_fields_missing = NOT (
+           (COALESCE($2::text, metadata_json->>'vin', '') <> '' OR
+            COALESCE($3::text, metadata_json->>'chassis_id', '') <> '')
+           AND COALESCE($4::text, make, '') <> ''
+           AND COALESCE($5::text, model, '') <> ''
+         )
+         WHERE id = $1`,
+        [documentId, vin, chassisId, make, model, year]
+      );
+    }
+
+    await this.documentsService.saveDocument(document);
+    return this.documentsService.getDocument(documentId);
   }
 
   async reviewerApprove(documentId: string, userId: string, comment?: string) {
@@ -102,6 +170,28 @@ export class ReviewService {
 
   async adminApprove(documentId: string, userId: string, comment?: string) {
     this.logger.log(`adminApprove start documentId=${documentId} userId=${userId}`);
+
+    const docForGate = await this.documentsRepository.findOne({ where: { id: documentId } });
+    if (!docForGate) {
+      throw new NotFoundException("Document not found");
+    }
+    if (docForGate.requiredFieldsMissing) {
+      const meta = (docForGate.metadataJson as Record<string, unknown>) || {};
+      const hasVinOrChassis = !!(meta.vin || meta.chassis_id);
+      const hasMake = !!docForGate.make;
+      const hasModel = !!docForGate.model;
+      const isCoverageTable = docForGate.documentType === "coverage_code_table";
+      const hasIdentifiers =
+        hasVinOrChassis && hasMake && (isCoverageTable || hasModel);
+      if (!hasIdentifiers) {
+        throw new BadRequestException(
+          isCoverageTable
+            ? "Required fields missing: VIN (or Chassis ID) and Make must be filled before certification."
+            : "Required fields missing: VIN (or Chassis ID), Make, and Model must be filled before certification. Use PATCH /review/:id/metadata to fill them."
+        );
+      }
+    }
+
     const review = await this.getOrCreateReview(documentId);
     const document = await this.documentsService.getDocument(documentId);
     const canCertifyDirect =

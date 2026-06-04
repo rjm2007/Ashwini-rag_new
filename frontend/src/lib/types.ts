@@ -14,6 +14,9 @@ export interface DocumentDetail extends DocumentItem {
   metadataJson?: Record<string, unknown>;
   confidenceScore?: number;
   errorMessage?: string;
+  requiredFieldsMissing?: boolean;
+  completeness?: number;
+  aiSummaryText?: string | null;
 }
 
 export interface PipelineEvent {
@@ -90,7 +93,16 @@ export interface RepairInvoiceProfile {
   totals?: Record<string, FieldWrapper>;
 }
 
-export type SummaryPayload = MasterSchema;
+export interface SummaryPayload {
+  documentId: string;
+  filename: string;
+  documentType?: string | null;
+  completeness?: number;
+  requiredFieldsMissing?: boolean;
+  aiSummaryText?: string | null;
+  masterSchema: MasterSchema;
+  sectionExtracts?: unknown[];
+}
 
 export interface ChatMessageItem {
   id: string;

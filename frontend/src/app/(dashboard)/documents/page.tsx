@@ -164,7 +164,7 @@ export default function DocumentsPage() {
                 </span>
               </div>
               <div>
-                <TypePill docType={doc.documentType || "generic_document"} />
+                <TypePill type={doc.documentType || "generic_document"} />
               </div>
               <div>
                 <StatusPill status={doc.processingStatus} />

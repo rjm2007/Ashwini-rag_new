@@ -63,10 +63,12 @@ function VinFieldRow({ label, fw }: { label: string; fw?: FieldWrapper | null })
 
 export default function SummaryView({
   summary,
-  fallbackTitle
+  fallbackTitle,
+  aiSummaryText
 }: {
   summary: MasterSchema;
   fallbackTitle?: string;
+  aiSummaryText?: string | null;
 }) {
   const { type, profile } = getProfile(summary);
   const extracted = summary.quality?.fields_extracted ?? 0;
@@ -78,6 +80,46 @@ export default function SummaryView({
 
   return (
     <div style={{ padding: 20 }}>
+      {aiSummaryText !== undefined && (
+        <div
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "16px 20px",
+            marginBottom: 16
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontSize: 11,
+              fontWeight: 500,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em"
+            }}
+          >
+            AI Summary
+          </p>
+          {aiSummaryText ? (
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: "var(--text-primary)",
+                fontStyle: "italic"
+              }}
+            >
+              {aiSummaryText}
+            </p>
+          ) : (
+            <p style={{ margin: 0, fontSize: 13, color: "var(--accent)" }}>Generating…</p>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, fontWeight: 500, margin: 0, color: "var(--text-primary)" }}>{title}</h2>
         <span

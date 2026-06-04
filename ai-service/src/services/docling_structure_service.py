@@ -28,10 +28,12 @@ def parse_structured(pdf_bytes: bytes) -> dict[str, Any]:
     try:
         raw = _convert_pdf(tmp_path)
         structured = _extract_structure(raw)
+        readable = _extract_readable_text(raw)
         return {
             **structured,
             "pages_text": _extract_pages_text(raw),
-            "plain_text": _extract_plain_text(raw),
+            "readable_text": readable,
+            "plain_text": readable or _extract_plain_text(raw),
             "md_content": _extract_markdown(raw),
         }
     finally:
@@ -233,17 +235,28 @@ def _extract_pages_text(api_response: dict) -> list[dict]:
     return [{"page": pg, "text": "\n".join(lines)} for pg, lines in sorted(pages.items())]
 
 
+def _extract_readable_text(api_response: dict) -> str:
+    """OCR/layout text items only — excludes md_content base64 image blobs."""
+    doc = _unwrap_document(api_response)
+    lines: list[str] = []
+    for t in doc.get("texts") or []:
+        if not isinstance(t, dict):
+            continue
+        text = (t.get("text") or t.get("orig") or "").strip()
+        if text:
+            lines.append(text)
+    return "\n".join(lines)
+
+
 def _extract_plain_text(api_response: dict) -> str:
+    readable = _extract_readable_text(api_response)
+    if readable:
+        return readable
     if isinstance(api_response.get("document"), dict):
         tc = api_response["document"].get("text_content") or ""
-        if tc:
+        if tc and "data:image" not in tc[:5000]:
             return tc
-    doc = _unwrap_document(api_response)
-    return "\n".join(
-        (t.get("text") or t.get("orig") or "").strip()
-        for t in (doc.get("texts") or [])
-        if isinstance(t, dict) and (t.get("text") or t.get("orig") or "").strip()
-    )
+    return readable
 
 
 def _extract_markdown(api_response: dict) -> str:

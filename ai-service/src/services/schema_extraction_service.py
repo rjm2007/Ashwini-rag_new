@@ -206,9 +206,13 @@ def _merge_section_extracts(section_name: str, extracted: dict, master: dict) ->
             # Extend array fields (coverage_codes, exclusions, etc.)
             master[key].extend(val)
         elif isinstance(val, dict) and "value" in val:
-            # Field wrapper — only overwrite if extracted has a real value
-            existing = master.get(key, {})
-            if not isinstance(existing, dict) or existing.get("status") == "missing":
+            # Field wrapper — overwrite empty slots or missing status
+            existing = master.get(key)
+            if (
+                not isinstance(existing, dict)
+                or "value" not in existing
+                or existing.get("status") == "missing"
+            ):
                 master[key] = val
         else:
             master.setdefault(key, val)

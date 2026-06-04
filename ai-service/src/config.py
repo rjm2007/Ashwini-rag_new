@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     parser_primary: str = "docling_structured"
     enable_section_classification: bool = True
     enable_schema_pipeline: bool = True
+    enable_vehicle_llm_fallback: bool = True
     gate_heavy_on_certify: bool = True
     schema_max_text_chars: int = 40000
     ocr_method: str = "auto"
