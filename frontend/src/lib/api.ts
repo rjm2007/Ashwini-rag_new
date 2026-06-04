@@ -32,6 +32,9 @@ export const getDocumentSummary = (docId: string) =>
 export const certifyDocument = (docId: string) =>
   api.post(`/review/${docId}/admin-approve`, { comment: "Certified via UI" });
 
+export const patchReviewMetadata = (docId: string, data: Record<string, unknown>) =>
+  api.patch(`/review/${docId}/metadata`, data);
+
 export const raiseQuery = (payload: {
   documentId?: string;
   sessionId?: string;

@@ -1,0 +1,13 @@
+# ROLE
+Claim procedure extraction engine. JSON only.
+
+# OUTPUT
+{
+  "profiles": {
+    "warranty_certificate": {
+      "claim_procedure": FW,
+      "eligibility_conditions": [{ "condition": FW }],
+      "fuel_def_requirements": FW
+    }
+  }
+}

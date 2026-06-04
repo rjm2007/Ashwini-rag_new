@@ -1,24 +1,16 @@
-export default function MonoChip({
-  value,
-  size = "default"
-}: {
-  value: string;
-  size?: "sm" | "default";
-}) {
-  const isSm = size === "sm";
+'use client';
+
+export default function MonoChip({ children, small }: { children: React.ReactNode; small?: boolean }) {
   return (
-    <span
-      className="mono"
-      style={{
-        fontSize: isSm ? 11 : 12,
-        padding: isSm ? "1px 6px" : "2px 8px",
-        background: "var(--bg-raised)",
-        border: "1px solid var(--border)",
-        borderRadius: 4,
-        color: "var(--text-primary)"
-      }}
-    >
-      {value}
+    <span style={{
+      fontFamily: '"IBM Plex Mono", monospace',
+      background: 'var(--bg-raised)',
+      border: '1px solid var(--border)',
+      borderRadius: 4,
+      fontSize: small ? 10 : 12,
+      padding: small ? '1px 5px' : '2px 8px',
+    }}>
+      {children}
     </span>
   );
 }

@@ -11,7 +11,7 @@ module.exports = {
         surface: '#161B22',
         raised:  '#1E2430',
         accent:  '#00D9C0',
-        border:  '#2D3748',
+        border:  '#30363D',
       }
     }
   },

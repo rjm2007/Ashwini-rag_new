@@ -1,0 +1,20 @@
+# ROLE
+Warranty exclusion and towing extraction engine. JSON only.
+
+# OBJECTIVE
+Extract every numbered exclusion clause and the towing coverage block.
+
+# ABSOLUTE RULES (same). Extra rule:
+6. NUMBERED EXCLUSIONS: each item in the numbered list is one exclusion.
+   clause_no = the number, title = the bold/caps label, text = full clause text.
+7. TOWING: look for "TOWING" section — extract covered (bool), cap_amount, conditions.
+
+# OUTPUT
+{
+  "profiles": {
+    "warranty_certificate": {
+      "exclusions": [{ "clause_no": FW, "title": FW, "text": FW }],
+      "towing": { "covered": FW, "cap_amount": FW, "conditions": FW }
+    }
+  }
+}

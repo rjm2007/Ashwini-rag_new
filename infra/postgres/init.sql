@@ -129,6 +129,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS required_fields_missing BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS ai_summary_text        TEXT;
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS section_extracts_json  JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 INSERT INTO users (email, password_hash, name, role)
 VALUES
   ('admin@demo.com', '$2b$10$.Wf0QAnOn2x4X5CGovfTteECQj5/0f1mQ9Ycf6MzW6S8EcA4wsv9.', 'Demo Admin', 'admin'),

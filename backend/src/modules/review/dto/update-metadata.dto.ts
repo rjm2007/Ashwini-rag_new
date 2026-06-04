@@ -24,4 +24,12 @@ export class UpdateMetadataDto {
   @IsOptional()
   @IsObject()
   metadataJson?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsString()
+  vin?: string;
+
+  @IsOptional()
+  @IsString()
+  chassisId?: string;
 }

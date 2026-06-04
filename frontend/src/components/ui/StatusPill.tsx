@@ -1,38 +1,31 @@
-function getStatusStyle(status: string): { border: string; color: string } {
-  const s = (status || "unknown").toLowerCase();
-  const accent = ["processing", "parsing", "structuring", "classifying", "schema_extraction", "embedding", "ocr_in_progress", "extraction_in_progress"];
-  const amber = ["awaiting_certification", "ready_for_review", "reviewer_approved"];
-  const green = ["certified", "processing_complete", "embedded", "extraction_complete", "ocr_complete"];
-  const red = ["failed", "rejected"];
+'use client';
 
-  if (accent.some((k) => s.includes(k))) return { border: "var(--accent)", color: "var(--accent)" };
-  if (amber.some((k) => s.includes(k))) return { border: "#ECC94B", color: "#ECC94B" };
-  if (green.some((k) => s.includes(k))) return { border: "#48BB78", color: "#48BB78" };
-  if (red.some((k) => s.includes(k))) return { border: "#FC8181", color: "#FC8181" };
-  return { border: "var(--text-muted)", color: "var(--text-muted)" };
-}
-
-function formatLabel(status: string): string {
-  return (status || "unknown").replace(/_/g, " ");
-}
+const STATUS_MAP: Record<string, { color: string; label: string }> = {
+  processing: { color: 'var(--accent)', label: 'Processing' },
+  parsing: { color: 'var(--accent)', label: 'Parsing' },
+  structuring: { color: 'var(--accent)', label: 'Structuring' },
+  classifying: { color: 'var(--accent)', label: 'Classifying' },
+  schema_extraction: { color: 'var(--accent)', label: 'Extracting' },
+  embedding: { color: 'var(--accent)', label: 'Embedding' },
+  awaiting_certification: { color: 'var(--gate-amber)', label: 'Awaiting Certification' },
+  ready_for_review: { color: 'var(--gate-amber)', label: 'Ready for Review' },
+  processing_complete: { color: 'var(--state-done)', label: 'Complete' },
+  certified: { color: 'var(--state-done)', label: 'Certified' },
+  failed: { color: 'var(--state-failed)', label: 'Failed' },
+  uploaded: { color: 'var(--state-idle)', label: 'Uploaded' },
+};
 
 export default function StatusPill({ status }: { status: string }) {
-  const style = getStatusStyle(status);
+  const s = STATUS_MAP[status] || { color: 'var(--state-idle)', label: status };
   return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 500,
-        padding: "2px 8px",
-        borderRadius: 99,
-        border: `1px solid ${style.border}`,
-        color: style.color,
-        background: "transparent",
-        textTransform: "capitalize",
-        whiteSpace: "nowrap"
-      }}
-    >
-      {formatLabel(status)}
+    <span style={{
+      fontSize: 11, fontWeight: 500,
+      border: `1px solid ${s.color}`,
+      color: s.color,
+      borderRadius: 99, padding: '2px 8px',
+      whiteSpace: 'nowrap',
+    }}>
+      {s.label}
     </span>
   );
 }

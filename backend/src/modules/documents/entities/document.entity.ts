@@ -57,6 +57,15 @@ export class DocumentEntity {
   @Column({ name: "completeness", type: "float", nullable: true })
   completeness?: number;
 
+  @Column({ name: 'required_fields_missing', default: true })
+  requiredFieldsMissing!: boolean;
+
+  @Column({ name: 'ai_summary_text', nullable: true })
+  aiSummaryText?: string;
+
+  @Column({ name: 'section_extracts_json', type: 'jsonb', nullable: true })
+  sectionExtractsJson?: Record<string, unknown>[];
+
   @CreateDateColumn({ name: "uploaded_at" })
   uploadedAt!: Date;
 

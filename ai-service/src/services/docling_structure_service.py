@@ -60,7 +60,7 @@ def _convert_pdf(pdf_path: Path) -> dict:
         ("to_formats", "md"),
         ("to_formats", "text"),
         ("do_ocr", "true"),
-        ("force_ocr", "false"),
+        ("force_ocr", "true"),
         ("table_mode", "fast"),
         ("do_table_structure", "true"),
         ("pdf_backend", "docling_parse"),
