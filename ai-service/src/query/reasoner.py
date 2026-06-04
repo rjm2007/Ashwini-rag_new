@@ -9,6 +9,7 @@ def reason_over_evidence(
     chunks: list[dict],
     *,
     table_mode: bool = False,
+    schema_context: dict | None = None,
 ) -> dict:
     """This function asks the large model to answer strictly from evidence chunks."""
     llm = LlmService()
@@ -34,9 +35,23 @@ def reason_over_evidence(
             parts.append(f"{header}\ntext={body}")
     formatted_chunks = "\n\n".join(parts)
     formatted_history = "\n".join([f"{item.get('role')}: {item.get('content')}" for item in history])
+
+    # Build structured schema block if available (from master_schema_json)
+    schema_block = ""
+    if schema_context:
+        schema_json = json.dumps(schema_context, indent=2, default=str)
+        # Truncate to avoid blowing up the context window
+        if len(schema_json) > 6000:
+            schema_json = schema_json[:6000] + "\n... (truncated)"
+        schema_block = (
+            "\n\nSTRUCTURED DOCUMENT DATA (extracted by pipeline — use this for factual lookups like VIN, "
+            "make, model, coverage codes, exclusions, dates):\n"
+            f"{schema_json}\n"
+        )
+
     response = llm.large_model_call(
-        prompt=f"{prompt}\n\nConversation:\n{formatted_history}\n\nQuestion:\n{question}\n\nEvidence:\n{formatted_chunks}",
-        system_message="Reason only from provided evidence.",
+        prompt=f"{prompt}{schema_block}\n\nConversation:\n{formatted_history}\n\nQuestion:\n{question}\n\nEvidence:\n{formatted_chunks}",
+        system_message="Reason only from provided evidence and structured document data.",
     )
     try:
         return json.loads(response)
@@ -52,3 +67,4 @@ def reason_over_evidence(
                 "metadata_match": 0.3,
             },
         }
+

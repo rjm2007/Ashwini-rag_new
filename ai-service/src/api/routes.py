@@ -19,6 +19,7 @@ router = APIRouter()
 class QueryRequest(BaseModel):
     question: str
     conversationHistory: list[dict[str, Any]] = []
+    documentId: str | None = None
 
 
 class SetRepositoryRequest(BaseModel):
@@ -72,7 +73,7 @@ async def get_summary(document_id: str) -> dict:
 
 @router.post("/query/answer")
 async def query_answer(payload: QueryRequest) -> dict[str, Any]:
-    return await answer_question(payload.question, payload.conversationHistory)
+    return await answer_question(payload.question, payload.conversationHistory, payload.documentId)
 
 
 @router.post("/internal/set-repository/{document_id}")

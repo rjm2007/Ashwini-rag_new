@@ -75,7 +75,7 @@ export default function ChatSidebar({
     setMessages((prev) => [...prev, userMsg]);
     setSending(true);
     try {
-      const res = await sendChatMessageApi(sessionId, content);
+      const res = await sendChatMessageApi(sessionId, content, docId);
       const assistant = res.data as ChatMessageItem;
       const enriched: ChatMessageItem = {
         ...assistant,

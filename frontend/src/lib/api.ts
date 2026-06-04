@@ -48,7 +48,7 @@ export const createChatSession = (documentFilename: string) =>
 export const getChatSession = (sessionId: string) =>
   api.get(`/query/sessions/${sessionId}`);
 
-export const sendChatMessage = (sessionId: string, content: string) =>
-  api.post(`/query/sessions/${sessionId}/messages`, { content });
+export const sendChatMessage = (sessionId: string, content: string, documentId?: string) =>
+  api.post(`/query/sessions/${sessionId}/messages`, { content, documentId });
 
 export default api;

@@ -26,7 +26,7 @@ logger = logging.getLogger("qdrant")
 class QdrantService:
     """Qdrant upsert, hybrid search (dense + BM25 + RRF), and repository updates."""
 
-    SEARCHABLE_KEYS = {"make", "model", "year", "country", "warrantyType", "vin", "chassisId"}
+    SEARCHABLE_KEYS = {"make", "model", "year", "country", "warrantyType", "vin", "chassisId", "documentId"}
 
     def __init__(self) -> None:
         api_key = settings.qdrant_api_key or None
@@ -124,6 +124,11 @@ class QdrantService:
     def _build_filter(self, filters: dict | None) -> Filter:
         conditions = [FieldCondition(key="repository", match=MatchValue(value="certified"))]
         filters = filters or {}
+
+        # When documentId is present, it's the most specific filter — skip everything else
+        if filters.get("documentId"):
+            conditions.append(FieldCondition(key="documentId", match=MatchValue(value=filters["documentId"])))
+            return Filter(must=conditions)
 
         # When VIN or chassisId is present, they're sufficient to identify the document.
         # Skip make/model/year/country/warrantyType to avoid false-zero AND mismatches

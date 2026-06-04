@@ -53,7 +53,7 @@ export class QueryService {
     return { success: true };
   }
 
-  async sendMessage(sessionId: string, userId: string, content: string) {
+  async sendMessage(sessionId: string, userId: string, content: string, documentId?: string) {
     // This function stores user message, calls AI answer API, and stores assistant response.
     const session = await this.sessionRepository.findOne({ where: { id: sessionId, userId } });
     if (!session) {
@@ -87,7 +87,8 @@ export class QueryService {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: content,
-          conversationHistory: history.map((item) => ({ role: item.role, content: item.content }))
+          conversationHistory: history.map((item) => ({ role: item.role, content: item.content })),
+          documentId: documentId || undefined
         })
       });
     } catch (err: any) {

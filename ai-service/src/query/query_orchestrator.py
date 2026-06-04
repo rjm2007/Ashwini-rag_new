@@ -1,8 +1,12 @@
+import json
 import logging
+
+from sqlalchemy import text
 
 from .intent_classifier import classify_intent
 from .metadata_filter import extract_metadata_filters, qdrant_filters_from_metadata, _is_valid_year
 from ..config import settings
+from ..database import SessionLocal
 from ..services.aggregation_engine import is_aggregation_query, aggregate
 from ..services.reranker_service import is_list_or_filter_question
 from ..services.structured_query_engine import is_simple_retrieval_query, is_structured_query
@@ -53,7 +57,25 @@ def _is_simple_greeting(question: str) -> bool:
     }
 
 
-async def answer_question(question: str, conversation_history: list[dict]) -> dict:
+def _load_master_schema(document_id: str) -> dict | None:
+    """Load master_schema_json from DB for a specific document."""
+    try:
+        with SessionLocal() as session:
+            row = session.execute(
+                text("SELECT master_schema_json FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+        if row and row[0]:
+            schema = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+            # Strip quality metadata to save tokens — the reasoner doesn't need it
+            schema.pop("quality", None)
+            return schema
+    except Exception as exc:
+        logger.warning("Failed to load master_schema for %s: %s", document_id, exc)
+    return None
+
+
+async def answer_question(question: str, conversation_history: list[dict], document_id: str | None = None) -> dict:
     """Intent routing → metadata extraction → hybrid retrieval → large-model reasoning."""
     if _is_simple_greeting(question):
         return {
@@ -115,6 +137,12 @@ async def answer_question(question: str, conversation_history: list[dict]) -> di
     metadata = extract_metadata_filters(question, conversation_history)
     filters = qdrant_filters_from_metadata(metadata)
 
+    # When scoped to a specific document, override filters with documentId
+    if document_id:
+        metadata["_document_id"] = document_id
+        filters = {"documentId": document_id}
+        logger.info("Document-scoped query: documentId=%s", document_id)
+
     logger.info(
         "Query filters applied: %s | Query: %.80s | "
         "Extracted metadata: make=%s, model=%s, year=%s (valid=%s), "
@@ -137,11 +165,20 @@ async def answer_question(question: str, conversation_history: list[dict]) -> di
         or (settings.enable_structured_reasoning and is_structured_query(question))
     )
     chunks = retrieve_chunks(question, metadata, list_mode=list_mode)
+
+    # Load master schema for structured context when scoped to a document
+    schema_context = None
+    if document_id:
+        schema_context = _load_master_schema(document_id)
+        if schema_context:
+            logger.info("Injecting master_schema context for documentId=%s", document_id)
+
     reasoned = reason_over_evidence(
         question,
         conversation_history,
         chunks,
         table_mode=table_mode,
+        schema_context=schema_context,
     )
 
     evidence = []

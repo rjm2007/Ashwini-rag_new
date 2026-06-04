@@ -176,4 +176,8 @@ def qdrant_filters_from_metadata(metadata: dict) -> dict:
     if warranty_type and not filters.get("vin") and not filters.get("chassisId"):
         filters["warrantyType"] = warranty_type
 
+    # Document-scoped query: documentId overrides all other filters
+    if metadata.get("_document_id"):
+        filters["documentId"] = metadata["_document_id"]
+
     return filters
