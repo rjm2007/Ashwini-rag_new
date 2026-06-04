@@ -148,10 +148,46 @@ def _extract_structure(api_response: dict) -> dict:
         "paragraph_count": len(paragraphs),
         "paragraph_samples": paragraphs[:20],
         "tables": table_summaries,
+        "tables_text": _format_tables_text(tables),
         "hierarchy": hierarchy,
         "status": api_response.get("status"),
         "processing_time": api_response.get("processing_time"),
     }
+
+
+def _format_tables_text(tables: list) -> str:
+    """Serialize Docling table cells as pipe-separated rows for schema extraction."""
+    blocks: list[str] = []
+    for j, tbl in enumerate(tables):
+        if not isinstance(tbl, dict):
+            continue
+        data = tbl.get("data") or {}
+        cells = (data.get("table_cells") or []) if isinstance(data, dict) else []
+        if not cells:
+            continue
+        grid: dict[int, dict[int, str]] = {}
+        for cell in cells:
+            if not isinstance(cell, dict):
+                continue
+            text = (cell.get("text") or "").strip()
+            if not text:
+                continue
+            row = int(cell.get("start_row_offset_idx", 0))
+            col = int(cell.get("start_col_offset_idx", 0))
+            grid.setdefault(row, {})[col] = text
+        if not grid:
+            continue
+        page = _page_no(tbl)
+        header = f"=== TABLE {j + 1}"
+        if page:
+            header += f" (page {page})"
+        header += " ==="
+        lines = [header]
+        for row_idx in sorted(grid):
+            cols = grid[row_idx]
+            lines.append(" | ".join(cols[c] for c in sorted(cols)))
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
 
 
 def _ref_index(ref: str) -> int | None:

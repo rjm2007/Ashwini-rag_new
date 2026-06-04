@@ -188,7 +188,14 @@ async def run_act2_process(document_id: str) -> None:
 
     try:
         await asyncio.gather(
-            _run_schema_pipeline(document_id, document_type, md_content, plain_text, page_count),
+            _run_schema_pipeline(
+                document_id,
+                document_type,
+                md_content,
+                plain_text,
+                page_count,
+                structure_json.get("tables_text", ""),
+            ),
             _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text),
         )
         await _update_status(document_id, "processing_complete")
@@ -204,6 +211,7 @@ async def _run_schema_pipeline(
     md_content: str,
     plain_text: str,
     page_count: int | None,
+    tables_text: str = "",
 ) -> None:
     step = start_step(document_id, 2, "schema", "schema_extract", "Per-section extraction")
     try:
@@ -213,6 +221,7 @@ async def _run_schema_pipeline(
             md_content=md_content,
             plain_text=plain_text,
             page_count=page_count,
+            tables_text=tables_text,
         )
         finish_step(
             step,
@@ -229,7 +238,12 @@ async def _run_schema_pipeline(
     finish_step(step, {"document_type": document_type})
 
     step = start_step(document_id, 2, "schema", "schema_merge", "Merging master schema")
-    finish_step(step, {"completeness": 0})
+    with SessionLocal() as session:
+        comp_row = session.execute(
+            text("SELECT completeness FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+    finish_step(step, {"completeness": float(comp_row[0]) if comp_row and comp_row[0] is not None else 0})
 
     step = start_step(document_id, 2, "schema", "schema_save", "Saving to database")
     finish_step(step, {"table": "documents.master_schema_json"})

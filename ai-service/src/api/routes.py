@@ -9,7 +9,6 @@ from sqlalchemy import text
 from ..database import SessionLocal
 from ..query.query_orchestrator import answer_question
 from ..services.qdrant_service import QdrantService
-from ..services.summary_builder import build_summary
 from ..workers.pipeline_orchestrator import run_act1_parse, run_act2_process
 
 logger = logging.getLogger(__name__)
@@ -48,6 +47,7 @@ async def trigger_process(document_id: str) -> dict:
 
 @router.get("/internal/summary/{document_id}")
 async def get_summary(document_id: str) -> dict:
+    """Return master_schema_json for SummaryView (document/vehicle/profiles/quality)."""
     with SessionLocal() as session:
         row = session.execute(
             text("SELECT master_schema_json, original_filename FROM documents WHERE id = :id"),
@@ -55,9 +55,19 @@ async def get_summary(document_id: str) -> dict:
         ).first()
     if not row:
         raise HTTPException(status_code=404, detail="Document not found")
-    schema = row[0] or {}
+    schema = row[0] if isinstance(row[0], dict) else {}
     filename = row[1] or ""
-    return build_summary(schema, document_id, filename)
+    if not schema:
+        return {
+            "document": {},
+            "vehicle": {},
+            "profiles": {},
+            "extensions": [],
+            "quality": {},
+            "document_id": document_id,
+            "filename": filename,
+        }
+    return {**schema, "document_id": document_id, "filename": filename}
 
 
 @router.post("/query/answer")

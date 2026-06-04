@@ -46,12 +46,32 @@ def _fw_value(fw: object):
     return None
 
 
+def _clean_document_text(text: str) -> str:
+    """Drop embedded images so the char budget is used for real text/tables."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"!\[[^\]]*\]\(data:image[^)]+\)", "", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def _build_extraction_text(md_content: str, plain_text: str, tables_text: str) -> str:
+    parts: list[str] = []
+    if tables_text.strip():
+        parts.append(f"<TABLES>\n{tables_text.strip()}\n</TABLES>")
+    body = _clean_document_text(md_content) or _clean_document_text(plain_text)
+    if body:
+        parts.append(f"<DOCUMENT_TEXT>\n{body}\n</DOCUMENT_TEXT>")
+    return "\n\n".join(parts)[: settings.schema_max_text_chars]
+
+
 def extract_master_schema(
     document_id: str,
     document_type: str,
     md_content: str,
     plain_text: str,
     page_count: int | None,
+    tables_text: str = "",
 ) -> dict:
     if not settings.enable_schema_pipeline:
         return _empty_schema(document_type)
@@ -59,11 +79,11 @@ def extract_master_schema(
     llm = LlmService()
     prompt = _PROMPT_PATH.read_text(encoding="utf-8")
     field_hints = _PROFILE_FIELD_HINTS.get(document_type, _PROFILE_FIELD_HINTS["generic_document"])
-    doc_text = (md_content or plain_text)[: settings.schema_max_text_chars]
+    doc_text = _build_extraction_text(md_content, plain_text, tables_text)
     full_prompt = (
         f"{prompt}\n\nDOCUMENT_TYPE: {document_type}\n\n"
         f"EXTRACTION_TARGET:\n{field_hints}\n\n"
-        f"<DOCUMENT_TEXT>\n{doc_text}\n</DOCUMENT_TEXT>"
+        f"{doc_text}"
     )
     raw = llm.small_model_call(
         prompt=full_prompt,
