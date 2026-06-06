@@ -11,6 +11,9 @@ Extract all vehicle identification and document header fields from the SECTION_T
 4. STRICT JSON: single object, no markdown, no prose.
 5. VIN: 17-char alphanumeric (no I/O/Q). If unsure → status:"low_confidence".
 6. chassis_id: numeric/alphanumeric near "NR", "Chassis", or "Unit Number".
+7. unit_number: dealer/fleet unit number (e.g. "1038"). On VDA pages look for
+   "Unit Number"; on repair invoices look for "Unit Number:" in the header block.
+   Extract digits/dash only.
 
 # STATUS VALUES — STRICT ENUM
 The "status" field MUST be exactly one of these three strings (lowercase, no synonyms):

@@ -99,10 +99,15 @@ and per-factor confidence scores.
 }
 
 # FIELD GUIDANCE
-- answer: Direct, plain-English response to the user. <= 6 short sentences.
-  Every factual claim must end with one or more citations like "[2]" or
-  "[1][3]". Avoid lawyer-speak; mirror the user's terminology where safe.
-  Do NOT include the literal phrase "based on the evidence" more than once.
+- answer: Direct, plain-English response. <= 6 short sentences for single-coverage
+  questions. EXCEPTION: for "list all / which warranties / compare / how many"
+  questions, the sentence cap does NOT apply — you MUST enumerate every coverage
+  code from STRUCTURED COVERAGE FACTS, one per line, each with end_date and
+  (active)/(expired) status, even when the conclusion is "none active". Lead
+  with the conclusion, then the full list. Every factual claim must end with
+  one or more citations like "[2]" or "[1][3]". Avoid lawyer-speak; mirror the
+  user's terminology where safe. Do NOT include the literal phrase "based on
+  the evidence" more than once.
 - reasoning: <= 6 sentences, explaining how the cited evidence leads to
   the coverage_decision. May reference indices, pages, and limits.
 - evidence_used: Sorted, deduplicated list of evidence indices actually
@@ -276,6 +281,9 @@ coverage_decision = "insufficient_evidence" and low overall_confidence.
   numbers — cite them with the evidence index.
 - If asked "what repair work was done", quote the complaint and correction fields.
 - If asked "what was the total", state the grand_total (Total Invoice amount).
+- If the invoice header chunk states a Unit Number that matches the unit in the
+  question, AFFIRM the match ("This invoice is for unit 1038") rather than
+  hedging about VIN vs unit.
 - Do NOT apply a coverage_decision for invoice questions — use "n/a" and set
   overall_confidence based on whether the totals are present in evidence.
 

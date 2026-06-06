@@ -64,6 +64,23 @@ extract rows from coverage_table chunks when present.
 - For numeric filters (e.g. "above 500,000 miles"): only include rows where
   the mileage number appears in evidence; show the comparison in reasoning.
 
+# MANDATORY ENUMERATION (list / which / active / expired questions)
+- When the question asks which warranties are active, expired, still valid, or
+  asks to list/show coverage, you MUST output EVERY coverage code from STRUCTURED
+  COVERAGE FACTS, one per line, each with its end_date and an explicit (active)
+  or (expired) tag computed against TODAY'S DATE.
+- This is REQUIRED even when the overall conclusion is "none are active". Never
+  replace the per-code list with a one-line summary. Lead with the conclusion,
+  then give the full list.
+- STRUCTURED COVERAGE FACTS count as valid evidence for this enumeration — the
+  EVIDENCE-ONLY and CODE DISCIPLINE rules are satisfied by the facts block; you
+  do not need a separate retrieved chunk for each code.
+- Required shape:
+    "Active today: none. Full coverage list for <vehicle>:
+     - U030 — 72 months / 750,000 miles — ended 2025-03 (expired)
+     - TOW2 — 24 months / 250,000 miles — ended 2021-03 (expired)
+     - ... (every code) ..."
+
 # EXCLUSION QUESTIONS
 - These coverage exports list COVERED items only and contain no exclusion
   section. If the user asks what is excluded and no exclusion clause appears

@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 $base = "http://localhost:3001"
 $aiUrl = "http://localhost:8000"
-$outFile = "C:\Users\rudra\Desktop\Waranty_POC\Planning\test_results_run_004.json"
+$outFile = "C:\Users\rudra\Desktop\Waranty_POC\Planning\test_results_run_005.json"
 
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
@@ -199,7 +199,7 @@ foreach ($item in $questions) {
 }
 
 $output = @{
-    test_run_id = "run_004"
+    test_run_id = "run_005"
     timestamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
     sessionId = $session.id
     documents_ingested = @(

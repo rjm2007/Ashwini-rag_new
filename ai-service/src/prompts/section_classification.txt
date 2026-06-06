@@ -57,6 +57,14 @@ a PDF) and emit a single JSON object that:
   ]
 }
 
+# MIXED DOCUMENTS
+- A single PDF may contain BOTH a repair invoice (page with "Invoice", "Repair Order",
+  "Total Invoice", "Complaint", "Correction") AND a warranty coverage-code table (VDA
+  page with "Coverage / Description / Start / End" rows).
+- When both are present, still return the dominant document_type, but ADD a
+  "secondary_types" array listing the other type, e.g.:
+    { "document_type": "coverage_code_table", "secondary_types": ["repair_invoice"], ... }
+
 # GUIDANCE
 - For coverage_code_table docs: all table rows are coverage_code_row; header rows are issuer_metadata.
 - For warranty_certificate docs: look for numbered exclusion lists (label each as exclusion), coverage tables (coverage_clause), and legal boilerplate (legal_disclaimer).

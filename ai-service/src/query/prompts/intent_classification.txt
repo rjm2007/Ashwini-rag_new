@@ -176,6 +176,34 @@ OUTPUT:
   "language": "en"
 }
 
+## Example H
+USER: "4V4NC9EH3LN218364 U030 coverage?"
+OUTPUT:
+{
+  "intent": "warranty_coverage",
+  "confidence": 0.9,
+  "requires_retrieval": true,
+  "needs_clarification": false,
+  "clarification_question": null,
+  "abuse_signal": false,
+  "scope_reason": "VIN + coverage code lookup.",
+  "language": "en"
+}
+
+## Example I
+USER: "Compare U065 between chassis 929394 and chassis 218364."
+OUTPUT:
+{
+  "intent": "comparison",
+  "confidence": 0.95,
+  "requires_retrieval": true,
+  "needs_clarification": false,
+  "clarification_question": null,
+  "abuse_signal": false,
+  "scope_reason": "Compare one code across two chassis.",
+  "language": "en"
+}
+
 ## Example G
 USER: "What is the recommended oil change interval for a Volvo VNL?"
 OUTPUT:

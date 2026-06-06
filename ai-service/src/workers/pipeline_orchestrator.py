@@ -368,17 +368,34 @@ async def _run_schema_pipeline(
                 len(parsed),
             )
 
-    # ── Deterministic invoice table extraction (any doc type) ────────────
+    # ── Invoice extraction (runs even when document_type == coverage_code_table) ──
     try:
+        from ..services.invoice_header_parser import (
+            looks_like_invoice,
+            merge_invoice_header,
+            parse_invoice_header,
+        )
         from ..services.invoice_table_parser import parse_invoice_from_tables
 
-        invoice_data = parse_invoice_from_tables(structured_tables or [])
-        if invoice_data.get("line_items"):
+        invoice_text = (plain_text or "") + "\n" + (effective_md or "")
+        if looks_like_invoice(invoice_text):
             inv_profile = master.setdefault("profiles", {}).setdefault("repair_invoice", {})
-            inv_profile["line_items"] = invoice_data["line_items"]
-            inv_profile["totals"] = invoice_data.get("totals", {})
+
+            table_inv = parse_invoice_from_tables(structured_tables or [])
+            if table_inv.get("line_items"):
+                inv_profile["line_items"] = table_inv["line_items"]
+            if table_inv.get("totals"):
+                inv_profile.setdefault("totals", {}).update(table_inv["totals"])
+
+            header = parse_invoice_header(invoice_text)
+            merge_invoice_header(inv_profile, header)
+
             logger.info(
-                "[%s] invoice extracted: %d line items", document_id, len(invoice_data["line_items"])
+                "[%s] invoice extracted: line_items=%d unit=%s grand_total=%s",
+                document_id,
+                len(inv_profile.get("line_items", [])),
+                (inv_profile.get("unit_number") or {}).get("value"),
+                (inv_profile.get("totals", {}).get("grand_total") or {}).get("value"),
             )
     except Exception as exc:
         logger.warning("[%s] invoice extraction failed: %s", document_id, exc)
@@ -399,9 +416,10 @@ async def _run_schema_pipeline(
     # ── 3) SAVE MASTER SCHEMA ────────────────────────────────────────────
     step = start_step(document_id, 2, "schema", "schema_save", "Saving master schema to database")
     vehicle = master.get("vehicle", {}) or {}
-    vin_val = _fw_value(vehicle.get("vin"))
+    inv = master.get("profiles", {}).get("repair_invoice", {}) or {}
+    vin_val = _fw_value(vehicle.get("vin")) or _fw_value(inv.get("vin"))
     chassis_val = _fw_value(vehicle.get("chassis_id"))
-    unit_val = _fw_value(vehicle.get("unit_number"))
+    unit_val = _fw_value(vehicle.get("unit_number")) or _fw_value(inv.get("unit_number"))
     marketing_val = _fw_value(vehicle.get("marketing_type"))
     make_val = _fw_value(vehicle.get("make"))
     model_val = _fw_value(vehicle.get("model"))
@@ -516,7 +534,7 @@ async def _run_embedding_pipeline(
             source = "plain_text"
 
         invoice_profile = (master.get("profiles", {}) or {}).get("repair_invoice", {})
-        if invoice_profile.get("line_items"):
+        if invoice_profile.get("line_items") or invoice_profile.get("totals"):
             from ..services.invoice_chunk_builder import build_invoice_chunks
 
             inv_chunks = build_invoice_chunks(invoice_profile, metadata, document_id)
