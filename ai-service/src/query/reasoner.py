@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from pathlib import Path
 from ..services.llm_service import LlmService
 
@@ -9,7 +10,7 @@ def reason_over_evidence(
     chunks: list[dict],
     *,
     table_mode: bool = False,
-    schema_context: dict | None = None,
+    schema_facts: list[dict] | None = None,
 ) -> dict:
     """This function asks the large model to answer strictly from evidence chunks."""
     llm = LlmService()
@@ -36,22 +37,38 @@ def reason_over_evidence(
     formatted_chunks = "\n\n".join(parts)
     formatted_history = "\n".join([f"{item.get('role')}: {item.get('content')}" for item in history])
 
-    # Build structured schema block if available (from master_schema_json)
+    # Build compact structured facts block if available (from master_schema_json).
     schema_block = ""
-    if schema_context:
-        schema_json = json.dumps(schema_context, indent=2, default=str)
-        # Truncate to avoid blowing up the context window
-        if len(schema_json) > 6000:
-            schema_json = schema_json[:6000] + "\n... (truncated)"
+    if schema_facts:
+        lines: list[str] = []
+        for fact in schema_facts:
+            lines.append(f"## Vehicle: {fact.get('vehicle') or 'Unknown vehicle'} (doc {fact.get('documentId')})")
+            for code in fact.get("coverage_codes", []):
+                limit = " / ".join(
+                    part for part in (code.get("duration"), code.get("distance")) if part
+                )
+                period = f"{code.get('start_date') or '?'} to {code.get('end_date') or '?'}"
+                lines.append(
+                    f"- {code.get('code')}: {code.get('description', '')} | {limit} | {period}"
+                )
+        facts_text = "\n".join(lines)
+        if len(facts_text) > 8000:
+            facts_text = facts_text[:8000] + "\n... (truncated)"
         schema_block = (
-            "\n\nSTRUCTURED DOCUMENT DATA (extracted by pipeline — use this for factual lookups like VIN, "
-            "make, model, coverage codes, exclusions, dates):\n"
-            f"{schema_json}\n"
+            "\n\nSTRUCTURED COVERAGE FACTS (authoritative, extracted by the pipeline - "
+            "use this as the complete list of coverage codes and for list, compare, "
+            "count, and date questions; cite as schema-derived):\n"
+            f"{facts_text}\n"
         )
 
+    today = date.today().isoformat()
     response = llm.large_model_call(
-        prompt=f"{prompt}{schema_block}\n\nConversation:\n{formatted_history}\n\nQuestion:\n{question}\n\nEvidence:\n{formatted_chunks}",
-        system_message="Reason only from provided evidence and structured document data.",
+        prompt=(
+            f"{prompt}{schema_block}\n\nTODAY'S DATE: {today}\n\n"
+            f"Conversation:\n{formatted_history}\n\nQuestion:\n{question}\n\n"
+            f"Evidence:\n{formatted_chunks}"
+        ),
+        system_message="Reason only from provided evidence and structured coverage facts.",
     )
     try:
         return json.loads(response)

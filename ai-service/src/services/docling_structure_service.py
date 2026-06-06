@@ -31,7 +31,8 @@ def parse_structured(pdf_bytes: bytes) -> dict[str, Any]:
         readable = _extract_readable_text(raw)
         return {
             **structured,
-            "pages_text": _extract_pages_text(raw),
+            "pages_text": _build_pages_text_with_tables(raw),
+            "tables_by_page": _extract_tables_by_page(raw),
             "readable_text": readable,
             "plain_text": readable or _extract_plain_text(raw),
             "md_content": _extract_markdown(raw),
@@ -191,6 +192,49 @@ def _format_tables_text(tables: list) -> str:
             lines.append(" | ".join(cols[c] for c in sorted(cols)))
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
+
+
+def _extract_tables_by_page(api_response: dict) -> dict[int, str]:
+    """Serialize Docling table rows by page so chunking sees coverage rows."""
+    doc = _unwrap_document(api_response)
+    out: dict[int, list[str]] = {}
+    for tbl in doc.get("tables") or []:
+        if not isinstance(tbl, dict):
+            continue
+        page = _page_no(tbl) or 1
+        data = tbl.get("data") or {}
+        cells = (data.get("table_cells") or []) if isinstance(data, dict) else []
+        grid: dict[int, dict[int, str]] = {}
+        for cell in cells:
+            if not isinstance(cell, dict):
+                continue
+            text = (cell.get("text") or "").strip()
+            if not text:
+                continue
+            row = int(cell.get("start_row_offset_idx", 0))
+            col = int(cell.get("start_col_offset_idx", 0))
+            grid.setdefault(row, {})[col] = text
+        for row_idx in sorted(grid):
+            cols = grid[row_idx]
+            row_text = " | ".join(cols[col] for col in sorted(cols))
+            out.setdefault(page, []).append(row_text)
+    return {page: "\n".join(rows) for page, rows in out.items()}
+
+
+def _build_pages_text_with_tables(api_response: dict) -> list[dict]:
+    """Merge texts[] and tables[] into pages_text for downstream chunking."""
+    text_pages = {page["page"]: page["text"] for page in _extract_pages_text(api_response)}
+    table_pages = _extract_tables_by_page(api_response)
+    pages = sorted(set(text_pages) | set(table_pages))
+    merged: list[dict] = []
+    for page in pages:
+        parts = []
+        if text_pages.get(page):
+            parts.append(text_pages[page])
+        if table_pages.get(page):
+            parts.append(table_pages[page])
+        merged.append({"page": page, "text": "\n".join(parts)})
+    return merged
 
 
 def _ref_index(ref: str) -> int | None:

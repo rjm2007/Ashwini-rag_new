@@ -1,0 +1,210 @@
+<meta charset="UTF-8">
+<h2 class="sr-only">Warranty Platform &mdash; Ingestion &amp; Retrieval Pipeline Architecture (v2)</h2>
+<style>
+@keyframes fnIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fnDot{0%{transform:translateY(0);opacity:0}20%{opacity:1}80%{opacity:1}100%{transform:translateY(28px);opacity:0}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(16,163,127,.15)}50%{box-shadow:0 0 0 6px rgba(16,163,127,.05)}}
+.fn{animation:fnIn .55s cubic-bezier(.16,1,.3,1) both}
+.fd{animation:fnDot 2.3s ease-in-out infinite;position:absolute;border-radius:50%;width:6px;height:6px;left:-2.5px;top:0}
+.nc{transition:all .18s ease}
+.nc:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.12)!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+@media(prefers-reduced-motion:reduce){.fn,.fd{animation:none!important}}
+:root{
+--bg-page:#0B1120;--bg-card:#111827;--bg-card-hover:#1a2236;--bg-raised:#1E293B;
+--border-main:rgba(148,163,184,.12);--border-accent:rgba(148,163,184,.2);
+--text-primary:#F1F5F9;--text-secondary:#94A3B8;--text-muted:#64748B;
+--cb:#60A5FA;--cbb:rgba(96,165,250,.1);--cbt:#93C5FD;
+--pb:#A78BFA;--pbb:rgba(167,139,250,.1);--pbt:#C4B5FD;
+--tb:#34D399;--tbb:rgba(52,211,153,.1);--tbt:#6EE7B7;
+--pkb:#F472B6;--pkbb:rgba(244,114,182,.1);--pkbt:#F9A8D4;
+--rb:#FB923C;--rbb:rgba(251,146,60,.1);--rbt:#FDBA74;
+--ab:#FBBF24;--abb:rgba(251,191,36,.1);--abt:#FDE68A;
+--gb:#4ADE80;--gbb:rgba(74,222,128,.1);--gbt:#86EFAC;
+}
+</style>
+<div id="root" style="padding:0;background:var(--bg-page);min-height:100vh"></div>
+<script>
+const B={
+openai:`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;background:rgba(16,163,127,.12);border:.5px solid rgba(16,163,127,.35);font-size:10px;font-family:var(--font-mono);color:#34D399;white-space:nowrap;flex-shrink:0"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>OpenAI</span>`,
+qdrant:`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;background:rgba(251,146,60,.1);border:.5px solid rgba(251,146,60,.35);font-size:10px;font-family:var(--font-mono);color:#FB923C;white-space:nowrap;flex-shrink:0"><svg width="11" height="11" viewBox="0 0 20 20" fill="none"><polygon points="10,1 19,5.5 19,14.5 10,19 1,14.5 1,5.5" stroke="#FB923C" stroke-width="1.5" fill="rgba(251,146,60,.2)"/><polygon points="10,5 15,7.5 15,12.5 10,15 5,12.5 5,7.5" fill="#FB923C"/></svg>Qdrant</span>`,
+docling:`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;background:rgba(96,165,250,.1);border:.5px solid rgba(96,165,250,.35);font-size:10px;font-family:var(--font-mono);color:#60A5FA;white-space:nowrap;flex-shrink:0"><svg width="10" height="12" viewBox="0 0 14 16" fill="none"><rect x="1.5" y="1.5" width="11" height="13" rx="1.5" stroke="#60A5FA" stroke-width="1.3"/><path d="M4 5h6M4 8.5h6M4 12h3.5" stroke="#60A5FA" stroke-width="1.1" stroke-linecap="round"/></svg>Docling</span>`,
+postgres:`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;background:rgba(96,165,250,.1);border:.5px solid rgba(96,165,250,.35);font-size:10px;font-family:var(--font-mono);color:#60A5FA;white-space:nowrap;flex-shrink:0"><svg width="10" height="11" viewBox="0 0 16 16" fill="none"><ellipse cx="8" cy="3.5" rx="6" ry="2.5" stroke="#60A5FA" stroke-width="1.2"/><path d="M2 3.5v9c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5v-9" stroke="#60A5FA" stroke-width="1.2"/><path d="M2 8c0 1.38 2.69 2.5 6 2.5s6-1.12 6-2.5" stroke="#60A5FA" stroke-width="1" opacity=".5"/></svg>Postgres</span>`,
+};
+
+function node(n,delay,w){
+const cm={cb:'--cb',pb:'--pb',tb:'--tb',pkb:'--pkb',rb:'--rb',ab:'--ab',gb:'--gb'};
+const c=cm[n.c]||'--cb';
+w=w||310;
+return`<div class="fn nc" style="animation-delay:${delay}ms;cursor:pointer;display:flex;align-items:flex-start;gap:12px;background:var(--bg-card);border:.5px solid var(--border-main);border-left:3px solid var(${c});border-radius:10px;padding:13px 16px;width:${w}px;max-width:100%">
+<div style="width:34px;height:34px;border-radius:8px;background:var(${c.replace('--','--')}b);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ${n.icon}" style="font-size:16px;color:var(${c})" aria-hidden="true"></i></div>
+<div style="flex:1;min-width:0"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:2px"><div style="font-size:13px;font-weight:600;color:var(--text-primary);line-height:1.3">${n.title}</div>${n.badge?B[n.badge]:''}</div><div style="font-size:11.5px;color:var(--text-secondary);line-height:1.5">${n.sub}</div>${n.tag?`<div style="display:inline-block;margin-top:6px;padding:2px 8px;border-radius:20px;font-size:10px;font-family:var(--font-mono);letter-spacing:.4px;text-transform:uppercase;background:var(${c}b);color:var(${c}t);border:.5px solid var(${c})">${n.tag}</div>`:''}</div>
+</div>`;
+}
+
+function conn(code,delay,h,branch){
+h=h||40;const c=`var(--${code})`;
+return`<div class="${branch?'':'fn'}" style="${branch?'':'animation-delay:'+delay+'ms;'}display:flex;justify-content:center;height:${h}px;position:relative;overflow:hidden;${branch?'width:100%':'max-width:320px;width:100%;margin:0 auto'}"><div style="width:1.5px;height:100%;background:${c};opacity:.35;position:relative"><div class="fd" style="background:${c}"></div></div>${branch?'':'<div style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid '+c+';opacity:.35"></div>'}</div>`;
+}
+
+function div(text,delay,accent){
+accent=accent||'--text-muted';
+return`<div class="fn" style="animation-delay:${delay}ms;display:flex;align-items:center;gap:12px;width:100%;max-width:660px;margin:6px auto"><div style="flex:1;height:.5px;background:var(--border-accent)"></div><div style="padding:5px 18px;border-radius:20px;background:var(--bg-raised);border:.5px solid var(--border-accent);font-size:10px;font-family:var(--font-mono);letter-spacing:1.8px;text-transform:uppercase;color:var(${accent});white-space:nowrap">${text}</div><div style="flex:1;height:.5px;background:var(--border-accent)"></div></div>`;
+}
+
+function gate(text,delay){
+return`<div class="fn" style="animation-delay:${delay}ms;display:flex;justify-content:center;margin:8px 0"><div style="padding:8px 28px;border-radius:8px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(251,146,60,.08));border:1px dashed rgba(251,191,36,.35);font-size:12px;font-weight:600;font-family:var(--font-mono);letter-spacing:.8px;text-transform:uppercase;color:var(--ab)">${text}</div></div>`;
+}
+
+function fork(w,pts,cx,codes,delay){
+let ls=`<line x1="${cx}" y1="0" x2="${cx}" y2="22" stroke="var(--border-accent)" stroke-width="1.5"/>`;
+ls+=`<line x1="${pts[0]}" y1="22" x2="${pts[pts.length-1]}" y2="22" stroke="var(--border-main)" stroke-width="1" opacity=".6"/>`;
+codes.forEach((c,i)=>ls+=`<line x1="${pts[i]}" y1="22" x2="${pts[i]}" y2="48" stroke="var(--${c})" stroke-width="1.5" opacity=".45"/>`);
+return`<svg class="fn" style="animation-delay:${delay}ms;display:block;overflow:visible;margin:0 auto" width="${w}" height="48">${ls}</svg>`;
+}
+
+function merge(w,pts,cx,codes,out,delay){
+let ls='';
+codes.forEach((c,i)=>ls+=`<line x1="${pts[i]}" y1="0" x2="${pts[i]}" y2="24" stroke="var(--${c})" stroke-width="1.5" opacity=".45"/>`);
+ls+=`<line x1="${pts[0]}" y1="24" x2="${pts[pts.length-1]}" y2="24" stroke="var(--border-main)" stroke-width="1" opacity=".6"/>`;
+ls+=`<line x1="${cx}" y1="24" x2="${cx}" y2="48" stroke="var(--${out})" stroke-width="1.5" opacity=".45"/>`;
+return`<svg class="fn" style="animation-delay:${delay}ms;display:block;overflow:visible;margin:0 auto" width="${w}" height="48">${ls}</svg>`;
+}
+
+function blabel(text,code,delay){
+const c=`var(--${code})`;
+return`<div class="fn" style="animation-delay:${delay}ms;width:100%;text-align:center;padding:4px 8px;border-bottom:.5px solid ${c};margin-bottom:12px;font-size:10px;font-family:var(--font-mono);letter-spacing:1.4px;text-transform:uppercase;color:${c};opacity:.8">${text}</div>`;
+}
+
+function ingFlow(){
+let d=0,h='';
+h+=`<div class="fn" style="animation-delay:0ms;text-align:center;margin-bottom:36px"><div style="font-size:10px;letter-spacing:3.5px;text-transform:uppercase;color:var(--cb);font-family:var(--font-mono);margin-bottom:8px">01 &middot; Two-Act Ingestion Pipeline</div><div style="font-size:22px;font-weight:600;color:var(--text-primary);letter-spacing:-.3px">Document Ingestion Flow</div><div style="font-size:12.5px;color:var(--text-secondary);margin-top:5px">From raw PDF to structured schema + indexed embeddings</div></div>`;
+h+=`<div style="display:flex;flex-direction:column;align-items:center">`;
+
+// ACT 1
+h+=div('Act 1 &mdash; Parse &amp; Classify (on upload)',d,'--cb');d+=50;
+const act1=[
+{icon:'ti-file-upload',title:'PDF Upload',sub:'Document received via REST API, stored in S3, triggers Act 1 pipeline',tag:'Entry Point',c:'cb'},
+{icon:'ti-file-text',title:'Docling Structured Parser',sub:'IBM document intelligence: layout analysis, table extraction, heading hierarchy, full markdown output',tag:'Structural Parse',c:'cb',badge:'docling'},
+{icon:'ti-hierarchy',title:'Document Tree Builder',sub:'Hierarchical model with parent-child nodes &mdash; sections, subsections, tables, paragraph clusters',c:'cb'},
+{icon:'ti-tag',title:'Section Classification',sub:'LLM labels every node: vehicle_identification, coverage_clause, exclusion, claim_procedure, coverage_code_row',tag:'LLM Call',c:'pb',badge:'openai'},
+{icon:'ti-car',title:'Vehicle Fallback Recovery',sub:'Regex + sequence matching for VIN (17-char ISO 3779), chassis ID, make/model normalization',tag:'Regex + LLM',c:'pb'},
+];
+act1.forEach((n,i)=>{
+d+=80;h+=node(n,d,340);
+if(i<act1.length-1)h+=conn(i<3?'cb':'pb',d+50,36);
+});
+d+=60;
+h+=gate('&#9670; &nbsp;Awaiting Certification&nbsp; &#9670;',d);
+d+=50;
+
+// ACT 2
+h+=div('Act 2 &mdash; Extract &amp; Embed (on certify)',d,'--tb');d+=50;
+h+=node({icon:'ti-shield-check',title:'Certification Trigger',sub:'Admin approves document &rarr; triggers Act 2: schema extraction + embedding run in parallel',tag:'Gate',c:'ab'},d,340);
+d+=60;
+h+=fork(660,[160,500],330,['pb','tb'],d);d+=50;
+
+h+=`<div style="display:flex;gap:16px;align-items:flex-start;width:660px;max-width:100%">`;
+
+// Schema Pipeline
+h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center">`;
+h+=blabel('Schema Extraction Pipeline','pb',d);
+const sNodes=[
+{icon:'ti-database-import',title:'Seed from Act 1',sub:'Load vehicle fields (VIN, make, model, year, chassis) from DB as high-confidence baseline',c:'pb',badge:'postgres'},
+{icon:'ti-scissors',title:'Per-Section LLM Extraction',sub:'Each section group gets a focused prompt: vehicle, coverage codes, exclusions, claim procedures',c:'pb',badge:'openai'},
+{icon:'ti-arrows-sort',title:'Normalize & Merge',sub:'Status canonicalization (extracted/missing/low_confidence), VIN validation, make/model normalization',c:'pb'},
+{icon:'ti-chart-pie',title:'Quality Scoring',sub:'Completeness ratio, fields_extracted vs fields_missing, low_confidence count',c:'pb'},
+{icon:'ti-database',title:'Save Master Schema',sub:'Merged JSON &rarr; documents.master_schema_json + section_extracts_json in PostgreSQL',tag:'Storage',c:'pb',badge:'postgres'},
+{icon:'ti-robot',title:'AI Summary Generation',sub:'Large model produces human-readable narrative from the structured master schema',tag:'LLM Call',c:'pb',badge:'openai'},
+];
+sNodes.forEach((n,i)=>{h+=node(n,d+50+i*72,295);if(i<sNodes.length-1)h+=conn('pb',0,30,true);});
+h+=`</div>`;
+
+// Embedding Pipeline
+h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center">`;
+h+=blabel('Embedding Pipeline','tb',d);
+const eNodes=[
+{icon:'ti-layout-grid',title:'Strategic Chunking',sub:'Context-aware, layout-preserving splitting with configurable overlap and page boundaries',c:'tb'},
+{icon:'ti-tags',title:'Metadata Enrichment',sub:'Each chunk tagged: VIN, chassis, make, model, year, section labels, coverage codes, page ref',c:'tb'},
+{icon:'ti-sparkles',title:'Contextual Embeddings',sub:'OpenAI contextualization per chunk + dense vector (text-embedding-3-small) + BM25 sparse vector',c:'tb',badge:'openai'},
+{icon:'ti-database-export',title:'Qdrant Hybrid Index',sub:'Upsert with dual vectors (dense + sparse), payload index on documentId, VIN, make, model, year',tag:'Storage',c:'rb',badge:'qdrant'},
+];
+eNodes.forEach((n,i)=>{h+=node(n,d+50+i*72,295);if(i<eNodes.length-1)h+=conn('tb',0,30,true);});
+h+=`</div>`;
+h+=`</div></div>`;
+return h;
+}
+
+function retFlow(){
+let d=0,h='';
+h+=`<div class="fn" style="animation-delay:0ms;text-align:center;margin-bottom:36px"><div style="font-size:10px;letter-spacing:3.5px;text-transform:uppercase;color:var(--ab);font-family:var(--font-mono);margin-bottom:8px">02 &middot; Document-Scoped Retrieval Pipeline</div><div style="font-size:22px;font-weight:600;color:var(--text-primary);letter-spacing:-.3px">Query Retrieval Flow</div><div style="font-size:12.5px;color:var(--text-secondary);margin-top:5px">From natural-language query to grounded, schema-enriched answer</div></div>`;
+h+=`<div style="display:flex;flex-direction:column;align-items:center">`;
+
+const pre=[
+{icon:'ti-message',title:'User Query',sub:'Natural language question from the document detail chat panel &mdash; always scoped to a single document',tag:'Input',c:'cb'},
+{icon:'ti-focus-2',title:'Document Scope Binding',sub:'documentId passed from frontend &rarr; backend &rarr; AI service. Overrides all metadata filters with exact document match',tag:'New',c:'gb'},
+{icon:'ti-cpu',title:'Intent Classification',sub:'LLM classifies: warranty_coverage, ambiguous, greeting, out_of_scope, prompt_injection_attempt',tag:'LLM Call',c:'cb',badge:'openai'},
+{icon:'ti-filter',title:'Metadata &amp; Filter Extraction',sub:'Extracts VIN, make, model, year, chassis, warranty codes from question text &mdash; skipped when document-scoped',c:'pb',badge:'openai'},
+];
+pre.forEach((n,i)=>{
+d+=80;h+=node(n,d,340);
+if(i<pre.length-1)h+=conn(i<2?'cb':'pb',d+50,36);
+});
+d+=50;
+h+=div('Hybrid Retrieval Strategies',d,'--rb');d+=50;
+h+=fork(660,[100,330,560],330,['cb','pkb','rb'],d);d+=50;
+
+h+=`<div style="display:flex;gap:10px;align-items:flex-start;width:660px;max-width:100%">`;
+[
+{label:'Dense Semantic',code:'cb',nodes:[{icon:'ti-radar',title:'Vector Search',sub:'Dense cosine similarity via text-embedding-3-small against Qdrant vectors',c:'cb',badge:'openai'}]},
+{label:'Sparse BM25',code:'pkb',nodes:[{icon:'ti-chart-bar',title:'BM25 Keyword',sub:'Lexical token matching with IDF-weighted sparse vectors for exact term recall',c:'pkb'}]},
+{label:'Payload Filter',code:'rb',nodes:[{icon:'ti-adjustments',title:'Qdrant Filter',sub:'documentId=uuid AND repository=certified (or VIN/make/model/year when unscoped)',c:'rb',badge:'qdrant'}]},
+].forEach(br=>{
+h+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center">`;
+h+=blabel(br.label,br.code,d);
+br.nodes.forEach(n=>h+=node(n,d+50,200));
+h+=`</div>`;
+});
+h+=`</div>`;
+d+=120;
+h+=merge(660,[100,330,560],330,['cb','pkb','rb'],'ab',d);d+=50;
+
+const post=[
+{icon:'ti-git-merge',title:'RRF Fusion + Reranking',sub:'Reciprocal Rank Fusion merges dense, sparse, and filtered results. Cross-encoder reranks top candidates by contextual relevance',tag:'Score Fusion',c:'ab'},
+{icon:'ti-table',title:'Master Schema Injection',sub:'Loads master_schema_json from PostgreSQL — vehicle data, coverage codes, exclusions, claim procedures — injected as structured context',tag:'New',c:'gb',badge:'postgres'},
+{icon:'ti-link',title:'Context Assembly',sub:'Evidence chunks formatted with page citations + structured schema block. LLM receives both raw text AND structured data',c:'tb'},
+{icon:'ti-robot',title:'LLM Reasoning with Schema',sub:'Large model answers from evidence chunks + master_schema context. Produces grounded answer with per-sentence citations and coverage decision',tag:'Reasoning',c:'tb',badge:'openai'},
+{icon:'ti-star',title:'Final Response',sub:'Structured output: answer, coverage_decision, confidence score, evidence links, metadata filters applied, page references',tag:'Output',c:'ab'},
+];
+post.forEach((n,i)=>{
+h+=node(n,d,340);d+=90;
+if(i<post.length-1)h+=conn(n.c==='gb'?'gb':n.c==='ab'?'ab':'tb',d-40,36);
+});
+h+=`</div>`;
+return h;
+}
+
+function topBar(){
+return`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;padding-bottom:18px;border-bottom:.5px solid var(--border-accent);flex-wrap:wrap;gap:12px">
+<div><div style="font-size:10px;letter-spacing:3.5px;text-transform:uppercase;color:var(--text-muted);font-family:var(--font-mono);margin-bottom:4px">Warranty AI Platform</div><div style="font-size:18px;font-weight:600;color:var(--text-primary);letter-spacing:-.2px">System Architecture</div></div>
+<div style="display:flex;gap:3px;background:var(--bg-raised);padding:3px;border-radius:10px;border:.5px solid var(--border-accent)"><button id="t-ing" onclick="sw('ing')" style="padding:8px 20px;border-radius:8px;border:.5px solid var(--border-accent);cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font-sans);background:var(--bg-card);color:var(--text-primary);letter-spacing:.2px">Ingestion Flow</button><button id="t-ret" onclick="sw('ret')" style="padding:8px 20px;border-radius:8px;border:.5px solid transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font-sans);background:transparent;color:var(--text-muted);letter-spacing:.2px">Retrieval Flow</button></div>
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${B.openai}${B.qdrant}${B.docling}${B.postgres}</div>
+</div>`;
+}
+
+const root=document.getElementById('root');
+root.style.padding='28px 32px';
+root.style.fontFamily='var(--font-sans)';
+root.innerHTML=topBar()+`<div id="f-ing">${ingFlow()}</div><div id="f-ret" style="display:none">${retFlow()}</div>`;
+
+window.sw=function(tab){
+['ing','ret'].forEach(t=>{
+const f=document.getElementById('f-'+t),bt=document.getElementById('t-'+t);
+f.style.display=t===tab?'':'none';
+bt.style.background=t===tab?'var(--bg-card)':'transparent';
+bt.style.color=t===tab?'var(--text-primary)':'var(--text-muted)';
+bt.style.borderColor=t===tab?'var(--border-accent)':'transparent';
+});
+document.querySelectorAll('#f-'+tab+' .fn').forEach((n,i)=>{n.style.animation='none';n.offsetHeight;n.style.animation='';n.style.animationDelay=(i*50)+'ms';});
+};
+</script>

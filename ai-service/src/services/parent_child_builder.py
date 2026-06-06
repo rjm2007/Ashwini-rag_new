@@ -108,7 +108,7 @@ def build_parent_child_chunks(flat_chunks: list[dict], document_id: str) -> list
                 str(chunk.get("chunkIndex", chunk_idx)),
             )
             text = chunk.get("chunkText") or ""
-            structured = parse_coverage_row(text, chunk.get("coverageCodes"))
+            structured = chunk.get("structuredMeta") or parse_coverage_row(text, chunk.get("coverageCodes"))
             section_id = f"{document_id}-p{page_num}-{chunk.get('chunkType', 'section')}"
             children.append(
                 {

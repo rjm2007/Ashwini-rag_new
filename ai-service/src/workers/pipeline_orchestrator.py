@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from pathlib import Path
@@ -11,13 +10,15 @@ from sqlalchemy import text
 
 from ..config import settings
 from ..database import SessionLocal
-from ..services.chunking_service import chunk_pages, chunk_text
+from ..services.chunking_service import chunk_pages, chunk_pages_flat, chunk_text
 from ..services.coverage_row_parser import parse_chunk_structured_meta
 from ..services.docling_structure_service import check_health, parse_structured
 from ..services.embedding_service import prepare_chunks_for_upsert
 from ..services.event_emitter import finish_step, start_step
 from ..services.ocr_service import OcrService
+from ..services.parent_child_builder import build_parent_child_chunks
 from ..services.qdrant_service import QdrantService
+from ..services.schema_chunk_builder import build_schema_chunks, has_usable_schema
 from ..services.schema_extraction_service import extract_master_schema
 from ..services.section_classifier import classify_sections
 from ..services.s3_service import S3Service
@@ -174,7 +175,7 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
 
 
 async def run_act2_process(document_id: str) -> None:
-    """ACT 2: schema extraction + embedding in parallel."""
+    """ACT 2: schema extraction followed by schema-aware embedding."""
     logger.info("[%s] ACT 2 START", document_id)
     await _update_status(document_id, "schema_extraction")
     s3 = S3Service()
@@ -222,8 +223,10 @@ async def run_act2_process(document_id: str) -> None:
     full_texts = structure_json.get("full_texts", [])
 
     try:
-        results = await asyncio.gather(
-            _run_schema_pipeline(
+        schema_err = None
+        embed_err = None
+        try:
+            await _run_schema_pipeline(
                 document_id,
                 document_type,
                 md_content,
@@ -233,14 +236,16 @@ async def run_act2_process(document_id: str) -> None:
                 sections=enriched_sections,
                 full_texts=full_texts,
                 existing_vehicle=existing_vehicle,
-            ),
-            _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text),
-            return_exceptions=True,
-        )
+            )
+        except Exception as exc:
+            schema_err = exc
+            logger.error("[%s] Schema pipeline failed: %s", document_id, exc)
 
-        # Check both results explicitly
-        schema_err = results[0] if isinstance(results[0], Exception) else None
-        embed_err = results[1] if isinstance(results[1], Exception) else None
+        try:
+            await _run_embedding_pipeline(document_id, s3_path, pages_text, plain_text)
+        except Exception as exc:
+            embed_err = exc
+            logger.error("[%s] Embedding pipeline failed: %s", document_id, exc)
 
         if schema_err and embed_err:
             logger.error("[%s] BOTH pipelines failed: schema=%s embed=%s",
@@ -449,10 +454,32 @@ async def _run_embedding_pipeline(
         if parsed.get("chassis_id"):
             metadata["chassisId"] = parsed["chassis_id"]
 
+    master: dict = {}
+    with SessionLocal() as session:
+        schema_row = session.execute(
+            text("SELECT master_schema_json FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+        if schema_row and isinstance(schema_row[0], dict):
+            master = schema_row[0]
+
     step = start_step(document_id, 2, "embedding", "chunk_generate", "Generating chunks")
     try:
-        chunks = chunk_pages(pages_text, document_id=document_id) if pages_text else chunk_text(plain_text)
-        finish_step(step, {"chunk_count": len(chunks)})
+        if has_usable_schema(master):
+            flat = build_schema_chunks(master, metadata, document_id)
+            source = "schema"
+        elif pages_text:
+            flat = chunk_pages_flat(pages_text)
+            source = "docling_tables"
+        else:
+            flat = chunk_text(plain_text)
+            source = "plain_text"
+
+        if settings.enable_parent_child:
+            chunks = build_parent_child_chunks(flat, document_id)
+        else:
+            chunks = flat
+        finish_step(step, {"chunk_count": len(chunks), "source": source})
     except Exception as exc:
         finish_step(step, {"error": str(exc)[:300]}, status="failed")
         raise

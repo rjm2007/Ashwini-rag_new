@@ -234,3 +234,27 @@ and per-factor confidence scores.
 Return the JSON object only. No prose, no markdown, no code fences.
 If the evidence is empty or off-topic, return a valid JSON object with
 coverage_decision = "insufficient_evidence" and low overall_confidence.
+
+# STRUCTURED COVERAGE FACTS (authoritative)
+- A STRUCTURED COVERAGE FACTS block may be provided. It is the COMPLETE,
+  authoritative list of coverage codes for the cited vehicle(s), extracted by
+  the pipeline. For "list all", "which warranties", "compare", and "how many"
+  questions, you MUST use it as the full set. Do not limit yourself to the
+  retrieved EVIDENCE chunks for completeness.
+- For comparison questions across two vehicles, use the per-document blocks to
+  compare the same code across both documents.
+- If a coverage fact answers the question but no retrieved chunk corroborates
+  it, cite it in the answer as "schema-derived" and include the closest
+  evidence index for the vehicle identity when available.
+
+# TEMPORAL REASONING (expiry)
+- TODAY'S DATE is provided. A coverage is EXPIRED if its end_date is before
+  today, regardless of mileage. When asked "still active", "still valid", or
+  "active today", compare each end_date to TODAY'S DATE and state expired vs
+  active.
+- If both a time limit and a mileage limit exist, the coverage ends at whichever
+  occurs first. If the user gives mileage but the time window has already
+  passed, the answer is not_covered (expired by time).
+
+# FINAL REMINDER
+Return the JSON object only. No prose, no markdown, no code fences.

@@ -13,6 +13,7 @@ from ..services.structured_query_engine import is_simple_retrieval_query, is_str
 from .query_mode import is_hallucination_probe
 from .retriever import retrieve_chunks
 from .reasoner import reason_over_evidence
+from ..services.schema_chunk_builder import extract_coverage_facts
 logger = logging.getLogger(__name__)
 
 GREETING_REPLY = (
@@ -73,6 +74,51 @@ def _load_master_schema(document_id: str) -> dict | None:
     except Exception as exc:
         logger.warning("Failed to load master_schema for %s: %s", document_id, exc)
     return None
+
+
+def _target_document_ids(chunks: list[dict], document_id: str | None) -> list[str]:
+    """Ground on the scoped document, or on documents retrieved for global chat."""
+    if document_id:
+        return [document_id]
+    ids: list[str] = []
+    for chunk in chunks:
+        did = (chunk.get("payload") or {}).get("documentId")
+        if did and did not in ids:
+            ids.append(did)
+    return ids[:3]
+
+
+def _load_schema_facts(document_ids: list[str]) -> list[dict]:
+    """Load compact, complete coverage facts for retrieved/scoped documents."""
+    if not document_ids:
+        return []
+    facts: list[dict] = []
+    with SessionLocal() as session:
+        for document_id in document_ids:
+            row = session.execute(
+                text(
+                    "SELECT make, model, year, metadata_json, master_schema_json "
+                    "FROM documents WHERE id = :id"
+                ),
+                {"id": document_id},
+            ).first()
+            if not row:
+                continue
+            metadata = row[3] if isinstance(row[3], dict) else {}
+            master = row[4] if isinstance(row[4], dict) else {}
+            vehicle_parts = [str(item) for item in (row[0], row[1], row[2]) if item]
+            if metadata.get("vin"):
+                vehicle_parts.append(f"VIN {metadata.get('vin')}")
+            if metadata.get("chassis_id"):
+                vehicle_parts.append(f"chassis {metadata.get('chassis_id')}")
+            facts.append(
+                {
+                    "documentId": document_id,
+                    "vehicle": " ".join(vehicle_parts).strip(),
+                    "coverage_codes": extract_coverage_facts(master),
+                }
+            )
+    return facts
 
 
 async def answer_question(question: str, conversation_history: list[dict], document_id: str | None = None) -> dict:
@@ -166,19 +212,17 @@ async def answer_question(question: str, conversation_history: list[dict], docum
     )
     chunks = retrieve_chunks(question, metadata, list_mode=list_mode)
 
-    # Load master schema for structured context when scoped to a document
-    schema_context = None
-    if document_id:
-        schema_context = _load_master_schema(document_id)
-        if schema_context:
-            logger.info("Injecting master_schema context for documentId=%s", document_id)
+    target_docs = _target_document_ids(chunks, document_id)
+    schema_facts = _load_schema_facts(target_docs)
+    if schema_facts:
+        logger.info("Injecting schema facts for documents=%s", target_docs)
 
     reasoned = reason_over_evidence(
         question,
         conversation_history,
         chunks,
         table_mode=table_mode,
-        schema_context=schema_context,
+        schema_facts=schema_facts,
     )
 
     evidence = []
