@@ -123,7 +123,7 @@ function SectionCard({ section, index }: { section: SectionDef; index: number })
     >
       {/* Highlight sweep */}
       <motion.div
-        variants={sweepVariants}
+        variants={sweepVariants as any}
         style={{
           position: "absolute",
           top: 0,

@@ -129,7 +129,7 @@ export default function StageDocumentReceived({
       >
         {/* Acceptance pulse ring — positioned behind content */}
         <motion.div
-          variants={pulseRingVariants}
+          variants={pulseRingVariants as any}
           style={{
             position: "absolute",
             top: "50%",
