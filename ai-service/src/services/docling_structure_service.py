@@ -152,6 +152,7 @@ def _extract_structure(api_response: dict) -> dict:
         "paragraph_count": len(paragraphs),
         "paragraph_samples": paragraphs[:20],
         "tables": table_summaries,
+        "structured_tables": [tbl for tbl in tables if isinstance(tbl, dict)],
         "tables_text": _format_tables_text(tables),
         "hierarchy": hierarchy,
         "status": api_response.get("status"),

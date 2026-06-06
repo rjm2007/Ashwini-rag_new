@@ -90,7 +90,29 @@ class QdrantService:
         )
         return False
 
+    def delete_document_points(self, document_id: str) -> None:
+        """Remove ALL points for a document before re-upserting.
+
+        Prevents orphan chunks when the new chunk count is smaller than the old
+        one (point IDs are deterministic md5(documentId-idx), so a shrink would
+        otherwise leave dangling high-index points)."""
+        try:
+            from qdrant_client.models import FilterSelector
+
+            self.client.delete(
+                collection_name=self.collection,
+                points_selector=FilterSelector(
+                    filter=Filter(
+                        must=[FieldCondition(key="documentId", match=MatchValue(value=document_id))]
+                    )
+                ),
+            )
+            logger.info("Deleted existing points for doc %s", document_id)
+        except Exception as exc:
+            logger.warning("delete_document_points failed for %s: %s", document_id, exc)
+
     def upsert_chunks(self, document_id: str, chunks_with_metadata: list[dict]) -> None:
+        self.delete_document_points(document_id)
         points: list[PointStruct] = []
         for idx, chunk in enumerate(chunks_with_metadata):
             payload = {k: v for k, v in chunk.items() if k not in ("vector", "sparse_vector")}

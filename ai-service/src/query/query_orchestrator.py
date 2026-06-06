@@ -1,5 +1,6 @@
 import json
 import logging
+import re as _re
 
 from sqlalchemy import text
 
@@ -15,6 +16,10 @@ from .retriever import retrieve_chunks
 from .reasoner import reason_over_evidence
 from ..services.schema_chunk_builder import extract_coverage_facts
 logger = logging.getLogger(__name__)
+
+_VIN_RE = _re.compile(r"\b([A-HJ-NPR-Z0-9]{17})\b")
+_CHASSIS_RE = _re.compile(r"\bchassis\s*(?:id\s*)?(\d{5,6})\b", _re.IGNORECASE)
+_UNIT_RE = _re.compile(r"\bunit\s*(\d{3,6})\b", _re.IGNORECASE)
 
 GREETING_REPLY = (
     "Hi! I'm your Fixyee warranty assistant. "
@@ -74,6 +79,59 @@ def _load_master_schema(document_id: str) -> dict | None:
     except Exception as exc:
         logger.warning("Failed to load master_schema for %s: %s", document_id, exc)
     return None
+
+
+def _resolve_documents_from_question(question: str) -> list[str]:
+    """Return certified documentIds for any VIN/chassis/unit named in the question."""
+    vins = _VIN_RE.findall(question or "")
+    chassis = _CHASSIS_RE.findall(question or "")
+    units = _UNIT_RE.findall(question or "")
+    if not (vins or chassis or units):
+        return []
+    ids: list[str] = []
+    try:
+        with SessionLocal() as session:
+            for vin in vins:
+                row = session.execute(
+                    text(
+                        "SELECT id FROM documents "
+                        "WHERE current_repository='certified' "
+                        "AND metadata_json->>'vin' = :v"
+                    ),
+                    {"v": vin},
+                ).first()
+                if row and str(row[0]) not in ids:
+                    ids.append(str(row[0]))
+            for ident in chassis + units:
+                rows = session.execute(
+                    text(
+                        "SELECT id FROM documents "
+                        "WHERE current_repository='certified' "
+                        "AND (metadata_json->>'chassis_id' = :c "
+                        "     OR metadata_json->>'unit_number' = :c)"
+                    ),
+                    {"c": ident},
+                ).fetchall()
+                for row in rows:
+                    doc_id = str(row[0])
+                    if doc_id not in ids:
+                        ids.append(doc_id)
+    except Exception as exc:
+        logger.warning("_resolve_documents_from_question failed: %s", exc)
+    return ids
+
+
+def _dedupe_chunks_by_id(chunks: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for chunk in chunks:
+        payload = chunk.get("payload") or {}
+        key = str(payload.get("chunkId") or payload.get("id") or id(chunk))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(chunk)
+    return out
 
 
 def _target_document_ids(chunks: list[dict], document_id: str | None) -> list[str]:
@@ -138,7 +196,8 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         return aggregate(question)
 
     classification = classify_intent(question, conversation_history)
-    intent = classification.get("intent", "warranty_coverage")
+    classification_intent = classification.get("intent", "warranty_coverage")
+    intent = classification_intent
 
     if intent == "greeting_or_smalltalk":
         return {
@@ -166,6 +225,9 @@ async def answer_question(question: str, conversation_history: list[dict], docum
             "filters": {},
             "intent": intent,
         }
+
+    if intent == "invoice_lookup":
+        intent = "warranty_coverage"
 
     if intent == "ambiguous":
         clarification = classification.get("clarification_question") or (
@@ -210,12 +272,34 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         or is_hallucination_probe(question)
         or (settings.enable_structured_reasoning and is_structured_query(question))
     )
-    chunks = retrieve_chunks(question, metadata, list_mode=list_mode)
+    # --- Resolve documents named in the question (VIN / chassis / unit) ---
+    explicit_docs = _resolve_documents_from_question(question)
 
-    target_docs = _target_document_ids(chunks, document_id)
+    # --- Retrieval: pin to resolved docs when intent needs evidence ---
+    retrieval_intents = {
+        "warranty_coverage", "comparison", "warranty_metadata_lookup",
+        "followup_clarification", "invoice_lookup",
+    }
+    if explicit_docs and (intent in retrieval_intents or classification_intent in retrieval_intents):
+        chunks = []
+        for did in explicit_docs:
+            chunks.extend(
+                retrieve_chunks(question, {"documentId": did}, list_mode=list_mode)
+            )
+        chunks = _dedupe_chunks_by_id(chunks)
+        logger.info("Retrieval pinned to resolved docs: %s (question-resolved)", explicit_docs)
+    else:
+        chunks = retrieve_chunks(question, metadata, list_mode=list_mode)
+
+    # --- Schema-facts grounding ---
+    target_docs = explicit_docs or _target_document_ids(chunks, document_id)
     schema_facts = _load_schema_facts(target_docs)
     if schema_facts:
-        logger.info("Injecting schema facts for documents=%s", target_docs)
+        logger.info(
+            "Schema grounding: docs=%s source=%s",
+            target_docs,
+            "question" if explicit_docs else "retrieval",
+        )
 
     reasoned = reason_over_evidence(
         question,

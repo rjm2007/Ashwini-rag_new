@@ -233,6 +233,7 @@ async def run_act2_process(document_id: str) -> None:
                 plain_text,
                 page_count,
                 tables_text=structure_json.get("tables_text", ""),
+                structured_tables=structure_json.get("structured_tables", []),
                 sections=enriched_sections,
                 full_texts=full_texts,
                 existing_vehicle=existing_vehicle,
@@ -272,6 +273,7 @@ async def _run_schema_pipeline(
     plain_text: str,
     page_count: int | None,
     tables_text: str = "",
+    structured_tables: list[dict] | None = None,
     sections: list[dict] | None = None,
     full_texts: list[dict] | None = None,
     existing_vehicle: dict | None = None,
@@ -348,6 +350,39 @@ async def _run_schema_pipeline(
             logger.warning("[%s] Section %s extraction failed: %s", document_id, group["name"], exc)
             finish_step(step, {"name": group["name"], "error": str(exc)[:300]}, status="failed")
 
+    if document_type == "coverage_code_table":
+        from ..services.coverage_table_parser import (
+            merge_into_master,
+            parse_coverage_codes_from_pipe_text,
+            parse_coverage_codes_from_tables,
+        )
+
+        parsed = parse_coverage_codes_from_tables(structured_tables or [])
+        if not parsed and tables_text:
+            parsed = parse_coverage_codes_from_pipe_text(tables_text)
+        if parsed:
+            merge_into_master(master, parsed)
+            logger.info(
+                "[%s] coverage codes overridden deterministically: %d rows",
+                document_id,
+                len(parsed),
+            )
+
+    # ── Deterministic invoice table extraction (any doc type) ────────────
+    try:
+        from ..services.invoice_table_parser import parse_invoice_from_tables
+
+        invoice_data = parse_invoice_from_tables(structured_tables or [])
+        if invoice_data.get("line_items"):
+            inv_profile = master.setdefault("profiles", {}).setdefault("repair_invoice", {})
+            inv_profile["line_items"] = invoice_data["line_items"]
+            inv_profile["totals"] = invoice_data.get("totals", {})
+            logger.info(
+                "[%s] invoice extracted: %d line items", document_id, len(invoice_data["line_items"])
+            )
+    except Exception as exc:
+        logger.warning("[%s] invoice extraction failed: %s", document_id, exc)
+
     # ── 2) NORMALIZE + QUALITY ───────────────────────────────────────────
     step = start_step(document_id, 2, "schema", "schema_normalize", "Normalizing & validating fields")
     master = _normalize_field_wrappers_deep(master)
@@ -366,6 +401,8 @@ async def _run_schema_pipeline(
     vehicle = master.get("vehicle", {}) or {}
     vin_val = _fw_value(vehicle.get("vin"))
     chassis_val = _fw_value(vehicle.get("chassis_id"))
+    unit_val = _fw_value(vehicle.get("unit_number"))
+    marketing_val = _fw_value(vehicle.get("marketing_type"))
     make_val = _fw_value(vehicle.get("make"))
     model_val = _fw_value(vehicle.get("model"))
     year_val = _fw_value(vehicle.get("model_year"))
@@ -396,6 +433,7 @@ async def _run_schema_pipeline(
                 "make": make_val, "model": model_val, "year": year_val,
                 "meta": json.dumps({k: v for k, v in {
                     "vin": vin_val, "chassis_id": chassis_val,
+                    "unit_number": unit_val, "marketing_type": marketing_val,
                 }.items() if v}),
                 "id": document_id,
             },
@@ -446,6 +484,8 @@ async def _run_embedding_pipeline(
                 metadata["vin"] = raw_meta["vin"]
             if raw_meta.get("chassis_id"):
                 metadata["chassisId"] = raw_meta["chassis_id"]
+            if raw_meta.get("unit_number"):
+                metadata["unit_number"] = raw_meta["unit_number"]
 
     if not metadata.get("vin") and plain_text:
         parsed = parse_vin_chassis_from_text(plain_text)
@@ -474,6 +514,15 @@ async def _run_embedding_pipeline(
         else:
             flat = chunk_text(plain_text)
             source = "plain_text"
+
+        invoice_profile = (master.get("profiles", {}) or {}).get("repair_invoice", {})
+        if invoice_profile.get("line_items"):
+            from ..services.invoice_chunk_builder import build_invoice_chunks
+
+            inv_chunks = build_invoice_chunks(invoice_profile, metadata, document_id)
+            flat = flat + inv_chunks
+            source = f"{source}+invoice"
+            logger.info("[%s] appended %d invoice chunks", document_id, len(inv_chunks))
 
         if settings.enable_parent_child:
             chunks = build_parent_child_chunks(flat, document_id)

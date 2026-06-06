@@ -6,11 +6,15 @@ import re
 
 # Coverage / claim codes common in Volvo export PDFs
 _CODE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\bU\d{3,4}[A-Z]?\b", re.IGNORECASE),
-    re.compile(r"\bEPA\d+\b", re.IGNORECASE),
+    re.compile(r"\bU\d{2,4}[A-Z]?\b", re.IGNORECASE),
+    re.compile(r"\bD\d{3,4}\b", re.IGNORECASE),
+    re.compile(r"\bET\d{2,4}\b", re.IGNORECASE),
+    re.compile(r"\bE\d{3,4}\b", re.IGNORECASE),
+    re.compile(r"\bG\d{2,3}\b", re.IGNORECASE),
+    re.compile(r"\bHAC\d{1,3}\b", re.IGNORECASE),
     re.compile(r"\bTOW\d+\b", re.IGNORECASE),
-    re.compile(r"\bD\d{4}\b", re.IGNORECASE),
-    re.compile(r"\bET\d{3}\b", re.IGNORECASE),
+    re.compile(r"\bZ\d{3,4}\b", re.IGNORECASE),
+    re.compile(r"\bEPA\d+\b", re.IGNORECASE),
 ]
 
 # Symptom / topic hints → extra BM25 + lexical boost terms

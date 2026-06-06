@@ -96,5 +96,17 @@ Return JSON only. No markdown fences.
   occurs first. If the user gives mileage but the time window has already
   passed, the answer is not_covered (expired by time).
 
+# DATE FIDELITY
+- When STRUCTURED COVERAGE FACTS provide a start_date or end_date, use it
+  VERBATIM. Never recompute, infer, or shift a year. If a date in the facts
+  is a placeholder (e.g. 0000-00-00), say the date is not stated rather than
+  guessing.
+
+# CONFIDENCE CALIBRATION
+- If your answer to a "list all warranties" or "compare" question relies only
+  on retrieved EVIDENCE chunks with no corroborating STRUCTURED COVERAGE FACTS,
+  cap overall_confidence at 0.5 and note in missing_information that the full
+  code list may not be represented.
+
 # FINAL REMINDER
 Return JSON only. No markdown fences.

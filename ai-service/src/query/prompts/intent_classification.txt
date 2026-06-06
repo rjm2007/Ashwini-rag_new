@@ -37,6 +37,9 @@ single JSON object that classifies the question and signals routing hints.
                                conversation.
 - comparison                 : User asks to compare two or more warranties /
                                coverage options.
+- invoice_lookup             : User asks about repair work performed, invoice/RO
+                               number, parts, labor, or invoice totals on a
+                               certified service document. Requires retrieval.
 - greeting_or_smalltalk      : "hi", "thanks", "who are you", etc.
 - out_of_scope               : Legal advice, medical advice, general
                                knowledge, code generation, news, math help,
@@ -65,7 +68,8 @@ single JSON object that classifies the question and signals routing hints.
 # FIELD GUIDANCE
 - confidence: float in [0.0, 1.0]. Use the calibration table below.
 - requires_retrieval: true ONLY for warranty_coverage,
-  warranty_metadata_lookup, followup_clarification, and comparison.
+  warranty_metadata_lookup, followup_clarification, comparison, and
+  invoice_lookup.
   false for greeting_or_smalltalk, out_of_scope,
   prompt_injection_attempt, and ambiguous.
 - needs_clarification: true when intent is ambiguous OR when the question
@@ -159,6 +163,20 @@ OUTPUT:
 }
 
 ## Example F
+USER: "What repair work was done on unit 1038 and what was the total invoice amount?"
+OUTPUT:
+{
+  "intent": "invoice_lookup",
+  "confidence": 0.95,
+  "requires_retrieval": true,
+  "needs_clarification": false,
+  "clarification_question": null,
+  "abuse_signal": false,
+  "scope_reason": "Repair work and invoice total query.",
+  "language": "en"
+}
+
+## Example G
 USER: "What is the recommended oil change interval for a Volvo VNL?"
 OUTPUT:
 {
