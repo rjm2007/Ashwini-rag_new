@@ -1,0 +1,30 @@
+# Dependencies and build output (rebuilt inside the image)
+node_modules
+.next
+out
+
+# Git and editor
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs and local env (use root .env via compose, not copied into build context)
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+
+# Tests and docs (not needed for production image)
+coverage
+__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+README.md
+
+# OS junk
+.DS_Store
+Thumbs.db
