@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, ChevronRight, Upload } from "lucide-react";
+import { FileText, ChevronRight, Upload, Search, Filter } from "lucide-react";
 import api from "../../../lib/api";
 import StatusPill from "../../../components/ui/StatusPill";
 import TypePill from "../../../components/ui/TypePill";
@@ -16,6 +16,7 @@ function relativeDate(value?: string): string {
   const d = new Date(value);
   const diff = Date.now() - d.getTime();
   const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
@@ -29,6 +30,7 @@ export default function DocumentsPage() {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const showUpload = user?.role === "admin" || user?.role === "reviewer";
 
   const fetchDocs = () => {
@@ -45,56 +47,122 @@ export default function DocumentsPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const filtered = documents.filter((d) =>
+    d.originalFilename.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div style={{ padding: "20px 24px" }}>
+    <div style={{ padding: "24px 28px" }}>
+      {/* Page header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 20
+          marginBottom: 24,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1 style={{ fontSize: 18, fontWeight: 500, margin: 0, color: "var(--text-primary)" }}>
+        <div>
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              margin: 0,
+              color: "var(--text-primary)",
+              letterSpacing: "-0.01em",
+            }}
+          >
             Documents
           </h1>
-          <MonoChip value={String(documents.length)} size="sm" />
+          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+            {documents.length} document{documents.length !== 1 ? "s" : ""} in your workspace
+          </p>
         </div>
-        {showUpload ? (
+        {showUpload && (
           <Link
             href="/upload"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 8,
               fontSize: 13,
-              padding: "6px 14px",
-              border: "1px solid var(--accent)",
-              borderRadius: 8,
-              color: "var(--accent)",
-              background: "transparent"
+              fontWeight: 600,
+              padding: "9px 20px",
+              background: "var(--accent)",
+              color: "var(--text-inverse)",
+              borderRadius: "var(--r-sm)",
+              boxShadow: "var(--shadow-accent)",
+              textDecoration: "none",
             }}
           >
-            <Upload size={14} />
-            Upload
+            <Upload size={15} />
+            Upload Document
           </Link>
-        ) : null}
+        )}
       </div>
 
-      <div style={{ width: "100%" }}>
+      {/* Search/filter bar */}
+      <div
+        className="card"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          marginBottom: 16,
+        }}
+      >
+        <Search size={16} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+        <input
+          type="text"
+          placeholder="Search documents..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            flex: 1,
+            border: "none",
+            background: "transparent",
+            fontSize: 13,
+            color: "var(--text-primary)",
+            outline: "none",
+          }}
+        />
+        <button
+          type="button"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 12,
+            padding: "5px 12px",
+            borderRadius: "var(--r-sm)",
+            border: "1px solid var(--border)",
+            background: "transparent",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+          }}
+        >
+          <Filter size={13} />
+          Filter
+        </button>
+      </div>
+
+      {/* Document table */}
+      <div className="card" style={{ overflow: "hidden" }}>
+        {/* Header row */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 160px 140px 120px 40px",
+            gridTemplateColumns: "1fr 160px 160px 120px 40px",
             gap: 12,
-            padding: "10px 12px",
+            padding: "12px 20px",
             fontSize: 11,
             fontWeight: 500,
             color: "var(--text-muted)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            borderBottom: "1px solid var(--border)"
+            borderBottom: "1px solid var(--border)",
+            background: "var(--bg-raised)",
           }}
         >
           <span>Document</span>
@@ -104,64 +172,151 @@ export default function DocumentsPage() {
           <span />
         </div>
 
+        {/* Loading skeletons */}
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
                 style={{
-                  height: 48,
-                  margin: "4px 0",
-                  background: "var(--bg-raised)",
-                  borderRadius: 6,
-                  animation: "breathe 1.4s ease-in-out infinite",
-                  animationDelay: `${i * 200}ms`
+                  height: 56,
+                  margin: "0 20px",
+                  borderBottom: "1px solid var(--border)",
+                  display: "flex",
+                  alignItems: "center",
                 }}
-              />
+              >
+                <div
+                  style={{
+                    height: 14,
+                    width: `${30 + Math.random() * 40}%`,
+                    background: "var(--bg-hover)",
+                    borderRadius: 4,
+                    animation: "breathe 1.4s ease-in-out infinite",
+                    animationDelay: `${i * 200}ms`,
+                  }}
+                />
+              </div>
             ))
           : null}
 
-        {!loading && documents.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 16px" }}>
-            <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>No documents yet</p>
-            <Link href="/upload" style={{ color: "var(--accent)", fontSize: 13 }}>
+        {/* Empty state */}
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "56px 16px" }}>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: "var(--accent-soft)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+              }}
+            >
+              <FileText size={24} style={{ color: "var(--accent)" }} />
+            </div>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                marginBottom: 8,
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              {search ? "No matching documents" : "No documents yet"}
+            </p>
+            <Link
+              href="/upload"
+              style={{ color: "var(--accent)", fontSize: 13, fontWeight: 500 }}
+            >
               Upload your first document →
             </Link>
           </div>
-        ) : null}
+        )}
 
+        {/* Document rows */}
         {!loading &&
-          documents.map((doc) => (
+          filtered.map((doc, i) => (
             <div
               key={doc.id}
               role="button"
               tabIndex={0}
               onClick={() => router.push(`/documents/${doc.id}`)}
               onKeyDown={(e) => e.key === "Enter" && router.push(`/documents/${doc.id}`)}
-              className="doc-row"
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 160px 140px 120px 40px",
+                gridTemplateColumns: "1fr 160px 160px 120px 40px",
                 gap: 12,
                 alignItems: "center",
-                height: 48,
-                padding: "0 12px",
-                borderBottom: "1px solid var(--border)",
-                cursor: "pointer"
+                height: 56,
+                padding: "0 20px",
+                borderBottom:
+                  i < filtered.length - 1 ? "1px solid var(--border)" : "none",
+                cursor: "pointer",
+                transition: "background 120ms ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                const chevron = e.currentTarget.querySelector(
+                  ".row-chevron"
+                ) as HTMLElement;
+                if (chevron) chevron.style.opacity = "1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                const chevron = e.currentTarget.querySelector(
+                  ".row-chevron"
+                ) as HTMLElement;
+                if (chevron) chevron.style.opacity = "0";
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                <FileText size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-                <span
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  minWidth: 0,
+                }}
+              >
+                <div
                   style={{
-                    fontSize: 13,
-                    color: "var(--text-primary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap"
+                    width: 32,
+                    height: 32,
+                    borderRadius: "var(--r-sm)",
+                    background: "var(--accent-soft)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  {doc.originalFilename}
-                </span>
+                  <FileText size={15} style={{ color: "var(--accent)" }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      display: "block",
+                    }}
+                  >
+                    {doc.originalFilename}
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {doc.id.slice(0, 8)}
+                  </span>
+                </div>
               </div>
               <div>
                 <TypePill type={doc.documentType || "generic_document"} />
@@ -169,26 +324,23 @@ export default function DocumentsPage() {
               <div>
                 <StatusPill status={doc.processingStatus} />
               </div>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                }}
+              >
                 {relativeDate(doc.uploadedAt)}
               </span>
               <ChevronRight
                 size={16}
                 className="row-chevron"
-                style={{ color: "var(--text-muted)", opacity: 0 }}
+                style={{ color: "var(--text-muted)", opacity: 0, transition: "opacity 120ms ease" }}
               />
             </div>
           ))}
       </div>
-
-      <style jsx>{`
-        .doc-row:hover {
-          background: var(--bg-hover);
-        }
-        .doc-row:hover .row-chevron {
-          opacity: 1 !important;
-        }
-      `}</style>
     </div>
   );
 }
