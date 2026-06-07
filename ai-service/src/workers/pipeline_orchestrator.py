@@ -424,7 +424,9 @@ async def _run_schema_pipeline(
     make_val = _fw_value(vehicle.get("make"))
     model_val = _fw_value(vehicle.get("model"))
     year_val = _fw_value(vehicle.get("model_year"))
-    required_missing = not all([vin_val or chassis_val, make_val, model_val])
+    from ..services.required_fields import has_required_fields
+    required_missing = not has_required_fields(
+        vin_val, chassis_val, make_val, model_val, document_type, unit_val)
 
     from sqlalchemy import text as sqla_text
     with SessionLocal() as session:

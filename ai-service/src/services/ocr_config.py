@@ -26,7 +26,7 @@ def load_ocr_config() -> OcrConfig:
         s3_bucket=settings.s3_bucket_name,
         openai_api_key=settings.openai_api_key,
         small_model=settings.small_model,
-        docling_url=settings.docling_url,
+        docling_url=settings.docling_serve_url or settings.docling_url,
         textract_poll_interval=settings.textract_poll_interval,
         textract_timeout=settings.textract_timeout,
     )

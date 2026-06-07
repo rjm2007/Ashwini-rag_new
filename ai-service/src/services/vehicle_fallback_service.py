@@ -19,10 +19,23 @@ from ..services.llm_service import LlmService
 from ..services.schema_extraction_service import _clean_text, _merge_section_extracts
 from ..services.ocr_service import OcrService
 from ..services.strategic_chunker import parse_vin_chassis_from_text
+from ..services.invoice_header_parser import parse_invoice_header, looks_like_invoice
+from ..services.required_fields import has_required_fields
 
 logger = logging.getLogger("vehicle_fallback")
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extract_vehicle_required.txt"
 _VIN_RE = re.compile(r"\b([A-HJ-NPR-Z0-9]{17})\b", re.IGNORECASE)
+
+
+def _is_valid_vin(value) -> bool:
+    """A real VIN is 17 chars from [A-HJ-NPR-Z0-9] AND contains digits.
+    Rejects all-letter strings like 'CRANKCASEPRESSURE'."""
+    if not value:
+        return False
+    v = str(value).strip().upper()
+    if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", v):
+        return False
+    return sum(c.isdigit() for c in v) >= 2
 
 _MAKE_HINTS = re.compile(
     r"\b(Volvo\s+Truck[s]?|Freightliner|Kenworth|Peterbilt|Mack|International)\b",
@@ -68,14 +81,14 @@ def _wrap(value: Any, *, source: str = "llm", confidence: float = 0.85) -> dict:
 
 
 def _has_required_fields(vehicle: dict, document_type: str = "") -> bool:
-    vin = _fw_value(vehicle.get("vin"))
-    chassis = _fw_value(vehicle.get("chassis_id"))
-    make = _fw_value(vehicle.get("make"))
-    model = _fw_value(vehicle.get("model"))
-    id_ok = bool(vin or chassis)
-    if document_type == "coverage_code_table":
-        return id_ok and bool(make)
-    return id_ok and bool(make) and bool(model)
+    return has_required_fields(
+        _fw_value(vehicle.get("vin")),
+        _fw_value(vehicle.get("chassis_id")),
+        _fw_value(vehicle.get("make")),
+        _fw_value(vehicle.get("model")),
+        document_type,
+        _fw_value(vehicle.get("unit_number")),
+    )
 
 
 def _build_document_text(structured: dict, extra_text: str = "") -> str:
@@ -106,7 +119,7 @@ def _parse_sequence_labels(text: str) -> dict:
             vehicle["make"] = _wrap("Volvo Truck", source="sequence", confidence=0.9)
         if norm in ("ovin", "vin", "oregno") and i + 1 < len(lines):
             nxt = re.sub(r"\s+", "", lines[i + 1].upper())
-            if _VIN_RE.fullmatch(nxt):
+            if _VIN_RE.fullmatch(nxt) and _is_valid_vin(nxt):
                 vehicle["vin"] = _wrap(nxt, source="sequence", confidence=0.95)
         if ("chassis" in norm or norm == "nr") and i + 1 < len(lines):
             nxt = lines[i + 1].strip()
@@ -118,9 +131,10 @@ def _parse_sequence_labels(text: str) -> dict:
                 vehicle.setdefault("unit_number", _wrap(nxt, source="sequence", confidence=0.75))
 
     for m in _VIN_RE.finditer(text):
-        if "vin" not in vehicle:
-            vehicle["vin"] = _wrap(m.group(1).upper(), source="regex", confidence=0.95)
-        break
+        cand = m.group(1).upper()
+        if "vin" not in vehicle and _is_valid_vin(cand):
+            vehicle["vin"] = _wrap(cand, source="regex", confidence=0.95)
+            break
 
     if "VolvoTruck" in text or "Volvo Truck" in text:
         vehicle.setdefault("make", _wrap("Volvo Truck", source="regex", confidence=0.85))
@@ -150,8 +164,10 @@ def _regex_vehicle_hints(text: str) -> dict:
     parsed = parse_vin_chassis_from_text(text[:15000])
     if not parsed.get("vin"):
         for m in re.finditer(r"\b([A-HJ-NPR-Z0-9]{17})\b", text, re.IGNORECASE):
-            parsed["vin"] = m.group(1).upper()
-            break
+            cand = m.group(1).upper()
+            if _is_valid_vin(cand):
+                parsed["vin"] = cand
+                break
     if not parsed.get("chassis_id"):
         for m in re.finditer(
             r"(?:Chassis|Unit)\s*(?:ID|No\.?|#)?\s*(?:NR?\.?\s*)?(\d{5,8})",
@@ -160,7 +176,7 @@ def _regex_vehicle_hints(text: str) -> dict:
         ):
             parsed["chassis_id"] = m.group(1)
             break
-    if parsed.get("vin"):
+    if parsed.get("vin") and _is_valid_vin(parsed["vin"]):
         vehicle["vin"] = _wrap(parsed["vin"], source="regex", confidence=0.95)
     if parsed.get("chassis_id"):
         vehicle["chassis_id"] = _wrap(parsed["chassis_id"], source="regex", confidence=0.9)
@@ -256,6 +272,20 @@ def run_vehicle_fallback(
     if ocr_extra:
         sources.append("ocr")
 
+    # FIX 5: Invoice self-identification in Act 1 (deterministic, no LLM)
+    if looks_like_invoice(scan_text) and not (_fw_value(vehicle.get("vin")) or _fw_value(vehicle.get("chassis_id"))):
+        inv = parse_invoice_header(scan_text)
+        if inv.get("unit_number"):
+            vehicle.setdefault("unit_number", inv["unit_number"])
+        if inv.get("make") and not vehicle.get("make"):
+            vehicle["make"] = inv["make"]
+        if inv.get("model") and not vehicle.get("model"):
+            vehicle["model"] = inv["model"]
+        iv = _fw_value(inv.get("vin"))
+        if iv and _is_valid_vin(iv) and not vehicle.get("vin"):
+            vehicle["vin"] = inv["vin"]
+        sources.append("invoice_header")
+
     if not _has_required_fields(vehicle, document_type) and settings.enable_vehicle_llm_fallback:
         llm_result = _llm_vehicle_extract(document_id, doc_text or scan_text)
         if llm_result.get("vehicle"):
@@ -318,6 +348,7 @@ def _persist(
         for k, v in {
             "vin": _fw_value(vehicle.get("vin")),
             "chassis_id": _fw_value(vehicle.get("chassis_id")),
+            "unit_number": _fw_value(vehicle.get("unit_number")),
         }.items()
         if v
     }

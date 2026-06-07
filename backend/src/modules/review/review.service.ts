@@ -142,7 +142,7 @@ export class ReviewService {
            (COALESCE($2::text, metadata_json->>'vin', '') <> '' OR
             COALESCE($3::text, metadata_json->>'chassis_id', '') <> '')
            AND COALESCE($4::text, make, '') <> ''
-           AND COALESCE($5::text, model, '') <> ''
+           AND (document_type = 'coverage_code_table' OR COALESCE($5::text, model, '') <> '')
          )
          WHERE id = $1`,
         [documentId, vin, chassisId, make, model, year]
@@ -178,11 +178,13 @@ export class ReviewService {
     if (docForGate.requiredFieldsMissing) {
       const meta = (docForGate.metadataJson as Record<string, unknown>) || {};
       const hasVinOrChassis = !!(meta.vin || meta.chassis_id);
+      const hasUnit = !!meta.unit_number;
       const hasMake = !!docForGate.make;
       const hasModel = !!docForGate.model;
       const isCoverageTable = docForGate.documentType === "coverage_code_table";
+      const isInvoice = docForGate.documentType === "repair_invoice";
       const hasIdentifiers =
-        hasVinOrChassis && hasMake && (isCoverageTable || hasModel);
+        (hasVinOrChassis || (isInvoice && hasUnit)) && hasMake && (isCoverageTable || hasModel);
       if (!hasIdentifiers) {
         throw new BadRequestException(
           isCoverageTable

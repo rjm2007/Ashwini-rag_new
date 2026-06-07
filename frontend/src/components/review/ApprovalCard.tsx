@@ -1,116 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShieldCheck,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Gauge,
-  Target,
-  ClipboardCheck,
+  ShieldCheck, Loader2, CheckCircle2, AlertCircle, Gauge, Target, ClipboardCheck,
 } from "lucide-react";
-import { certifyDocument } from "../../lib/api";
-import type { MasterSchema, FieldWrapper } from "../../lib/types";
+import { certifyDocument, patchReviewMetadata } from "../../lib/api";
+import type { MasterSchema } from "../../lib/types";
+import type { DocumentDetail } from "../../lib/types";
 
 interface ApprovalCardProps {
   docId: string;
+  document: DocumentDetail;
   masterSchema?: MasterSchema;
   onApproved?: () => void;
 }
 
 type ApprovalState = "idle" | "confirming" | "loading" | "success" | "error";
+const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-function extractConfidence(schema?: MasterSchema): number | null {
-  if (!schema?.quality) return null;
-  const { fields_extracted = 0, fields_missing = 0 } = schema.quality;
+function extractConfidence(s?: MasterSchema): number | null {
+  if (!s?.quality) return null;
+  const { fields_extracted = 0, fields_missing = 0 } = s.quality;
   const total = fields_extracted + fields_missing;
-  if (total === 0) return null;
-  return Math.round((fields_extracted / total) * 100);
+  return total === 0 ? null : Math.round((fields_extracted / total) * 100);
+}
+function extractCoverage(s?: MasterSchema): number | null {
+  if (!s?.quality?.overall_completeness) return null;
+  return Math.round(s.quality.overall_completeness * 100);
+}
+function extractValidation(s?: MasterSchema): string {
+  if (!s?.quality) return "Unknown";
+  const low = s.quality.fields_low_confidence ?? 0;
+  return low === 0 ? "Passed" : `${low} issue${low > 1 ? "s" : ""}`;
 }
 
-function extractCoverageScore(schema?: MasterSchema): number | null {
-  if (!schema?.quality?.overall_completeness) return null;
-  return Math.round(schema.quality.overall_completeness * 100);
-}
-
-function extractValidationStatus(schema?: MasterSchema): string {
-  if (!schema?.quality) return "Unknown";
-  const lowConf = schema.quality.fields_low_confidence ?? 0;
-  if (lowConf === 0) return "Passed";
-  return `${lowConf} issue${lowConf > 1 ? "s" : ""}`;
-}
-
-interface MetricChipProps {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  color: string;
-  bgColor: string;
-}
-
-function MetricChip({ icon, label, value, color, bgColor }: MetricChipProps) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 14px",
-        background: bgColor,
-        borderRadius: "var(--r-sm)",
-        flex: 1,
-        minWidth: 0,
-      }}
-    >
-      {icon}
-      <div style={{ minWidth: 0 }}>
-        <span
-          style={{
-            display: "block",
-            fontSize: 10,
-            color: "var(--text-muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-          }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            display: "block",
-            fontSize: 13,
-            fontWeight: 600,
-            fontFamily: "'IBM Plex Mono', monospace",
-            color,
-          }}
-        >
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-const EASE_PRIMARY: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "8px 10px", fontSize: 13, color: "var(--text-primary)",
+  background: "var(--bg-raised)", border: "1px solid var(--border)",
+  borderRadius: 6, outline: "none", boxSizing: "border-box",
+};
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4,
+};
+const reqLabel: React.CSSProperties = { ...labelStyle, color: "var(--state-failed)" };
 
 export default function ApprovalCard({
-  docId,
-  masterSchema,
-  onApproved,
+  docId, document, masterSchema, onApproved,
 }: ApprovalCardProps) {
   const [state, setState] = useState<ApprovalState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const confidence = extractConfidence(masterSchema);
-  const coverageScore = extractCoverageScore(masterSchema);
-  const validationStatus = extractValidationStatus(masterSchema);
-  const validationPassed = validationStatus === "Passed";
+  const meta = (document.metadataJson || {}) as Record<string, unknown>;
+  const [make, setMake] = useState(document.make || "");
+  const [model, setModel] = useState(document.model || "");
+  const [year, setYear] = useState(document.year ? String(document.year) : "");
+  const [vin, setVin] = useState(String(meta.vin || ""));
+  const [chassisId, setChassisId] = useState(String(meta.chassis_id || ""));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const handleClick = () => {
-    if (state === "idle") {
-      setState("confirming");
+  // Sync from parent when document refreshes
+  useEffect(() => {
+    const m = (document.metadataJson || {}) as Record<string, unknown>;
+    setMake(document.make || "");
+    setModel(document.model || "");
+    setYear(document.year ? String(document.year) : "");
+    setVin(String(m.vin || ""));
+    setChassisId(String(m.chassis_id || ""));
+  }, [document]);
+
+  const isCoverageTable = document.documentType === "coverage_code_table";
+  // Client-side mirror of the backend gate: VIN/Chassis + Make (+ Model unless coverage_code_table)
+  const hasRequiredFields =
+    !!(vin.trim() || chassisId.trim()) && !!make.trim() && (isCoverageTable || !!model.trim());
+
+  const confidence = extractConfidence(masterSchema);
+  const coverage = extractCoverage(masterSchema);
+  const validation = extractValidation(masterSchema);
+  const validationPassed = validation === "Passed";
+  const showMetrics = !!masterSchema?.quality;
+
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    setErrorMsg("");
+    try {
+      await patchReviewMetadata(docId, {
+        make: make.trim() || undefined,
+        model: model.trim() || undefined,
+        year: year.trim() ? parseInt(year, 10) : undefined,
+        vin: vin.trim() || undefined,
+        chassisId: chassisId.trim() || undefined,
+      });
+      setSaved(true);
+      onApproved?.();
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setErrorMsg(e?.response?.data?.message || e?.message || "Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -122,28 +112,20 @@ export default function ApprovalCard({
       setState("success");
       onApproved?.();
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Certification failed. Please try again.";
-      setErrorMsg(message);
+      // Surface the REAL backend message, not the generic axios wrapper
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setErrorMsg(
+        e?.response?.data?.message || e?.message || "Certification failed. Please try again."
+      );
       setState("error");
     }
-  };
-
-  const handleCancel = () => {
-    setState("idle");
-    setErrorMsg("");
-  };
-
-  const handleRetry = () => {
-    setState("idle");
-    setErrorMsg("");
   };
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE_PRIMARY }}
+      transition={{ duration: 0.4, ease: EASE }}
       style={{
         background: "var(--bg-surface)",
         border: "1px solid var(--border)",
@@ -152,7 +134,7 @@ export default function ApprovalCard({
         overflow: "hidden",
       }}
     >
-      {/* Header */}
+      {/* ─── Header ─── */}
       <div
         style={{
           padding: "20px 24px 16px",
@@ -164,173 +146,165 @@ export default function ApprovalCard({
       >
         <div
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: "var(--r-sm)",
+            width: 36, height: 36, borderRadius: "var(--r-sm)",
             background: "var(--accent-soft)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}
         >
           <ShieldCheck size={18} style={{ color: "var(--accent)" }} />
         </div>
         <div>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--text-primary)",
-            }}
-          >
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
             Document Ready for Review
           </h3>
-          <p
-            style={{
-              margin: "2px 0 0",
-              fontSize: 12,
-              color: "var(--text-secondary)",
-            }}
-          >
-            Review metrics and approve to certify this document
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+            Confirm the required vehicle fields, then certify to run extraction.
           </p>
         </div>
       </div>
 
-      {/* Metric chips */}
-      <div
-        style={{
-          padding: "16px 24px",
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
-        <MetricChip
-          icon={
-            <Gauge
-              size={14}
-              style={{
-                color:
-                  confidence != null && confidence >= 80
-                    ? "var(--conf-high)"
-                    : confidence != null && confidence >= 50
-                    ? "var(--conf-medium)"
-                    : "var(--conf-low)",
-              }}
-            />
-          }
-          label="Confidence"
-          value={confidence != null ? `${confidence}%` : "—"}
-          color={
-            confidence != null && confidence >= 80
-              ? "var(--conf-high)"
-              : confidence != null && confidence >= 50
-              ? "var(--conf-medium)"
-              : "var(--conf-low)"
-          }
-          bgColor={
-            confidence != null && confidence >= 80
-              ? "rgba(16, 185, 129, 0.08)"
-              : confidence != null && confidence >= 50
-              ? "rgba(217, 119, 6, 0.08)"
-              : "rgba(239, 68, 68, 0.08)"
-          }
-        />
-        <MetricChip
-          icon={<Target size={14} style={{ color: "var(--accent)" }} />}
-          label="Coverage"
-          value={coverageScore != null ? `${coverageScore}%` : "—"}
-          color="var(--accent)"
-          bgColor="var(--accent-soft)"
-        />
-        <MetricChip
-          icon={
-            <ClipboardCheck
-              size={14}
-              style={{
-                color: validationPassed
-                  ? "var(--state-done)"
-                  : "var(--conf-medium)",
-              }}
-            />
-          }
-          label="Validation"
-          value={validationStatus}
-          color={
-            validationPassed ? "var(--state-done)" : "var(--conf-medium)"
-          }
-          bgColor={
-            validationPassed
-              ? "rgba(22, 163, 74, 0.08)"
-              : "rgba(217, 119, 6, 0.08)"
-          }
-        />
-      </div>
+      {/* ─── Metric chips — only when a schema exists (post-extraction) ─── */}
+      {showMetrics && (
+        <div style={{ padding: "16px 24px", display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <MetricChip
+            icon={<Gauge size={14} />}
+            label="Confidence"
+            value={confidence != null ? `${confidence}%` : "—"}
+          />
+          <MetricChip
+            icon={<Target size={14} style={{ color: "var(--accent)" }} />}
+            label="Coverage"
+            value={coverage != null ? `${coverage}%` : "—"}
+          />
+          <MetricChip
+            icon={<ClipboardCheck size={14} />}
+            label="Validation"
+            value={validation}
+            ok={validationPassed}
+          />
+        </div>
+      )}
 
-      {/* Required fields placeholder */}
-      <div
-        style={{
-          padding: "0 24px 16px",
-        }}
-      >
+      {/* ─── Required-fields FORM ─── */}
+      <div style={{ padding: "16px 24px 8px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={reqLabel}>Make *</label>
+            <input
+              style={inputStyle}
+              value={make}
+              onChange={(e) => setMake(e.target.value)}
+              placeholder="e.g. Volvo Truck"
+            />
+          </div>
+          <div>
+            <label style={isCoverageTable ? labelStyle : reqLabel}>
+              Model {isCoverageTable ? "" : "*"}
+            </label>
+            <input
+              style={inputStyle}
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="e.g. VNL64T"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Year</label>
+            <input
+              style={inputStyle}
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="e.g. 2019"
+            />
+          </div>
+          <div>
+            <label style={reqLabel}>VIN *</label>
+            <input
+              style={inputStyle}
+              value={vin}
+              onChange={(e) => setVin(e.target.value)}
+              placeholder="17-character VIN"
+            />
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>Chassis ID (if no VIN)</label>
+            <input
+              style={inputStyle}
+              value={chassisId}
+              onChange={(e) => setChassisId(e.target.value)}
+              placeholder="e.g. 218380"
+            />
+          </div>
+        </div>
+
         <div
           style={{
-            border: "1px dashed var(--border)",
-            borderRadius: "var(--r-sm)",
-            padding: "12px 16px",
-            background: "var(--bg-raised)",
-            fontSize: 12,
-            color: "var(--text-muted)",
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 10,
           }}
         >
-          Required fields review area
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            {isCoverageTable
+              ? "Requires VIN/Chassis + Make."
+              : "Requires VIN/Chassis + Make + Model."}
+          </span>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={save}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", fontSize: 13,
+              color: "var(--accent)", background: "transparent",
+              border: "1px solid var(--accent)", borderRadius: 6,
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+            {saving ? "Saving…" : "Save fields"}
+          </button>
         </div>
+        {saved && (
+          <p style={{ fontSize: 12, color: "var(--state-done)", margin: "8px 0 0" }}>
+            Fields saved.
+          </p>
+        )}
+        {errorMsg && state === "idle" && (
+          <p style={{ fontSize: 12, color: "var(--state-failed)", margin: "8px 0 0" }}>
+            {errorMsg}
+          </p>
+        )}
       </div>
 
-      {/* Action area */}
-      <div style={{ padding: "0 24px 20px" }}>
+      {/* ─── Action area ─── */}
+      <div style={{ padding: "8px 24px 20px" }}>
         <AnimatePresence mode="wait">
           {state === "idle" && (
             <motion.button
               key="approve"
               type="button"
-              onClick={handleClick}
+              onClick={() => hasRequiredFields && setState("confirming")}
+              disabled={!hasRequiredFields}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               whileTap={{ scale: 0.99 }}
+              title={hasRequiredFields ? "" : "Fill the required fields above first"}
               style={{
-                width: "100%",
-                padding: "12px 20px",
-                fontSize: 14,
-                fontWeight: 600,
+                width: "100%", padding: "12px 20px", fontSize: 14, fontWeight: 600,
                 color: "#FFFFFF",
-                background: "var(--accent)",
-                border: "none",
-                borderRadius: "var(--r-sm)",
-                cursor: "pointer",
-                boxShadow: "var(--shadow-accent)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                letterSpacing: "0.02em",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "var(--accent-hover)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "var(--accent)";
+                background: hasRequiredFields ? "var(--accent)" : "var(--border-strong)",
+                border: "none", borderRadius: "var(--r-sm)",
+                cursor: hasRequiredFields ? "pointer" : "not-allowed",
+                boxShadow: hasRequiredFields ? "var(--shadow-accent)" : "none",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 8, letterSpacing: "0.02em",
               }}
             >
-              <ShieldCheck size={16} />
-              APPROVE DOCUMENT
+              <ShieldCheck size={16} /> APPROVE DOCUMENT
             </motion.button>
           )}
 
@@ -342,57 +316,36 @@ export default function ApprovalCard({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2 }}
               style={{
-                background: "rgba(217, 119, 6, 0.06)",
+                background: "rgba(217,119,6,0.06)",
                 border: "1px solid var(--conf-medium)",
                 borderRadius: "var(--r-sm)",
                 padding: "14px 16px",
               }}
             >
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  fontSize: 13,
-                  color: "var(--text-primary)",
-                  lineHeight: 1.5,
-                }}
-              >
-                This will certify the document and run embedding. Proceed?
+              <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+                This will certify the document and run extraction + embedding. Proceed?
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"
                   onClick={handleConfirm}
                   style={{
-                    flex: 1,
-                    padding: "8px 16px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#FFFFFF",
-                    background: "var(--accent)",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
+                    flex: 1, padding: "8px 16px", fontSize: 13, fontWeight: 600,
+                    color: "#FFFFFF", background: "var(--accent)",
+                    border: "none", borderRadius: 6, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
                 >
-                  <CheckCircle2 size={14} />
-                  Yes, Certify
+                  <CheckCircle2 size={14} /> Yes, Certify
                 </button>
                 <button
                   type="button"
-                  onClick={handleCancel}
+                  onClick={() => setState("idle")}
                   style={{
-                    padding: "8px 16px",
-                    fontSize: 13,
-                    fontWeight: 500,
+                    padding: "8px 16px", fontSize: 13, fontWeight: 500,
                     color: "var(--text-secondary)",
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    cursor: "pointer",
+                    background: "var(--bg-surface)", border: "1px solid var(--border)",
+                    borderRadius: 6, cursor: "pointer",
                   }}
                 >
                   Cancel
@@ -406,45 +359,27 @@ export default function ApprovalCard({
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "14px 0",
-                gap: 8,
-                color: "var(--accent)",
-                fontSize: 13,
-                fontWeight: 500,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 8, padding: "12px", color: "var(--text-secondary)", fontSize: 13,
               }}
             >
-              <Loader2
-                size={16}
-                style={{ animation: "spin 1s linear infinite" }}
-              />
-              Certifying document…
+              <Loader2 size={16} className="animate-spin" /> Certifying…
             </motion.div>
           )}
 
           {state === "success" && (
             <motion.div
               key="success"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "14px 0",
-                gap: 8,
-                color: "var(--state-done)",
-                fontSize: 13,
-                fontWeight: 600,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 8, padding: "12px",
+                color: "var(--state-done)", fontSize: 13, fontWeight: 600,
               }}
             >
-              <CheckCircle2 size={16} />
-              Document certified successfully
+              <CheckCircle2 size={16} /> Certified — running extraction…
             </motion.div>
           )}
 
@@ -453,60 +388,81 @@ export default function ApprovalCard({
               key="error"
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
               style={{
                 background: "var(--error-bg)",
                 border: "1px solid var(--state-failed)",
                 borderRadius: "var(--r-sm)",
-                padding: "14px 16px",
+                padding: "12px 14px",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                  marginBottom: 10,
-                }}
-              >
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <AlertCircle
                   size={16}
-                  style={{
-                    color: "var(--state-failed)",
-                    flexShrink: 0,
-                    marginTop: 1,
-                  }}
+                  style={{ color: "var(--state-failed)", flexShrink: 0, marginTop: 1 }}
                 />
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 13,
-                    color: "var(--state-failed)",
-                  }}
-                >
-                  {errorMsg}
-                </p>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--state-failed)", lineHeight: 1.5 }}>
+                    {errorMsg}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setState("idle")}
+                    style={{
+                      marginTop: 8, padding: "4px 10px", fontSize: 12,
+                      color: "var(--text-secondary)",
+                      background: "var(--bg-surface)", border: "1px solid var(--border)",
+                      borderRadius: 6, cursor: "pointer",
+                    }}
+                  >
+                    Try again
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleRetry}
-                style={{
-                  padding: "6px 14px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "var(--state-failed)",
-                  background: "transparent",
-                  border: "1px solid var(--state-failed)",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
-                Try Again
-              </button>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </motion.div>
+  );
+}
+
+/* ─── Metric chip sub-component ─── */
+function MetricChip({
+  icon, label, value, ok,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  ok?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "8px 14px", background: "var(--bg-raised)",
+        borderRadius: "var(--r-sm)", flex: 1, minWidth: 0,
+      }}
+    >
+      {icon}
+      <div style={{ minWidth: 0 }}>
+        <span
+          style={{
+            display: "block", fontSize: 10, color: "var(--text-muted)",
+            textTransform: "uppercase", letterSpacing: "0.04em",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          style={{
+            display: "block", fontSize: 13, fontWeight: 600,
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: ok === false ? "var(--conf-medium)" : "var(--text-primary)",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+    </div>
   );
 }

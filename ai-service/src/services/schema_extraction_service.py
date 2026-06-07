@@ -424,8 +424,11 @@ def extract_master_schema(
     vin_val = _fw_value(vehicle.get("vin"))
     chassis_val = _fw_value(vehicle.get("chassis_id"))
 
-    # Required fields check
-    required_missing = not all([vin_val or chassis_val, make_val, model_val])
+    # Required fields check — use shared helper that respects document_type
+    from .required_fields import has_required_fields
+    unit_val = _fw_value(vehicle.get("unit_number"))
+    required_missing = not has_required_fields(
+        vin_val, chassis_val, make_val, model_val, document_type, unit_val)
 
     with SessionLocal() as session:
         session.execute(
@@ -484,10 +487,10 @@ def _normalize(schema: dict) -> dict:
         raw_vin = _fw_value(vehicle.get("vin"))
         if raw_vin and isinstance(vehicle.get("vin"), dict):
             vin_upper = str(raw_vin).strip().upper()
-            if re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin_upper):
+            if re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin_upper) and sum(c.isdigit() for c in vin_upper) >= 2:
                 vehicle["vin"]["value"] = vin_upper
             else:
-                # Doesn't match VIN format — downgrade confidence
+                # Doesn't match VIN format or is all-letters — downgrade confidence
                 vehicle["vin"]["value"] = vin_upper if vin_upper else None
                 vehicle["vin"]["status"] = "low_confidence" if vin_upper else "missing"
 

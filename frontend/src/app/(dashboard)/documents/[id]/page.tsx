@@ -27,7 +27,7 @@ let AiAnalystPanel: React.ComponentType<{ docId: string; filename: string }> | n
 let AnalystLockedPlaceholder: React.ComponentType<{ status?: string }> | null = null;
 let LogsView: React.ComponentType<{ events: any[] }> | null = null;
 let MetricsView: React.ComponentType<{ events: any[]; document?: any }> | null = null;
-let ApprovalCard: React.ComponentType<{ docId: string; masterSchema?: any; onApproved?: () => void }> | null = null;
+let ApprovalCard: React.ComponentType<{ docId: string; document: any; masterSchema?: any; onApproved?: () => void }> | null = null;
 
 try { AiAnalystPanel = require("../../../../components/chat/AiAnalystPanel").default; } catch {}
 try { AnalystLockedPlaceholder = require("../../../../components/chat/AnalystLockedPlaceholder").default; } catch {}
@@ -373,6 +373,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
                 {ApprovalCard ? (
                   <ApprovalCard
                     docId={params.id}
+                    document={doc}
                     masterSchema={summaryPayload?.masterSchema}
                     onApproved={refresh}
                   />
