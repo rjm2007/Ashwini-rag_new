@@ -164,7 +164,7 @@ export default function Sidebar() {
                 }}
               />
               {!collapsed && <span>{item.title}</span>}
-            </Link>
+          </Link>
           );
         })}
       </nav>

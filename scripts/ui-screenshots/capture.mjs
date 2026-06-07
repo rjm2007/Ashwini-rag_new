@@ -8,8 +8,9 @@ import { join } from "path";
 
 const BASE = process.env.UI_BASE_URL || "http://localhost:3000";
 const OUT_DIR = process.env.UI_SCREENSHOT_DIR || "C:\\Users\\rudra\\Desktop\\images";
-const DOC_ID = process.env.UI_SAMPLE_DOC_ID || "b815d50d-fd11-4be3-a178-a403f7ef8170";
-const FAILED_DOC_ID = process.env.UI_FAILED_DOC_ID || "0dbb6aa4-7b04-487c-a726-7c4858870360";
+// Defaults from Postgres (run_005 corpus + in-progress doc) — override via env if DB changes
+const DOC_ID = process.env.UI_SAMPLE_DOC_ID || "a0c9c2d0-3ff1-44d9-8e79-8a71088b995b"; // 1169 WARRENTY.pdf (certified)
+const FAILED_DOC_ID = process.env.UI_FAILED_DOC_ID || "b2a0450d-1d5d-4f20-953b-985dc61f352c"; // 1167 WARRENTY.pdf (parsing)
 
 const VIEWPORT = { width: 1440, height: 900 };
 
@@ -67,13 +68,13 @@ async function main() {
   await page.goto(`${BASE}/documents/${DOC_ID}`, { waitUntil: "networkidle" });
   await waitForDocumentReady(page);
   const summaryTab = page.getByRole("button", { name: "Summary", exact: true });
-  const pipelineTab = page.getByRole("button", { name: "Pipeline log", exact: true });
+  const pipelineTab = page.getByRole("button", { name: "Pipeline", exact: true });
   await summaryTab.click().catch(() => {});
   await page.waitForTimeout(1500);
   captured.push(await shot(page, "04-document-summary-tab.png"));
 
-  // 5) Pipeline log tab
-  await pipelineTab.click();
+  // 5) Pipeline tab (was "Pipeline log" in older UI)
+  await pipelineTab.click({ timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(1500);
   captured.push(await shot(page, "05-document-pipeline-log-tab.png"));
 
@@ -83,7 +84,7 @@ async function main() {
   captured.push(await shot(page, "06-document-chat-sidebar.png"));
 
   // 7) Chat with a sample question + response (design reference)
-  const chatInput = page.locator('textarea, input[placeholder*="Ask about"]').last();
+  const chatInput = page.locator('textarea, input[placeholder*="Ask"]').last();
   if (await chatInput.count()) {
     await chatInput.fill("What is the coverage for U030 on this vehicle?");
     await page.waitForTimeout(400);
@@ -106,20 +107,21 @@ async function main() {
     baseUrl: BASE,
     viewport: VIEWPORT,
     sampleDocumentId: DOC_ID,
+    inProgressDocumentId: FAILED_DOC_ID,
     files: [
       { file: "01-login-page.png", screen: "Login / sign-in" },
       { file: "02-documents-list.png", screen: "Documents list with sidebar" },
       { file: "03-upload-page.png", screen: "Upload document drop zone" },
       { file: "04-document-summary-tab.png", screen: "Document detail — Summary tab + AI summary" },
-      { file: "05-document-pipeline-log-tab.png", screen: "Document detail — Pipeline log (Act 1/2 steps)" },
+      { file: "05-document-pipeline-log-tab.png", screen: "Document detail — Pipeline tab (Act 1/2 steps)" },
       { file: "06-document-chat-sidebar.png", screen: "Document detail — chat sidebar (doc-scoped)" },
       { file: "07-document-chat-question-typed.png", screen: "Chat input with sample question" },
       { file: "08-document-chat-with-answer.png", screen: "Chat with AI response (if completed in time)" },
-      { file: "09-document-failed-state.png", screen: "Failed document processing state" }
+      { file: "09-document-failed-state.png", screen: "In-progress document (1167 WARRENTY.pdf, parsing)" }
     ],
     notes: [
-      "No mid-processing live doc was available; pipeline log shows completed run history.",
-      "Chat screenshots use document 1169 WARRENTY.pdf.",
+      "Sample doc: 1169 WARRENTY.pdf (certified, processing_complete).",
+      "Screenshot 09 uses 1167 WARRENTY.pdf (parsing) — no failed docs in DB currently.",
       "Dark theme as rendered in browser."
     ]
   };
