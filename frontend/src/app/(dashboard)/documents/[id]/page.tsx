@@ -16,7 +16,7 @@ import { useDocument } from "../../../../hooks/useDocument";
 import { usePipelineEvents } from "../../../../hooks/usePipelineEvents";
 import StatusPill from "../../../../components/ui/StatusPill";
 import TypePill from "../../../../components/ui/TypePill";
-import PipelineView from "../../../../components/pipeline/PipelineView";
+import PipelineTab from "../../../../components/pipeline/PipelineTab";
 import RequiredFieldsForm from "../../../../components/review/RequiredFieldsForm";
 import SummaryView, { SummarySkeleton } from "../../../../components/summary/SummaryView";
 import ChatSidebar from "../../../../components/chat/ChatSidebar";
@@ -383,12 +383,19 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
             )}
 
             {leftTab === "pipeline" && (
-              <PipelineView
-                events={events}
-                processingStatus={doc.processingStatus}
-                isAdmin={isAdmin}
-                onCertify={() => setCertifyConfirm(true)}
-              />
+              <div style={{ height: "100%", minHeight: 500 }}>
+                <PipelineTab
+                  events={events}
+                  processingStatus={doc.processingStatus}
+                  isAdmin={isAdmin}
+                  onCertify={() => setCertifyConfirm(true)}
+                  masterSchema={summaryPayload?.masterSchema}
+                  filename={doc.originalFilename}
+                  docId={params.id}
+                  onViewSummary={() => setLeftTab("summary")}
+                  onAskQuestions={() => {}}
+                />
+              </div>
             )}
 
             {leftTab === "summary" && chatReady && (

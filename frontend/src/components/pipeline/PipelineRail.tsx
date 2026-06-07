@@ -1,308 +1,272 @@
 "use client";
 
-import React, { useMemo } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Circle, Loader2 } from "lucide-react";
-import type { PipelineEvent } from "../../lib/types";
+import { Check, X, ChevronRight, Loader2 } from "lucide-react";
+import type { StageState, StageId } from "./stageModel";
+import StepRow, { eventToStepRow } from "./StepRow";
+import CertifyGate from "./CertifyGate";
 
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface PipelineRailProps {
-  events: PipelineEvent[];
-  processingStatus: string;
-}
-
-type StepStatus = "done" | "running" | "waiting" | "failed";
-
-interface StepDef {
-  key: string;
-  label: string;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Step definitions                                                   */
-/* ------------------------------------------------------------------ */
-
-const STEPS: StepDef[] = [
-  { key: "document_received", label: "Document Received" },
-  { key: "parsing_document", label: "Parsing Document" },
-  { key: "detecting_structure", label: "Detecting Structure" },
-  { key: "extracting_sections", label: "Extracting Sections" },
-  { key: "building_schema", label: "Building Schema" },
-  { key: "generating_embeddings", label: "Generating Embeddings" },
-  { key: "indexing", label: "Indexing" },
-  { key: "complete", label: "Complete" },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function resolveStatus(raw: string | undefined): StepStatus {
-  if (!raw) return "waiting";
-  if (raw === "done" || raw === "completed") return "done";
-  if (raw === "running" || raw === "in_progress") return "running";
-  if (raw === "failed") return "failed";
-  return "waiting";
-}
-
-function buildStepStatuses(events: PipelineEvent[]): Map<string, StepStatus> {
-  const map = new Map<string, StepStatus>();
-  for (const ev of events) {
-    const key = ev.step_key;
-    const existing = map.get(key);
-    const incoming = resolveStatus(ev.status);
-    // running / done / failed all override waiting; done overrides running
-    if (
-      !existing ||
-      existing === "waiting" ||
-      (existing === "running" && (incoming === "done" || incoming === "failed"))
-    ) {
-      map.set(key, incoming);
-    }
-  }
-  return map;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Sub-components                                                     */
-/* ------------------------------------------------------------------ */
-
-const breathingPulse = {
-  scale: [1, 1.35, 1],
-  opacity: [0.5, 0.15, 0.5],
-};
-
-function StatusDot({ status }: { status: StepStatus }) {
-  const size = 24;
-
+function StatusDotStage({ status }: { status: StageState["status"] }) {
   if (status === "done") {
-    return (
-      <motion.div
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 400, damping: 20 }}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          background: "var(--state-done)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Check size={14} color="#fff" strokeWidth={3} />
-      </motion.div>
-    );
-  }
-
-  if (status === "running") {
-    return (
-      <div
-        style={{
-          position: "relative",
-          width: size,
-          height: size,
-          flexShrink: 0,
-        }}
-      >
-        {/* breathing pulse ring */}
-        <motion.div
-          animate={breathingPulse}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            inset: -4,
-            borderRadius: "50%",
-            border: "2px solid var(--accent)",
-          }}
-        />
-        {/* spinning ring */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-          style={{
-            width: size,
-            height: size,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Loader2 size={18} color="var(--accent)" strokeWidth={2.5} />
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (status === "failed") {
     return (
       <motion.div
         initial={{ scale: 0.6 }}
         animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 500, damping: 20 }}
         style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          background: "var(--state-failed)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          width: 22, height: 22, borderRadius: "50%",
+          background: "var(--state-done)",
+          display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0,
         }}
       >
-        <X size={14} color="#fff" strokeWidth={3} />
+        <Check size={12} color="#FFF" strokeWidth={3} />
       </motion.div>
     );
   }
-
+  if (status === "running") {
+    return (
+      <div
+        style={{
+          width: 22, height: 22, borderRadius: "50%",
+          border: "2px solid var(--accent)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0, position: "relative",
+        }}
+      >
+        <div
+          className="animate-breathe"
+          style={{
+            position: "absolute", inset: -3, borderRadius: "50%",
+            border: "2px solid var(--accent)", opacity: 0.3,
+          }}
+        />
+        <Loader2 size={12} color="var(--accent)" className="animate-spin" />
+      </div>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <div
+        style={{
+          width: 22, height: 22, borderRadius: "50%",
+          background: "var(--state-failed)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <X size={12} color="#FFF" strokeWidth={3} />
+      </div>
+    );
+  }
   // waiting
   return (
     <div
       style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
+        width: 22, height: 22, borderRadius: "50%",
         border: "2px solid var(--state-idle)",
-        background: "transparent",
         flexShrink: 0,
       }}
     />
   );
 }
 
-function ConnectorLine({ filled }: { filled: boolean }) {
+function formatDuration(ms: number | null): string {
+  if (ms == null) return "";
+  const sec = ms / 1000;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const min = Math.floor(sec / 60);
+  const remSec = Math.floor(sec % 60);
+  return `${min}m ${remSec}s`;
+}
+
+function timingLabel(stage: StageState): { text: string; color: string } {
+  if (stage.status === "done") {
+    return {
+      text: stage.durationMs != null ? `done in ${formatDuration(stage.durationMs)}` : "done",
+      color: "var(--state-done)",
+    };
+  }
+  if (stage.status === "running") return { text: "running…", color: "var(--accent)" };
+  if (stage.status === "failed") return { text: "failed", color: "var(--state-failed)" };
+  return { text: "waiting", color: "var(--state-idle)" };
+}
+
+interface PipelineRailProps {
+  stages: StageState[];
+  activeStageId: StageId | null;
+  onStageClick: (id: StageId) => void;
+  processingStatus: string;
+  isAdmin: boolean;
+  onCertify?: () => void;
+}
+
+export default function PipelineRail({
+  stages,
+  activeStageId,
+  onStageClick,
+  processingStatus,
+  isAdmin,
+  onCertify,
+}: PipelineRailProps) {
+  const [expandedStage, setExpandedStage] = useState<StageId | null>(null);
+  const act2Started = stages.some(
+    (s) => s.subSteps.some((e) => e.act === 2 && e.status !== "idle")
+  );
+
+  // Insert CertifyGate between stage 4 (sections) and stage 5 (schema)
+  const gateIndex = stages.findIndex((s) => s.id === "schema");
+
   return (
     <div
       style={{
-        width: 2,
-        height: 28,
-        marginLeft: 11, // center under 24px dot
-        background: filled ? "var(--accent)" : "var(--border)",
-        transition: "background 0.4s ease",
-      }}
-    />
-  );
-}
-
-function subStatusLabel(status: StepStatus): string {
-  switch (status) {
-    case "done":
-      return "Completed";
-    case "running":
-      return "In Progress";
-    case "failed":
-      return "Failed";
-    default:
-      return "Waiting";
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Main Component                                                     */
-/* ------------------------------------------------------------------ */
-
-export default function PipelineRail({ events, processingStatus }: PipelineRailProps) {
-  const statusMap = useMemo(() => buildStepStatuses(events), [events]);
-
-  // If processingStatus is "completed"/"done", mark all as done
-  const allDone =
-    processingStatus === "completed" ||
-    processingStatus === "done" ||
-    processingStatus === "complete";
-
-  const resolvedSteps = STEPS.map((step) => ({
-    ...step,
-    status: allDone ? ("done" as StepStatus) : (statusMap.get(step.key) ?? "waiting"),
-  }));
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      style={{
-        width: 280,
+        width: 300, flexShrink: 0,
         background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--r-lg)",
-        padding: "20px 16px",
-        boxShadow: "var(--shadow-sm)",
+        borderRight: "1px solid var(--border)",
+        overflowY: "auto",
+        display: "flex", flexDirection: "column",
       }}
     >
+      {/* Header */}
       <div
         style={{
-          fontFamily: "Inter, sans-serif",
-          fontSize: 13,
-          fontWeight: 600,
-          color: "var(--text-secondary)",
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.04em",
-          marginBottom: 16,
+          padding: "16px 16px 12px",
+          fontSize: 11, fontWeight: 600,
+          color: "var(--text-muted)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
         }}
       >
         Processing Pipeline
       </div>
 
-      {resolvedSteps.map((step, idx) => {
-        const isLast = idx === resolvedSteps.length - 1;
-        const labelColor =
-          step.status === "running"
-            ? "var(--text-primary)"
-            : step.status === "done"
-            ? "var(--text-secondary)"
-            : "var(--text-muted)";
-        const labelWeight = step.status === "running" ? 600 : 400;
-        const subColor =
-          step.status === "running"
-            ? "var(--accent)"
-            : step.status === "failed"
-            ? "var(--state-failed)"
-            : "var(--text-muted)";
+      {/* Stage rows */}
+      <div style={{ padding: "0 12px 16px" }}>
+        {stages.map((stage, i) => {
+          const timing = timingLabel(stage);
+          const isActive = activeStageId === stage.id;
+          const isExpanded = expandedStage === stage.id;
+          const hasSubSteps = stage.subSteps.length > 0;
+          const isDone = stage.status === "done";
+          const isAboveIdx = i > 0;
 
-        return (
-          <div key={step.key}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <StatusDot status={step.status} />
-              <div style={{ flex: 1, minWidth: 0 }}>
+          return (
+            <div key={stage.id}>
+              {/* CertifyGate inline between Act 1 and Act 2 */}
+              {i === gateIndex && (
+                <CertifyGate
+                  processingStatus={processingStatus}
+                  isAdmin={isAdmin}
+                  act2Started={act2Started}
+                  onCertify={onCertify}
+                />
+              )}
+
+              {/* Connector line between stages */}
+              {isAboveIdx && i !== gateIndex && (
                 <div
                   style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 14,
-                    fontWeight: labelWeight,
-                    color: labelColor,
-                    lineHeight: 1.3,
-                    transition: "color 0.3s, font-weight 0.3s",
+                    width: 2, height: 16,
+                    marginLeft: 10, /* center under 22px dot */
+                    background:
+                      stages[i - 1].status === "done"
+                        ? "var(--accent)"
+                        : "var(--border)",
+                    transition: "background 300ms ease",
                   }}
-                >
-                  {step.label}
+                />
+              )}
+
+              {/* Stage row */}
+              <button
+                type="button"
+                onClick={() => onStageClick(stage.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  width: "100%",
+                  padding: "10px 8px",
+                  borderRadius: "var(--r-sm)",
+                  background: isActive ? "var(--accent-soft)" : "transparent",
+                  border: isActive ? "1px solid var(--border-accent)" : "1px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 150ms ease",
+                  textAlign: "left",
+                }}
+              >
+                <StatusDotStage status={stage.status} />
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: stage.status === "running" || isActive ? 600 : 400,
+                      color:
+                        stage.status === "running" || isActive
+                          ? "var(--text-primary)"
+                          : stage.status === "done"
+                          ? "var(--text-secondary)"
+                          : "var(--text-muted)",
+                    }}
+                  >
+                    {stage.label}
+                  </div>
+                  <div
+                    className="mono"
+                    style={{ fontSize: 11, color: timing.color, marginTop: 1 }}
+                  >
+                    {timing.text}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: 12,
-                    color: subColor,
-                    marginTop: 1,
-                    transition: "color 0.3s",
-                  }}
-                >
-                  {subStatusLabel(step.status)}
-                </div>
-              </div>
+
+                {/* Expand chevron (if has sub-steps) */}
+                {hasSubSteps && (
+                  <ChevronRight
+                    size={14}
+                    style={{
+                      color: "var(--text-muted)",
+                      transform: isExpanded ? "rotate(90deg)" : "none",
+                      transition: "transform 150ms ease",
+                      flexShrink: 0,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedStage(isExpanded ? null : stage.id);
+                    }}
+                  />
+                )}
+              </button>
+
+              {/* Expanded sub-steps */}
+              <AnimatePresence>
+                {isExpanded && hasSubSteps && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    style={{ overflow: "hidden", marginLeft: 32 }}
+                  >
+                    <div
+                      className="card"
+                      style={{
+                        padding: "6px 10px", marginTop: 4, marginBottom: 4,
+                        borderLeft: "2px solid var(--border-accent)",
+                      }}
+                    >
+                      {stage.subSteps
+                        .sort((a, b) => a.sequence - b.sequence)
+                        .map((ev) => (
+                          <StepRow key={ev.step_key} step={eventToStepRow(ev)} />
+                        ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-
-            {!isLast && (
-              <ConnectorLine
-                filled={step.status === "done" || step.status === "running"}
-              />
-            )}
-          </div>
-        );
-      })}
-    </motion.div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
