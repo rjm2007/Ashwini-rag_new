@@ -2,10 +2,10 @@
 
 import CoverageDecision, { inferCoverageDecision } from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
-import EvidenceChips from "./EvidenceChips";
+import SourcesPanel from "./SourcesPanel";
 import RaiseQueryInline from "./RaiseQueryInline";
 import { parseAnswerWithCitations } from "./CitationChip";
-import type { ChatMessageItem } from "../../lib/types";
+import type { ChatMessageItem, EvidencePayload } from "../../lib/types";
 
 export default function ChatMessage({
   message,
@@ -44,11 +44,7 @@ export default function ChatMessage({
   const decision =
     message.coverageDecision ||
     inferCoverageDecision(confidence, message.metadataFiltersAppliedJson);
-  const evidence = (message.evidenceJson || []) as Array<{
-    text?: string;
-    page?: number;
-    documentId?: string;
-  }>;
+  const evidence = (message.evidenceJson || []) as EvidencePayload[];
 
   return (
     <div className="animate-fade-slide" style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
@@ -64,10 +60,12 @@ export default function ChatMessage({
           lineHeight: 1.6
         }}
       >
-        <div style={{ whiteSpace: "pre-wrap" }}>{parseAnswerWithCitations(message.content)}</div>
+        <div style={{ whiteSpace: "pre-wrap" }}>
+          {parseAnswerWithCitations(message.content, evidence)}
+        </div>
         <CoverageDecision decision={decision} />
         {confidence > 0 ? <ConfidenceBand confidence={confidence} /> : null}
-        <EvidenceChips evidence={evidence} />
+        <SourcesPanel sources={evidence} answerText={message.content} />
         {sessionId && pairedQuestion ? (
           <RaiseQueryInline
             sessionId={sessionId}

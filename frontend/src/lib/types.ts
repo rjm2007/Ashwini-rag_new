@@ -108,10 +108,26 @@ export interface ChatMessageItem {
   id: string;
   role: "user" | "assistant";
   content: string;
-  evidenceJson?: Array<{ text?: string; page?: number; documentId?: string }>;
+  evidenceJson?: Array<EvidencePayload>;
   confidenceScore?: number;
   metadataFiltersAppliedJson?: Record<string, unknown>;
   coverageDecision?: CoverageDecision;
+}
+
+/**
+ * Raw Qdrant chunk payload returned by the AI service.
+ * Old stored messages may use 'text'/'page'; new ones use 'chunkText'/'pageNumber'.
+ */
+export interface EvidencePayload {
+  chunkText?: string;
+  pageNumber?: number;
+  sectionHeading?: string;
+  documentId?: string;
+  chunkType?: string;
+  filename?: string;
+  // backwards compat with older stored messages:
+  text?: string;
+  page?: number;
 }
 
 export type CoverageDecision =

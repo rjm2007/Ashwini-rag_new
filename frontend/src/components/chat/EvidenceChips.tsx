@@ -15,8 +15,8 @@ export default function EvidenceChips({ evidence }: { evidence: EvidenceItem[] }
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
       {visible.map((item, i) => {
-        const text = (item.text || "").slice(0, 30);
-        const page = item.page ?? "?";
+        const text = ((item as any).chunkText || item.text || "").slice(0, 30);
+        const page = (item as any).pageNumber ?? item.page ?? "?";
         return (
           <span
             key={i}

@@ -8,8 +8,9 @@ import { getStoredSession, storeSession } from "../../lib/chatSession";
 import { inferCoverageDecision } from "./CoverageDecision";
 import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
-import EvidenceChips from "./EvidenceChips";
-import type { ChatMessageItem } from "../../lib/types";
+import SourcesPanel from "./SourcesPanel";
+import { parseAnswerWithCitations } from "./CitationChip";
+import type { ChatMessageItem, EvidencePayload } from "../../lib/types";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -386,11 +387,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
             const decision =
               msg.coverageDecision ||
               inferCoverageDecision(confidence, msg.metadataFiltersAppliedJson);
-            const evidence = (msg.evidenceJson || []) as Array<{
-              text?: string;
-              page?: number;
-              documentId?: string;
-            }>;
+            const evidence = (msg.evidenceJson || []) as EvidencePayload[];
 
             const isLatestAssistant =
               index === messages.length - 1 || 
@@ -439,7 +436,9 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                     lineHeight: 1.6,
                   }}
                 >
-                  <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>
+                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                    {parseAnswerWithCitations(msg.content, evidence)}
+                  </div>
 
                   {/* Confidence tag */}
                   {confidence > 0 && <ConfidenceBand confidence={confidence} />}
@@ -447,8 +446,8 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                   {/* Coverage decision */}
                   {decision && <CoverageDecisionTag decision={decision} />}
 
-                  {/* Evidence chips */}
-                  <EvidenceChips evidence={evidence} />
+                  {/* Sources panel */}
+                  <SourcesPanel sources={evidence} answerText={msg.content} />
 
                   {/* Suggested follow-ups for the latest assistant message */}
                   {isLatestAssistant && showSuggestions && (
