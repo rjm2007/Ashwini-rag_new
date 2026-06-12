@@ -1,0 +1,13 @@
+# Extract LTSD FTA ISO table and declaration fields — JSON only.
+
+OUTPUT:
+{
+  "profiles": {
+    "krones_supplier_doc": {
+      "free_trade_agreements": [{"iso_code":"", "country_or_region":""}],
+      "declaration_fields": [{"field_no":1, "meaning":""}]
+    }
+  }
+}
+
+Country of origin must be ISO codes, not "EU/Europe".

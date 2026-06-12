@@ -25,6 +25,7 @@ export default function DropZone() {
   const [error, setError] = useState("");
   const [dragHover, setDragHover] = useState(false);
   const [redirectTimer, setRedirectTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [documentType, setDocumentType] = useState<"auto" | "krones_supplier_doc">("auto");
 
   const reset = () => {
     setFile(null);
@@ -49,6 +50,9 @@ export default function DropZone() {
     setError("");
     const form = new FormData();
     form.append("file", file);
+    if (documentType === "krones_supplier_doc") {
+      form.append("documentType", "krones_supplier_doc");
+    }
     try {
       const response = await api.post("/documents/upload", form);
       setDocumentId(response.data.documentId);
@@ -74,6 +78,25 @@ export default function DropZone() {
 
   return (
     <div>
+      <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
+        <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>Document type</label>
+        <select
+          value={documentType}
+          onChange={(e) => setDocumentType(e.target.value as "auto" | "krones_supplier_doc")}
+          disabled={isDisabled}
+          style={{
+            fontSize: 13,
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: "1px solid var(--border)",
+            background: "var(--bg-raised)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <option value="auto">Auto-detect</option>
+          <option value="krones_supplier_doc">Krones supplier document</option>
+        </select>
+      </div>
       <div
         onDragOver={(e) => {
           e.preventDefault();

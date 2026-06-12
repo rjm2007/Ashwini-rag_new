@@ -37,7 +37,11 @@ export class DocumentsController {
     if (file.size > 50 * 1024 * 1024) {
       throw new BadRequestException("File exceeds 50MB limit");
     }
-    return this.documentsService.uploadDocument(file, req.user?.userId);
+    const documentType =
+      typeof (req as Request & { body?: { documentType?: string } }).body?.documentType === "string"
+        ? (req as Request & { body?: { documentType?: string } }).body!.documentType
+        : undefined;
+    return this.documentsService.uploadDocument(file, req.user?.userId, documentType);
   }
 
   @Get()

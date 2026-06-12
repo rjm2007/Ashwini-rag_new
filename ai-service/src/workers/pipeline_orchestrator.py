@@ -117,6 +117,14 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
         step = start_step(document_id, 1, "classify", "section_classify", "Classifying sections")
         await _update_status(document_id, "classifying")
         doc_type = "generic_document"
+        preset_type: str | None = None
+        with SessionLocal() as session:
+            preset = session.execute(
+                text("SELECT document_type FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+            if preset and preset[0]:
+                preset_type = str(preset[0])
         try:
             if settings.enable_section_classification:
                 classify_result = classify_sections(
@@ -128,6 +136,21 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
                     plain_text=structured.get("plain_text", ""),
                 )
                 doc_type = classify_result.get("document_type", "generic_document")
+                from ..krones.type_detect import detect_krones_from_text
+                from ..krones.cleaning import apply_krones_cleaning
+
+                fname = Path(s3_path).name if s3_path else ""
+                if preset_type == "krones_supplier_doc" or detect_krones_from_text(
+                    fname, structured.get("plain_text", "")
+                ):
+                    doc_type = "krones_supplier_doc"
+                    structured = apply_krones_cleaning(structured)
+                    with SessionLocal() as session:
+                        session.execute(
+                            text("UPDATE documents SET document_type = :dt WHERE id = :id"),
+                            {"dt": doc_type, "id": document_id},
+                        )
+                        session.commit()
                 # Persist enriched_sections into the structure artifact
                 structured["enriched_sections"] = classify_result.get("enriched_sections", [])
                 structured["enriched_tree"] = classify_result.get("enriched_tree", [])
@@ -147,21 +170,39 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
         step = start_step(document_id, 1, "classify", "type_detect", "Detecting document type")
         finish_step(step, {"document_type": doc_type})
 
-        step = start_step(
-            document_id,
-            1,
-            "parse",
-            "vehicle_llm_fallback",
-            "Recovering vehicle fields (regex + LLM)",
-        )
-        try:
-            fallback_detail = run_vehicle_fallback(
-                document_id, structured, doc_type, s3_path=s3_path
+        if doc_type == "krones_supplier_doc":
+            step = start_step(
+                document_id,
+                1,
+                "parse",
+                "krones_header_extract",
+                "Extracting Krones document header",
             )
-            finish_step(step, fallback_detail)
-        except Exception as exc:
-            logger.warning("[%s] Vehicle fallback failed: %s", document_id, exc)
-            finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
+            try:
+                from ..krones.act1_header import run_krones_act1_header
+
+                fname = Path(s3_path).name if s3_path else ""
+                header_detail = run_krones_act1_header(document_id, structured, fname)
+                finish_step(step, header_detail)
+            except Exception as exc:
+                logger.warning("[%s] Krones header extract failed: %s", document_id, exc)
+                finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
+        else:
+            step = start_step(
+                document_id,
+                1,
+                "parse",
+                "vehicle_llm_fallback",
+                "Recovering vehicle fields (regex + LLM)",
+            )
+            try:
+                fallback_detail = run_vehicle_fallback(
+                    document_id, structured, doc_type, s3_path=s3_path
+                )
+                finish_step(step, fallback_detail)
+            except Exception as exc:
+                logger.warning("[%s] Vehicle fallback failed: %s", document_id, exc)
+                finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
 
         await _update_status(document_id, "awaiting_certification")
         await s3.upload_json(
@@ -341,6 +382,14 @@ async def _run_schema_pipeline(
                 for ext in extracted.get("extensions", []):
                     master["extensions"].append(ext)
 
+            elif document_type == "krones_supplier_doc":
+                if group["name"] == "document_header":
+                    _merge_section_extracts("document", extracted.get("document", {}), master["document"])
+                else:
+                    prof_src = (extracted.get("profiles") or {}).get("krones_supplier_doc") or extracted
+                    profile = master["profiles"].setdefault("krones_supplier_doc", {})
+                    _merge_section_extracts(group["name"], prof_src, profile)
+
             finish_step(step, {
                 "name": group["name"],
                 "fields_in_section": _count_extracted_in(extracted),
@@ -424,9 +473,16 @@ async def _run_schema_pipeline(
     make_val = _fw_value(vehicle.get("make"))
     model_val = _fw_value(vehicle.get("model"))
     year_val = _fw_value(vehicle.get("model_year"))
-    from ..services.required_fields import has_required_fields
-    required_missing = not has_required_fields(
-        vin_val, chassis_val, make_val, model_val, document_type, unit_val)
+    if document_type == "krones_supplier_doc":
+        from ..krones.required_fields import has_krones_required_fields
+
+        required_missing = not has_krones_required_fields(master.get("document") or {})
+    else:
+        from ..services.required_fields import has_required_fields
+
+        required_missing = not has_required_fields(
+            vin_val, chassis_val, make_val, model_val, document_type, unit_val
+        )
 
     from sqlalchemy import text as sqla_text
     with SessionLocal() as session:
@@ -523,9 +579,29 @@ async def _run_embedding_pipeline(
         if schema_row and isinstance(schema_row[0], dict):
             master = schema_row[0]
 
+    doc_type_row = None
+    with SessionLocal() as session:
+        dt_row = session.execute(
+            text("SELECT document_type FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+        doc_type_row = dt_row[0] if dt_row else None
+
     step = start_step(document_id, 2, "embedding", "chunk_generate", "Generating chunks")
     try:
-        if has_usable_schema(master):
+        if doc_type_row == "krones_supplier_doc":
+            from ..krones.chunk_builder import build_krones_schema_chunks, has_usable_krones_schema
+
+            if has_usable_krones_schema(master):
+                flat = build_krones_schema_chunks(master, document_id)
+                source = "krones_schema"
+            elif pages_text:
+                flat = chunk_pages_flat(pages_text)
+                source = "docling_tables"
+            else:
+                flat = chunk_text(plain_text)
+                source = "plain_text"
+        elif has_usable_schema(master):
             flat = build_schema_chunks(master, metadata, document_id)
             source = "schema"
         elif pages_text:
@@ -570,17 +646,30 @@ async def _run_embedding_pipeline(
         item["repository"] = "certified"
         item["documentId"] = document_id
         item["filename"] = filename
-        item.update(
-            {
-                "make": metadata.get("make"),
-                "model": metadata.get("model"),
-                "year": metadata.get("year"),
-                "country": metadata.get("country"),
-                "warrantyType": metadata.get("warrantyType"),
-                "vin": metadata.get("vin"),
-                "chassisId": metadata.get("chassisId"),
-            }
-        )
+        payload_extra = {
+            "make": metadata.get("make"),
+            "model": metadata.get("model"),
+            "year": metadata.get("year"),
+            "country": metadata.get("country"),
+            "warrantyType": metadata.get("warrantyType"),
+            "vin": metadata.get("vin"),
+            "chassisId": metadata.get("chassisId"),
+        }
+        if doc_type_row == "krones_supplier_doc":
+            kdoc = (master.get("document") or {}) if master else {}
+            from ..krones.chunk_builder import _fw, _clean
+
+            payload_extra.update(
+                {
+                    "docCategory": _clean(_fw(kdoc.get("doc_category"))),
+                    "sectionNo": item.get("sectionNo"),
+                    "requestType": item.get("requestType"),
+                    "standardCode": item.get("standardCode"),
+                    "contactTopic": item.get("contactTopic"),
+                    "esgPillar": item.get("esgPillar"),
+                }
+            )
+        item.update(payload_extra)
         enriched.append(item)
     finish_step(step, {"enriched": len(enriched)})
 

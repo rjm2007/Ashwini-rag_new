@@ -21,15 +21,38 @@ _VIN_RE = _re.compile(r"\b([A-HJ-NPR-Z0-9]{17})\b")
 _CHASSIS_RE = _re.compile(r"\bchassis\s*(?:id\s*)?(\d{5,6})\b", _re.IGNORECASE)
 _UNIT_RE = _re.compile(r"\bunit\s*(\d{3,6})\b", _re.IGNORECASE)
 
+_DOC_LEVEL_RE = _re.compile(
+    r"\b(what does this (warranty )?cover|what'?s covered|summari[sz]e|"
+    r"overview|all (the )?coverage|what are the exclusions|coverage period|"
+    r"what'?s excluded|what is the warranty period)\b",
+    _re.IGNORECASE,
+)
+
+
+def _is_document_level_query(q: str) -> bool:
+    """Detect broad document-level questions that need full coverage context."""
+    return bool(_DOC_LEVEL_RE.search(q or ""))
+
 GREETING_REPLY = (
     "Hi! I'm your Fixyee warranty assistant. "
     "Ask me about coverage, exclusions, claim codes, or a specific vehicle "
     "(make, model, year, or VIN) and I'll answer from your certified warranty documents."
 )
 
+KRONES_GREETING_REPLY = (
+    "Hi! I'm your Krones supplier document assistant. "
+    "Ask me about requirements, processes, contacts, standards, request types, "
+    "or LTSD procedures — I'll answer from this certified document."
+)
+
 OUT_OF_SCOPE_REPLY = (
     "I can only help with warranty coverage questions based on your certified warranty documents. "
     "Try asking whether a component is covered, what the warranty period is, or what applies to a specific VIN."
+)
+
+KRONES_OUT_OF_SCOPE_REPLY = (
+    "I can only help with questions about this Krones supplier document "
+    "(requirements, processes, contacts, standards, LTSD, or SRSM tickets)."
 )
 
 INJECTION_REPLY = (
@@ -61,6 +84,21 @@ def _is_simple_greeting(question: str) -> bool:
         "hi there",
         "hello there",
     }
+
+
+def _load_document_type(document_id: str | None) -> str | None:
+    if not document_id:
+        return None
+    try:
+        with SessionLocal() as session:
+            row = session.execute(
+                text("SELECT document_type FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+        return str(row[0]) if row and row[0] else None
+    except Exception as exc:
+        logger.warning("Failed to load document_type for %s: %s", document_id, exc)
+        return None
 
 
 def _load_master_schema(document_id: str) -> dict | None:
@@ -147,7 +185,7 @@ def _target_document_ids(chunks: list[dict], document_id: str | None) -> list[st
 
 
 def _load_schema_facts(document_ids: list[str]) -> list[dict]:
-    """Load compact, complete coverage facts for retrieved/scoped documents."""
+    """Load compact schema facts for retrieved/scoped documents."""
     if not document_ids:
         return []
     facts: list[dict] = []
@@ -155,7 +193,7 @@ def _load_schema_facts(document_ids: list[str]) -> list[dict]:
         for document_id in document_ids:
             row = session.execute(
                 text(
-                    "SELECT make, model, year, metadata_json, master_schema_json "
+                    "SELECT make, model, year, metadata_json, master_schema_json, document_type "
                     "FROM documents WHERE id = :id"
                 ),
                 {"id": document_id},
@@ -164,6 +202,12 @@ def _load_schema_facts(document_ids: list[str]) -> list[dict]:
                 continue
             metadata = row[3] if isinstance(row[3], dict) else {}
             master = row[4] if isinstance(row[4], dict) else {}
+            doc_type = row[5] if len(row) > 5 else None
+            if doc_type == "krones_supplier_doc":
+                from ..krones.chunk_builder import extract_krones_schema_facts
+
+                facts.append(extract_krones_schema_facts(master, document_id))
+                continue
             vehicle_parts = [str(item) for item in (row[0], row[1], row[2]) if item]
             if metadata.get("vin"):
                 vehicle_parts.append(f"VIN {metadata.get('vin')}")
@@ -181,9 +225,12 @@ def _load_schema_facts(document_ids: list[str]) -> list[dict]:
 
 async def answer_question(question: str, conversation_history: list[dict], document_id: str | None = None) -> dict:
     """Intent routing → metadata extraction → hybrid retrieval → large-model reasoning."""
+    scoped_doc_type = _load_document_type(document_id)
+    is_krones = scoped_doc_type == "krones_supplier_doc"
+
     if _is_simple_greeting(question):
         return {
-            "answer": GREETING_REPLY,
+            "answer": KRONES_GREETING_REPLY if is_krones else GREETING_REPLY,
             "evidence": [],
             "confidence": 0.95,
             "filters": {},
@@ -195,13 +242,31 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         logger.info("Aggregation path engaged for question: %.80s", question)
         return aggregate(question)
 
-    classification = classify_intent(question, conversation_history)
+    # Build doc_context for the classifier when a document is pinned
+    doc_context: dict | None = None
+    master_schema: dict | None = None
+    if document_id:
+        master_schema = _load_master_schema(document_id)
+        if master_schema:
+            vehicle = master_schema.get("vehicle", {}) or {}
+            doc_context = {}
+            for key in ("make", "model", "model_year", "vin", "chassis_id"):
+                fw = vehicle.get(key)
+                if isinstance(fw, dict) and fw.get("value"):
+                    doc_context[key] = fw["value"]
+
+    classification = classify_intent(
+        question,
+        conversation_history,
+        document_id=document_id,
+        doc_context=doc_context,
+    )
     classification_intent = classification.get("intent", "warranty_coverage")
     intent = classification_intent
 
     if intent == "greeting_or_smalltalk":
         return {
-            "answer": GREETING_REPLY,
+            "answer": KRONES_GREETING_REPLY if is_krones else GREETING_REPLY,
             "evidence": [],
             "confidence": 0.95,
             "filters": {},
@@ -219,7 +284,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
 
     if intent == "out_of_scope":
         return {
-            "answer": OUT_OF_SCOPE_REPLY,
+            "answer": KRONES_OUT_OF_SCOPE_REPLY if is_krones else OUT_OF_SCOPE_REPLY,
             "evidence": [],
             "confidence": 0.1,
             "filters": {},
@@ -230,17 +295,26 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         intent = "warranty_coverage"
 
     if intent == "ambiguous":
-        clarification = classification.get("clarification_question") or (
-            "Which vehicle or component are you asking about? "
-            "Please include make, model, year, or VIN if you can."
-        )
-        return {
-            "answer": clarification,
-            "evidence": [],
-            "confidence": float(classification.get("confidence", 0.3)),
-            "filters": {},
-            "intent": intent,
-        }
+        if document_id:
+            # Document is pinned → a broad question is answerable. Fall through to retrieval.
+            intent = "warranty_coverage"
+            logger.info(
+                "Ambiguous intent overridden to %s (doc-scoped: %s)",
+                "krones_lookup" if is_krones else "warranty_coverage",
+                document_id,
+            )
+        else:
+            clarification = classification.get("clarification_question") or (
+                "Which vehicle or component are you asking about? "
+                "Please include make, model, year, or VIN if you can."
+            )
+            return {
+                "answer": clarification,
+                "evidence": [],
+                "confidence": float(classification.get("confidence", 0.3)),
+                "filters": {},
+                "intent": intent,
+            }
 
     metadata = extract_metadata_filters(question, conversation_history)
     filters = qdrant_filters_from_metadata(metadata)
@@ -279,6 +353,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
     retrieval_intents = {
         "warranty_coverage", "comparison", "warranty_metadata_lookup",
         "followup_clarification", "invoice_lookup",
+        "requirement_lookup", "process_lookup", "contact_lookup", "standard_lookup",
     }
     if explicit_docs and (intent in retrieval_intents or classification_intent in retrieval_intents):
         chunks = []
@@ -301,12 +376,21 @@ async def answer_question(question: str, conversation_history: list[dict], docum
             "question" if explicit_docs else "retrieval",
         )
 
+    # --- Edit 3: For document-level queries, ensure full schema facts are seeded ---
+    if document_id and _is_document_level_query(question) and not schema_facts:
+        # Force-load schema facts for the scoped document so the reasoner gets
+        # the full coverage code list, not just whatever chunk ranked first.
+        schema_facts = _load_schema_facts([document_id])
+        if schema_facts:
+            logger.info("Schema grounding seeded for document-level query: %s", document_id)
+
     reasoned = reason_over_evidence(
         question,
         conversation_history,
         chunks,
         table_mode=table_mode,
         schema_facts=schema_facts,
+        document_type=scoped_doc_type,
     )
 
     evidence = []
@@ -321,7 +405,10 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         "confidence": compute_confidence(reasoned),
         "filters": filters,
         "metadata": metadata,
-        "coverageDecision": reasoned.get("coverage_decision", "insufficient_evidence"),
+        "coverageDecision": reasoned.get(
+            "coverage_decision",
+            "not_in_document" if is_krones else "insufficient_evidence",
+        ),
         "intent": intent,
         "queryMode": {
             "structured": settings.enable_structured_reasoning and is_structured_query(question),

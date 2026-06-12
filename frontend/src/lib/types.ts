@@ -135,6 +135,9 @@ export type CoverageDecision =
   | "not_covered"
   | "partial"
   | "insufficient_evidence"
+  | "answered"
+  | "not_in_document"
+  | "needs_clarification"
   | "covered_with_limits";
 
 export type ConfidenceBand = "high" | "medium" | "low";

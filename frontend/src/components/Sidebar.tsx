@@ -94,7 +94,7 @@ export default function Sidebar() {
                 lineHeight: 1.2,
               }}
             >
-              DocIntel
+              Krones
             </div>
             <div
               style={{

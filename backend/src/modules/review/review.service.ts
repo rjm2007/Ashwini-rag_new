@@ -176,21 +176,34 @@ export class ReviewService {
       throw new NotFoundException("Document not found");
     }
     if (docForGate.requiredFieldsMissing) {
-      const meta = (docForGate.metadataJson as Record<string, unknown>) || {};
-      const hasVinOrChassis = !!(meta.vin || meta.chassis_id);
-      const hasUnit = !!meta.unit_number;
-      const hasMake = !!docForGate.make;
-      const hasModel = !!docForGate.model;
-      const isCoverageTable = docForGate.documentType === "coverage_code_table";
-      const isInvoice = docForGate.documentType === "repair_invoice";
-      const hasIdentifiers =
-        (hasVinOrChassis || (isInvoice && hasUnit)) && hasMake && (isCoverageTable || hasModel);
-      if (!hasIdentifiers) {
-        throw new BadRequestException(
-          isCoverageTable
-            ? "Required fields missing: VIN (or Chassis ID) and Make must be filled before certification."
-            : "Required fields missing: VIN (or Chassis ID), Make, and Model must be filled before certification. Use PATCH /review/:id/metadata to fill them."
-        );
+      if (docForGate.documentType === "krones_supplier_doc") {
+        const schema = (docForGate.masterSchemaJson as Record<string, unknown>) || {};
+        const docHdr = (schema.document as Record<string, { value?: string }>) || {};
+        const fw = (f?: { value?: string }) => (f?.value || "").trim();
+        const hasKronesIds =
+          !!fw(docHdr.doc_title) && !!fw(docHdr.issuer) && !!fw(docHdr.doc_category);
+        if (!hasKronesIds) {
+          throw new BadRequestException(
+            "Required fields missing: doc_title, issuer, and doc_category must be filled before certification."
+          );
+        }
+      } else {
+        const meta = (docForGate.metadataJson as Record<string, unknown>) || {};
+        const hasVinOrChassis = !!(meta.vin || meta.chassis_id);
+        const hasUnit = !!meta.unit_number;
+        const hasMake = !!docForGate.make;
+        const hasModel = !!docForGate.model;
+        const isCoverageTable = docForGate.documentType === "coverage_code_table";
+        const isInvoice = docForGate.documentType === "repair_invoice";
+        const hasIdentifiers =
+          (hasVinOrChassis || (isInvoice && hasUnit)) && hasMake && (isCoverageTable || hasModel);
+        if (!hasIdentifiers) {
+          throw new BadRequestException(
+            isCoverageTable
+              ? "Required fields missing: VIN (or Chassis ID) and Make must be filled before certification."
+              : "Required fields missing: VIN (or Chassis ID), Make, and Model must be filled before certification. Use PATCH /review/:id/metadata to fill them."
+          );
+        }
       }
     }
 

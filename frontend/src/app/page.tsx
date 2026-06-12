@@ -78,7 +78,7 @@ export default function LoginPage() {
               <FileText size={22} color="#FFF" />
             </div>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#FFF" }}>DocIntel</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "#FFF" }}>Krones</div>
               <div style={{ fontSize: 12, color: "#9AA0B5" }}>AI Document Intelligence</div>
             </div>
           </div>

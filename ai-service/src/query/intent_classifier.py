@@ -20,7 +20,13 @@ _DEFAULT = {
 }
 
 
-def classify_intent(question: str, conversation_history: list[dict] | None = None) -> dict:
+def classify_intent(
+    question: str,
+    conversation_history: list[dict] | None = None,
+    *,
+    document_id: str | None = None,
+    doc_context: dict | None = None,
+) -> dict:
     """Classify user intent and routing hints (small model)."""
     llm = LlmService()
     prompt = (_PROMPTS_DIR / "intent_classification.txt").read_text(encoding="utf-8")
@@ -33,8 +39,25 @@ def classify_intent(question: str, conversation_history: list[dict] | None = Non
         ]
         history_block = "\nCONVERSATION HISTORY:\n" + "\n".join(lines)
 
+    # When a specific document is pinned, tell the classifier not to bounce
+    # broad/document-level questions as "ambiguous".
+    scope_block = ""
+    if document_id:
+        ctx = doc_context or {}
+        ctx_str = ", ".join(f"{k}={v}" for k, v in ctx.items() if v) or "certified document"
+        scope_block = (
+            "\n\nDOCUMENT IN SCOPE: A single certified document is already selected by the user.\n"
+            f"Known context for this document: {ctx_str}\n"
+            "Because the document is fixed, do NOT return intent=\"ambiguous\" for a missing "
+            "vehicle/component/VIN. Treat document-level questions (\"what does this cover\", "
+            "\"summarize this\", \"what's excluded\", \"what is the warranty period\", \"what does "
+            "this warranty cover\") as intent=\"warranty_coverage\" with requires_retrieval=true.\n"
+            "Only return \"ambiguous\" if the question is genuinely uninterpretable even with the "
+            "document in scope.\n"
+        )
+
     output = llm.small_model_call(
-        f"{prompt}{history_block}\n\nUSER QUESTION: {question}",
+        f"{prompt}{history_block}{scope_block}\n\nUSER QUESTION: {question}",
         "Classify intent. Return JSON only.",
     )
     try:

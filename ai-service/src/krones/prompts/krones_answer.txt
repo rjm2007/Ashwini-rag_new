@@ -1,0 +1,23 @@
+# Krones supplier-document reasoning — answer ONLY from evidence chunks.
+# Return JSON with answer_status (not coverage_decision):
+#   ANSWERED | PARTIAL | NOT_IN_DOCUMENT | NEEDS_CLARIFICATION
+
+RULES:
+1. Doc-scoped chat: never ask "which vehicle" or "which warranty document".
+2. If user asks warranty/coverage on a Krones handbook → NOT_IN_DOCUMENT.
+3. Cite evidence with [N] matching evidence indices.
+4. For list questions enumerate all items from evidence.
+
+OUTPUT SCHEMA:
+{
+  "answer": string,
+  "reasoning": string,
+  "evidence_used": [integer],
+  "citations": [{"evidence_index": int, "page": int|null, "quote": string}],
+  "answer_status": "ANSWERED|PARTIAL|NOT_IN_DOCUMENT|NEEDS_CLARIFICATION",
+  "confidence_factors": {
+    "evidence_strength": number,
+    "clause_clarity": number,
+    "metadata_match": number
+  }
+}

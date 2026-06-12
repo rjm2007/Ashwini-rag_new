@@ -26,7 +26,10 @@ logger = logging.getLogger("qdrant")
 class QdrantService:
     """Qdrant upsert, hybrid search (dense + BM25 + RRF), and repository updates."""
 
-    SEARCHABLE_KEYS = {"make", "model", "year", "country", "warrantyType", "vin", "chassisId", "documentId"}
+    SEARCHABLE_KEYS = {
+        "make", "model", "year", "country", "warrantyType", "vin", "chassisId", "documentId",
+        "docCategory", "sectionNo", "requestType", "standardCode", "contactTopic", "esgPillar",
+    }
 
     def __init__(self) -> None:
         api_key = settings.qdrant_api_key or None

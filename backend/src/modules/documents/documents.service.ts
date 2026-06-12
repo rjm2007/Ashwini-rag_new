@@ -20,7 +20,7 @@ export class DocumentsService {
     private readonly dataSource: DataSource
   ) {}
 
-  async uploadDocument(file: Express.Multer.File, userId: string) {
+  async uploadDocument(file: Express.Multer.File, userId: string, documentType?: string) {
     const normalizedName = file.originalname.trim();
     const duplicate = await this.documentsRepository.findOne({
       where: {
@@ -55,7 +55,8 @@ export class DocumentsService {
       s3Path: s3Key,
       currentRepository: DocumentRepository.PENDING_REVIEW,
       processingStatus: ProcessingStatus.UPLOADED,
-      uploadedBy: userId
+      uploadedBy: userId,
+      ...(documentType === "krones_supplier_doc" ? { documentType: "krones_supplier_doc" } : {})
     });
     await this.documentsRepository.save(document);
     this.logger.log(`uploadDocument postgres row created documentId=${documentId}`);
