@@ -28,6 +28,22 @@ _DOC_LEVEL_RE = _re.compile(
     _re.IGNORECASE,
 )
 
+# Regression guard (H12/H13/N4): warranty framing on a Krones doc → NOT_IN_DOCUMENT, never clarify.
+_KRONES_WARRANTY_MISFIRE_RE = _re.compile(
+    r"\b(warranty|coverage period|engine coverage|what does this warranty cover|"
+    r"what does this cover|what'?s covered|what is the warranty period)\b",
+    _re.IGNORECASE,
+)
+
+KRONES_WARRANTY_MISFIRE_REPLY = (
+    "This document is a Krones supplier handbook, LTSD instructions, or SRSM ticket guide — "
+    "not a vehicle warranty. It does not define warranty coverage, exclusions, or coverage periods."
+)
+
+
+def _is_krones_warranty_misfire(question: str) -> bool:
+    return bool(_KRONES_WARRANTY_MISFIRE_RE.search(question or ""))
+
 
 def _is_document_level_query(q: str) -> bool:
     """Detect broad document-level questions that need full coverage context."""
@@ -237,6 +253,16 @@ async def answer_question(question: str, conversation_history: list[dict], docum
             "intent": "greeting_or_smalltalk",
         }
 
+    if is_krones and document_id and _is_krones_warranty_misfire(question):
+        return {
+            "answer": KRONES_WARRANTY_MISFIRE_REPLY,
+            "evidence": [],
+            "confidence": 0.92,
+            "filters": {"documentId": document_id},
+            "coverageDecision": "not_in_document",
+            "intent": "requirement_lookup",
+        }
+
     # Count / group-by / "all vehicles" → deterministic full-scan, not retrieval.
     if is_aggregation_query(question):
         logger.info("Aggregation path engaged for question: %.80s", question)
@@ -248,12 +274,19 @@ async def answer_question(question: str, conversation_history: list[dict], docum
     if document_id:
         master_schema = _load_master_schema(document_id)
         if master_schema:
-            vehicle = master_schema.get("vehicle", {}) or {}
             doc_context = {}
-            for key in ("make", "model", "model_year", "vin", "chassis_id"):
-                fw = vehicle.get(key)
-                if isinstance(fw, dict) and fw.get("value"):
-                    doc_context[key] = fw["value"]
+            if is_krones:
+                doc_hdr = master_schema.get("document", {}) or {}
+                for key in ("doc_title", "doc_category", "issuer"):
+                    fw = doc_hdr.get(key)
+                    if isinstance(fw, dict) and fw.get("value"):
+                        doc_context[key] = fw["value"]
+            else:
+                vehicle = master_schema.get("vehicle", {}) or {}
+                for key in ("make", "model", "model_year", "vin", "chassis_id"):
+                    fw = vehicle.get(key)
+                    if isinstance(fw, dict) and fw.get("value"):
+                        doc_context[key] = fw["value"]
 
     classification = classify_intent(
         question,

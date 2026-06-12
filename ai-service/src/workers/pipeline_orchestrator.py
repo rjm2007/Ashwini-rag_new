@@ -563,7 +563,15 @@ async def _run_embedding_pipeline(
             if raw_meta.get("unit_number"):
                 metadata["unit_number"] = raw_meta["unit_number"]
 
-    if not metadata.get("vin") and plain_text:
+    doc_type_row = None
+    with SessionLocal() as session:
+        dt_row = session.execute(
+            text("SELECT document_type FROM documents WHERE id = :id"),
+            {"id": document_id},
+        ).first()
+        doc_type_row = dt_row[0] if dt_row else None
+
+    if doc_type_row != "krones_supplier_doc" and not metadata.get("vin") and plain_text:
         parsed = parse_vin_chassis_from_text(plain_text)
         if parsed.get("vin"):
             metadata["vin"] = parsed["vin"]
@@ -578,14 +586,6 @@ async def _run_embedding_pipeline(
         ).first()
         if schema_row and isinstance(schema_row[0], dict):
             master = schema_row[0]
-
-    doc_type_row = None
-    with SessionLocal() as session:
-        dt_row = session.execute(
-            text("SELECT document_type FROM documents WHERE id = :id"),
-            {"id": document_id},
-        ).first()
-        doc_type_row = dt_row[0] if dt_row else None
 
     step = start_step(document_id, 2, "embedding", "chunk_generate", "Generating chunks")
     try:
