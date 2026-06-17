@@ -42,7 +42,10 @@ def login() -> str:
 def fetch_documents(token: str) -> list[dict]:
     r = httpx.get(f"{BASE}/documents", headers={"Authorization": f"Bearer {token}"})
     r.raise_for_status()
-    return r.json()
+    payload = r.json()
+    if isinstance(payload, list):
+        return payload
+    return payload.get("data") or []
 
 
 def validate_structure(schema: dict) -> list[str]:
@@ -98,8 +101,15 @@ def main() -> int:
     complete = [d for d in docs if d.get("processingStatus") == "processing_complete"]
     report = {"documents_checked": len(complete), "results": []}
     for doc in complete:
+        doc_id = doc.get("id")
+        if doc_id:
+            detail = httpx.get(
+                f"{BASE}/documents/{doc_id}",
+                headers={"Authorization": f"Bearer {token}"},
+            ).json()
+            doc = detail
         schema = doc.get("masterSchemaJson") or doc.get("master_schema_json") or {}
-        name = doc.get("filename") or doc.get("originalFilename") or doc.get("id")
+        name = doc.get("originalFilename") or doc.get("filename") or doc.get("id")
         entry = {"filename": name, "documentId": doc.get("id"), "errors": []}
         entry["errors"].extend(validate_structure(schema))
         if "1172" in str(name).lower() or "volvo" in str(name).lower():

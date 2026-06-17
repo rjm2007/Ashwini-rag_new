@@ -44,21 +44,41 @@ def resolve_documents_by_make_model_year(
     if not make:
         return []
 
+    make_pat = f"%{make.strip()}%"
     clauses = [
         "current_repository = 'certified'",
-        "(master_schema_json -> 'applicability' ->> 'make' ILIKE :make OR make ILIKE :make)",
+        "("
+        "master_schema_json -> 'applicability' ->> 'make' ILIKE :make_pat "
+        "OR make ILIKE :make_pat"
+        ")",
     ]
-    params: dict = {"make": make}
+    params: dict = {"make_pat": make_pat}
     if model:
+        model_pat = f"%{model.strip()}%"
         clauses.append(
-            "(master_schema_json -> 'applicability' -> 'models' ? :model "
-            " OR model ILIKE :model "
-            " OR master_schema_json -> 'asset_context' ->> 'model' ILIKE :model)"
+            "("
+            "model ILIKE :model_pat "
+            "OR master_schema_json -> 'asset_context' ->> 'model' ILIKE :model_pat "
+            "OR EXISTS ("
+            "  SELECT 1 FROM jsonb_array_elements_text("
+            "    COALESCE(master_schema_json -> 'applicability' -> 'models', '[]'::jsonb)"
+            "  ) AS m(val) WHERE m.val ILIKE :model_pat"
+            ")"
+            ")"
         )
-        params["model"] = model
+        params["model_pat"] = model_pat
     if year:
         clauses.append(
-            "(year = :year OR master_schema_json -> 'applicability' -> 'model_years' @> :year_json)"
+            "("
+            "year = :year "
+            "OR master_schema_json -> 'applicability' -> 'model_years' @> :year_json "
+            "OR ("
+            "  COALESCE(jsonb_array_length("
+            "    master_schema_json -> 'applicability' -> 'model_years' -> 'specific_years'"
+            "  ), 0) = 0 "
+            "  AND (master_schema_json -> 'applicability' -> 'model_years' ->> 'from') IS NULL"
+            ")"
+            ")"
         )
         params["year"] = year
         params["year_json"] = f'{{"specific_years": [{year}]}}'

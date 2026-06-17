@@ -7,10 +7,10 @@ $sampleDst = Join-Path $PSScriptRoot "..\sample-docs"
 New-Item -ItemType Directory -Force -Path $sampleDst | Out-Null
 
 $pdfs = @(
-    @{ label = "Volvo"; src = "1172 WARRENTY.pdf"; dst = "Volvo_1172.pdf" },
-    @{ label = "Kenworth"; src = "md-warranty-and-extended-warranty-dec-2016-v2.pdf"; dst = "Kenworth_MD.pdf" },
-    @{ label = "Headstart"; src = "Sample-HeavyDuty5-24.pdf"; dst = "Headstart_HDCT.pdf" },
-    @{ label = "Premium2000"; src = "p2k-elite.pdf"; dst = "Premium2000_Elite.pdf" }
+    @{ label = "Volvo"; src = "1172 WARRENTY.pdf"; dst = "Volvo_1172.pdf"; meta = $null },
+    @{ label = "Kenworth"; src = "md-warranty-and-extended-warranty-dec-2016-v2.pdf"; dst = "Kenworth_MD.pdf"; meta = @{ make = "Kenworth"; model = "Medium Duty"; chassisId = "KW-MD-SCHEDULE" } },
+    @{ label = "Headstart"; src = "Sample-HeavyDuty5-24.pdf"; dst = "Headstart_HDCT.pdf"; meta = @{ make = "Headstart"; model = "HDCT"; chassisId = "HEADSTART-HDCT" } },
+    @{ label = "Premium2000"; src = "p2k-elite.pdf"; dst = "Premium2000_Elite.pdf"; meta = @{ make = "Premium 2000+"; model = "ELITE"; chassisId = "P2K-ELITE" } }
 )
 
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
@@ -28,7 +28,7 @@ function Wait-DocumentStatus($docId, $targetStatuses, $token, $label, $maxMinute
     } while ($true)
 }
 
-function Ingest-Pdf($path, $token, $label) {
+function Ingest-Pdf($path, $token, $label, $meta) {
     Write-Step "Upload $label"
     if (-not (Test-Path $path)) { throw "PDF not found: $path" }
     $uploadRaw = curl.exe -s -X POST "$base/documents/upload" `
@@ -47,7 +47,15 @@ function Ingest-Pdf($path, $token, $label) {
         Write-Host "  documentId=$docId"
     }
 
-    $doc = Wait-DocumentStatus $docId @("awaiting_certification") $token $label 40
+    $doc = Wait-DocumentStatus $docId @("awaiting_certification") $token $label 55
+
+    if ($meta) {
+        Write-Step "Patch metadata $label"
+        Invoke-RestMethod -Method Patch -Uri "$base/review/$docId/metadata" `
+            -Headers @{ Authorization = "Bearer $token" } `
+            -ContentType "application/json" `
+            -Body ($meta | ConvertTo-Json) | Out-Null
+    }
 
     Write-Step "Admin certify $label"
     Invoke-RestMethod -Method Post -Uri "$base/review/$docId/admin-approve" `
@@ -77,7 +85,7 @@ $token = $login.token
 $results = @()
 foreach ($p in $pdfs) {
     $path = Join-Path $sampleDst $p.dst
-    $results += Ingest-Pdf $path $token $p.label
+    $results += Ingest-Pdf $path $token $p.label $p.meta
 }
 
 $out = @{

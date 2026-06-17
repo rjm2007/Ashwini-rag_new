@@ -247,9 +247,9 @@ def route_specialized_query(
     context = context or {}
     if intent == "list_coverage" or _LIST_RE.search(question or ""):
         return handle_list_coverage(context, document_id)
-    lookup = handle_coverage_lookup(question, context, document_id)
-    if lookup and intent in ("coverage_lookup", "warranty_coverage", "warranty_metadata_lookup"):
-        if _CODE_RE.search(question or ""):
+    if _CODE_RE.search(question or ""):
+        lookup = handle_coverage_lookup(question, context, document_id)
+        if lookup:
             return lookup
     if intent == "defect_report" or _DEFECT_RE.search(question or ""):
         return handle_defect_workflow(question, context, document_id, conversation_history)
