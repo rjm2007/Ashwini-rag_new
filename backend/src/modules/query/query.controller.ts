@@ -33,7 +33,7 @@ export class QueryController {
     @Req() req: Request & { user?: any }
   ) {
     // This function sends user query and returns assistant response.
-    return this.queryService.sendMessage(id, req.user?.userId, dto.content, dto.documentId);
+    return this.queryService.sendMessage(id, req.user?.userId, dto.content, dto.documentId, dto.context);
   }
 
   @Delete("sessions/:id")

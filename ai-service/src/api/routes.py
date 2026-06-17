@@ -10,6 +10,7 @@ from ..database import SessionLocal
 from ..query.query_orchestrator import answer_question
 from ..services.qdrant_service import QdrantService
 from ..workers.pipeline_orchestrator import run_act1_parse, run_act2_process
+from ..services.cost_tracker import record_cost, sum_document_cost, sum_session_cost
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,8 @@ class QueryRequest(BaseModel):
     question: str
     conversationHistory: list[dict[str, Any]] = []
     documentId: str | None = None
+    sessionId: str | None = None
+    context: dict[str, Any] | None = None
 
 
 class SetRepositoryRequest(BaseModel):
@@ -48,7 +51,7 @@ async def trigger_process(document_id: str) -> dict:
 
 @router.get("/internal/summary/{document_id}")
 async def get_summary(document_id: str) -> dict:
-    """Return master_schema_json for SummaryView (document/vehicle/profiles/quality)."""
+    """Return WARR-1172-shaped master schema with stats rollup."""
     with SessionLocal() as session:
         row = session.execute(
             text("SELECT master_schema_json, original_filename FROM documents WHERE id = :id"),
@@ -58,22 +61,66 @@ async def get_summary(document_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Document not found")
     schema = row[0] if isinstance(row[0], dict) else {}
     filename = row[1] or ""
-    if not schema:
-        return {
-            "document": {},
-            "vehicle": {},
-            "profiles": {},
-            "extensions": [],
-            "quality": {},
-            "document_id": document_id,
-            "filename": filename,
-        }
-    return {**schema, "document_id": document_id, "filename": filename}
+    return build_summary_response(schema, document_id, filename)
+
+
+@router.get("/cost/document/{document_id}")
+async def get_document_cost(document_id: str) -> dict:
+    total = sum_document_cost(document_id)
+    with SessionLocal() as session:
+        rows = session.execute(
+            text(
+                "SELECT stage, provider, model, SUM(usd_cost) AS usd, COUNT(*) AS calls "
+                "FROM cost_events WHERE document_id = :id GROUP BY stage, provider, model "
+                "ORDER BY usd DESC"
+            ),
+            {"id": document_id},
+        ).fetchall()
+    return {
+        "documentId": document_id,
+        "totalUsd": total,
+        "breakdown": [
+            {"stage": r[0], "provider": r[1], "model": r[2], "usd": float(r[3]), "calls": r[4]}
+            for r in rows
+        ],
+    }
+
+
+@router.get("/cost/session/{session_id}")
+async def get_session_cost(session_id: str) -> dict:
+    return {"sessionId": session_id, "totalUsd": sum_session_cost(session_id)}
+
+
+@router.get("/cost/daily")
+async def get_daily_cost() -> dict:
+    with SessionLocal() as session:
+        row = session.execute(
+            text(
+                "SELECT COALESCE(SUM(usd_cost), 0) FROM cost_events "
+                "WHERE created_at >= date_trunc('day', NOW())"
+            )
+        ).first()
+        rows = session.execute(
+            text(
+                "SELECT stage, SUM(usd_cost) FROM cost_events "
+                "WHERE created_at >= date_trunc('day', NOW()) GROUP BY stage"
+            )
+        ).fetchall()
+    return {
+        "totalUsd": float(row[0] if row else 0),
+        "byStage": {r[0]: float(r[1]) for r in rows},
+    }
 
 
 @router.post("/query/answer")
 async def query_answer(payload: QueryRequest) -> dict[str, Any]:
-    return await answer_question(payload.question, payload.conversationHistory, payload.documentId)
+    return await answer_question(
+        payload.question,
+        payload.conversationHistory,
+        payload.documentId,
+        context=payload.context,
+        session_id=payload.sessionId,
+    )
 
 
 @router.post("/internal/set-repository/{document_id}")

@@ -5,6 +5,7 @@ import logging
 from openai import OpenAI
 
 from ..config import settings
+from .cost_tracker import record_cost
 from .openai_compat import chat_create_kwargs
 
 logger = logging.getLogger("contextual_retrieval")
@@ -31,7 +32,12 @@ class ContextualRetrieval:
         self.client = OpenAI(api_key=settings.openai_api_key)
         self.model = settings.small_model
 
-    def generate_context(self, full_doc_text: str, chunk_text: str) -> str:
+    def generate_context(
+        self,
+        full_doc_text: str,
+        chunk_text: str,
+        document_id: str | None = None,
+    ) -> str:
         doc_truncated = full_doc_text[:6000]
         try:
             resp = self.client.chat.completions.create(
@@ -51,15 +57,31 @@ class ContextualRetrieval:
                 ],
                 **chat_create_kwargs(self.model, 150),
             )
-            return (resp.choices[0].message.content or "").strip()
+            content = (resp.choices[0].message.content or "").strip()
+            usage = getattr(resp, "usage", None)
+            if usage:
+                record_cost(
+                    stage="contextual_retrieval",
+                    provider="openai",
+                    model=self.model,
+                    document_id=document_id,
+                    input_tokens=getattr(usage, "prompt_tokens", None),
+                    output_tokens=getattr(usage, "completion_tokens", None),
+                )
+            return content
         except Exception as error:
             logger.warning("Context generation failed: %s", error)
             return ""
 
-    def contextualize_chunks(self, full_doc_text: str, chunks: list[dict]) -> list[dict]:
+    def contextualize_chunks(
+        self,
+        full_doc_text: str,
+        chunks: list[dict],
+        document_id: str | None = None,
+    ) -> list[dict]:
         logger.info("Contextualizing %d chunks with %s", len(chunks), self.model)
         for i, chunk in enumerate(chunks):
-            context = self.generate_context(full_doc_text, chunk["chunkText"])
+            context = self.generate_context(full_doc_text, chunk["chunkText"], document_id=document_id)
             if context:
                 chunk["contextualizedText"] = context + "\n\n" + chunk["chunkText"]
                 chunk["contextBlurb"] = context

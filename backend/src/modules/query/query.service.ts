@@ -53,7 +53,13 @@ export class QueryService {
     return { success: true };
   }
 
-  async sendMessage(sessionId: string, userId: string, content: string, documentId?: string) {
+  async sendMessage(
+    sessionId: string,
+    userId: string,
+    content: string,
+    documentId?: string,
+    context?: Record<string, unknown>
+  ) {
     // This function stores user message, calls AI answer API, and stores assistant response.
     const session = await this.sessionRepository.findOne({ where: { id: sessionId, userId } });
     if (!session) {
@@ -88,7 +94,9 @@ export class QueryService {
         body: JSON.stringify({
           question: content,
           conversationHistory: history.map((item) => ({ role: item.role, content: item.content })),
-          documentId: documentId || undefined
+          documentId: documentId || undefined,
+          sessionId,
+          context: context || undefined
         })
       });
     } catch (err: any) {
@@ -136,8 +144,19 @@ export class QueryService {
       role: QueryMessageRole.ASSISTANT,
       content: assistantContent,
       confidenceScore: aiResponse.confidence || 0,
-      evidenceJson: aiResponse.evidence || [],
-      metadataFiltersAppliedJson: aiResponse.filters || {}
+      evidenceJson: {
+        evidence: aiResponse.evidence || [],
+        responseType: aiResponse.responseType,
+        decision: aiResponse.decision,
+        candidates: aiResponse.candidates,
+        fields: aiResponse.fields,
+        coverages: aiResponse.coverages,
+        turnCostUsd: aiResponse.turnCostUsd
+      },
+      metadataFiltersAppliedJson: {
+        ...(aiResponse.filters || {}),
+        context: aiResponse.context || context || {}
+      }
     });
     await this.messageRepository.save(assistantMessage);
 

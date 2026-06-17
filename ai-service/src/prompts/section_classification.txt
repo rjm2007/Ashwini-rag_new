@@ -29,9 +29,6 @@ a PDF) and emit a single JSON object that:
 - insurance_policy       : Insurance policy document with premium, coverage limits, policyholder.
 - service_contract       : Extended service contract or maintenance agreement.
 - generic_document       : None of the above; use as fallback only.
-- krones_supplier_doc    : Krones supplier handbook, LTSD instructions, or SRSM ticket guide.
-                           Identifiers: "Krones", "Supplier Handbook", "LTSD", "Supplier Requests
-                           Service Management", "krones.atlassian.net", "SRSM-".
 
 # SECTION LABEL TAXONOMY (section_label MUST be one of these)
 - coverage_clause         : Describes what IS covered, duration, mileage
@@ -45,19 +42,6 @@ a PDF) and emit a single JSON object that:
 - issuer_metadata         : Issuer name, address, document number, date
 - legal_disclaimer        : Legal language, warranty limitations, liability
 - other                   : Anything that does not fit the above categories
-
-# KRONES LABELS (use when document_type = krones_supplier_doc)
-- requirement_clause      : Binding supplier requirement (QM, delivery, documentation, etc.)
-- process_step            : Step in a supplier/Krones process (LTSD, ticket lifecycle)
-- request_type_table      : SRSM request type table row
-- contact_block           : Names, emails, phones, addresses for Krones contacts
-- standard_reference      : DIN/ISO/REACH/RoHS standard citation
-- esg_requirement         : Environmental, Social, or Governance requirement
-- fta_table               : Free-trade agreement / ISO country-of-origin table row
-- definition              : Defined term (QAA, QPI, LTSD, SUS, KANBAN, 4D/8D, etc.)
-- threshold_rule          : Numeric threshold or band (QPI, archival years, deadlines)
-- packaging_rule          : Packaging material rule or ban
-- link_index              : Portal URL or external link index
 
 # OUTPUT SCHEMA
 {

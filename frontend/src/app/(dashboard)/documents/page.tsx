@@ -153,7 +153,7 @@ export default function DocumentsPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 160px 160px 120px 40px",
+            gridTemplateColumns: "1fr 120px 100px 160px 120px 40px",
             gap: 12,
             padding: "12px 20px",
             fontSize: 11,
@@ -167,6 +167,7 @@ export default function DocumentsPage() {
         >
           <span>Document</span>
           <span>Type</span>
+          <span>Coverages</span>
           <span>Status</span>
           <span>Uploaded</span>
           <span />
@@ -246,7 +247,7 @@ export default function DocumentsPage() {
               onKeyDown={(e) => e.key === "Enter" && router.push(`/documents/${doc.id}`)}
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 160px 160px 120px 40px",
+                gridTemplateColumns: "1fr 120px 100px 160px 120px 40px",
                 gap: 12,
                 alignItems: "center",
                 height: 56,
@@ -320,6 +321,9 @@ export default function DocumentsPage() {
               </div>
               <div>
                 <TypePill type={doc.documentType || "generic_document"} />
+              </div>
+              <div>
+                <MonoChip text={String(doc.coverageCount ?? 0)} />
               </div>
               <div>
                 <StatusPill status={doc.processingStatus} />

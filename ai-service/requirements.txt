@@ -13,3 +13,4 @@ tiktoken
 httpx
 requests
 pymupdf>=1.24.0
+jsonschema>=4.22.0

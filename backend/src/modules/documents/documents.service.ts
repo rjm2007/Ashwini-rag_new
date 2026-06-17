@@ -56,7 +56,6 @@ export class DocumentsService {
       currentRepository: DocumentRepository.PENDING_REVIEW,
       processingStatus: ProcessingStatus.UPLOADED,
       uploadedBy: userId,
-      ...(documentType === "krones_supplier_doc" ? { documentType: "krones_supplier_doc" } : {})
     });
     await this.documentsRepository.save(document);
     this.logger.log(`uploadDocument postgres row created documentId=${documentId}`);
@@ -126,7 +125,12 @@ export class DocumentsService {
     }
     query.orderBy("documents.uploaded_at", "DESC").skip((page - 1) * limit).take(limit);
     const [data, total] = await query.getManyAndCount();
-    return { data, total, page, limit };
+    const enriched = data.map((doc) => {
+      const schema = (doc.masterSchemaJson || {}) as Record<string, unknown>;
+      const rows = Array.isArray(schema.coverage_components) ? schema.coverage_components : [];
+      return { ...doc, coverageCount: rows.length };
+    });
+    return { data: enriched, total, page, limit };
   }
 
   async getDocument(id: string) {
@@ -164,15 +168,30 @@ export class DocumentsService {
       throw new NotFoundException("Document not found");
     }
 
+    const schema = (doc.masterSchemaJson ?? {}) as Record<string, any>;
+    const rows = Array.isArray(schema.coverage_components) ? schema.coverage_components : [];
+    const withTime = rows.filter((r) => r?.coverage_period?.duration_months != null).length;
+    const withMileage = rows.filter(
+      (r) =>
+        r?.coverage_period?.mileage_limit != null ||
+        r?.coverage_period?.mileage_unit === "unlimited"
+    ).length;
+
     return {
       documentId: doc.id,
       filename: doc.originalFilename,
-      documentType: doc.documentType ?? null,
+      documentType: doc.documentType ?? schema?.document?.document_type ?? null,
       completeness: doc.completeness ?? 0,
       requiredFieldsMissing: doc.requiredFieldsMissing ?? true,
-      aiSummaryText: doc.aiSummaryText ?? null,
-      masterSchema: doc.masterSchemaJson ?? {},
-      sectionExtracts: doc.sectionExtractsJson ?? []
+      ...schema,
+      stats: {
+        coverage_count: rows.length,
+        with_time_limit: withTime,
+        with_mileage_limit: withMileage,
+        with_limit_of_liability: rows.filter((r) => r?.limit_of_liability).length,
+        with_deductible: rows.filter((r) => r?.deductible).length,
+        extraction_confidence: schema?.document?.extraction_confidence ?? null
+      }
     };
   }
 }

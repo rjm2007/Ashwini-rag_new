@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength } from "class-validator";
+import { IsObject, IsOptional, IsString, MinLength } from "class-validator";
 
 export class SendMessageDto {
   @IsString()
@@ -8,4 +8,8 @@ export class SendMessageDto {
   @IsOptional()
   @IsString()
   documentId?: string;
+
+  @IsOptional()
+  @IsObject()
+  context?: Record<string, unknown>;
 }

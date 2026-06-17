@@ -16,10 +16,11 @@ from ..services.docling_structure_service import check_health, parse_structured
 from ..services.embedding_service import prepare_chunks_for_upsert
 from ..services.event_emitter import finish_step, start_step
 from ..services.ocr_service import OcrService
+from ..services.cost_tracker import record_cost
 from ..services.parent_child_builder import build_parent_child_chunks
 from ..services.qdrant_service import QdrantService
+from ..services.warranty_chunk_builder import build_warranty_chunks, has_usable_warranty_schema
 from ..services.schema_chunk_builder import build_schema_chunks, has_usable_schema
-from ..services.schema_extraction_service import extract_master_schema
 from ..services.section_classifier import classify_sections
 from ..services.s3_service import S3Service
 from ..services.strategic_chunker import parse_vin_chassis_from_text
@@ -83,6 +84,16 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
                     "processing_time_s": round(structured.get("processing_time") or 0, 2),
                 },
             )
+            page_count = len(structured.get("pages_text", [])) or structured.get("page_count") or 0
+            if page_count:
+                record_cost(
+                    stage="ocr_docling",
+                    provider="docling",
+                    model="docling-ocr",
+                    document_id=document_id,
+                    units=float(page_count),
+                    unit_kind="page",
+                )
         except Exception as exc:
             logger.warning("[%s] Docling failed, OCR fallback: %s", document_id, exc)
             ocr = OcrService()
@@ -102,6 +113,15 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
             }
             await s3.upload_json(f"processing-artifacts/{document_id}/structure.json", structured)
             finish_step(step, {"pages": len(pages), "fallback": "ocr", "error": str(exc)[:200]})
+            if pages:
+                record_cost(
+                    stage="ocr_fallback",
+                    provider="textract",
+                    model="ocr",
+                    document_id=document_id,
+                    units=float(len(pages)),
+                    unit_kind="page",
+                )
 
         step = start_step(document_id, 1, "structure", "document_tree", "Building document tree")
         await _update_status(document_id, "structuring")
@@ -136,21 +156,6 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
                     plain_text=structured.get("plain_text", ""),
                 )
                 doc_type = classify_result.get("document_type", "generic_document")
-                from ..krones.type_detect import detect_krones_from_text
-                from ..krones.cleaning import apply_krones_cleaning
-
-                fname = Path(s3_path).name if s3_path else ""
-                if preset_type == "krones_supplier_doc" or detect_krones_from_text(
-                    fname, structured.get("plain_text", "")
-                ):
-                    doc_type = "krones_supplier_doc"
-                    structured = apply_krones_cleaning(structured)
-                    with SessionLocal() as session:
-                        session.execute(
-                            text("UPDATE documents SET document_type = :dt WHERE id = :id"),
-                            {"dt": doc_type, "id": document_id},
-                        )
-                        session.commit()
                 # Persist enriched_sections into the structure artifact
                 structured["enriched_sections"] = classify_result.get("enriched_sections", [])
                 structured["enriched_tree"] = classify_result.get("enriched_tree", [])
@@ -170,39 +175,21 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
         step = start_step(document_id, 1, "classify", "type_detect", "Detecting document type")
         finish_step(step, {"document_type": doc_type})
 
-        if doc_type == "krones_supplier_doc":
-            step = start_step(
-                document_id,
-                1,
-                "parse",
-                "krones_header_extract",
-                "Extracting Krones document header",
+        step = start_step(
+            document_id,
+            1,
+            "parse",
+            "vehicle_llm_fallback",
+            "Recovering vehicle fields (regex + LLM)",
+        )
+        try:
+            fallback_detail = run_vehicle_fallback(
+                document_id, structured, doc_type, s3_path=s3_path
             )
-            try:
-                from ..krones.act1_header import run_krones_act1_header
-
-                fname = Path(s3_path).name if s3_path else ""
-                header_detail = run_krones_act1_header(document_id, structured, fname)
-                finish_step(step, header_detail)
-            except Exception as exc:
-                logger.warning("[%s] Krones header extract failed: %s", document_id, exc)
-                finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
-        else:
-            step = start_step(
-                document_id,
-                1,
-                "parse",
-                "vehicle_llm_fallback",
-                "Recovering vehicle fields (regex + LLM)",
-            )
-            try:
-                fallback_detail = run_vehicle_fallback(
-                    document_id, structured, doc_type, s3_path=s3_path
-                )
-                finish_step(step, fallback_detail)
-            except Exception as exc:
-                logger.warning("[%s] Vehicle fallback failed: %s", document_id, exc)
-                finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
+            finish_step(step, fallback_detail)
+        except Exception as exc:
+            logger.warning("[%s] Vehicle fallback failed: %s", document_id, exc)
+            finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
 
         await _update_status(document_id, "awaiting_certification")
         await s3.upload_json(
@@ -243,11 +230,12 @@ async def run_act2_process(document_id: str) -> None:
 
     with SessionLocal() as session:
         row = session.execute(
-            text("SELECT document_type, s3_path, make, model, year, metadata_json FROM documents WHERE id = :id"),
+            text("SELECT document_type, s3_path, make, model, year, metadata_json, original_filename FROM documents WHERE id = :id"),
             {"id": document_id},
         ).first()
     document_type = (row[0] if row else None) or "generic_document"
     s3_path = row[1] if row else ""
+    filename = row[6] if row else ""
     
     existing_vehicle = {}
     if row:
@@ -278,6 +266,7 @@ async def run_act2_process(document_id: str) -> None:
                 sections=enriched_sections,
                 full_texts=full_texts,
                 existing_vehicle=existing_vehicle,
+                filename=filename,
             )
         except Exception as exc:
             schema_err = exc
@@ -318,171 +307,105 @@ async def _run_schema_pipeline(
     sections: list[dict] | None = None,
     full_texts: list[dict] | None = None,
     existing_vehicle: dict | None = None,
+    filename: str = "",
 ) -> None:
-    from ..services.schema_extraction_service import (
-        SECTION_EXTRACTION_MAP, _run_section_extraction,
-        _merge_section_extracts, _normalize, _compute_quality,
-        _normalize_field_wrappers_deep, _count_extracted_in,
-        _clean_text, _fw_value,
-    )
-    from ..services.llm_service import LlmService
-    from ..services.summary_generator import generate_document_summary
+    from ..services.warranty_schema_extractor import extract_profile, extract_coverage_components
+    from ..services.warranty_normalizer import normalize_warranty_schema, compute_completeness, compute_required_fields_missing
+    from ..services.schema_validator import validate_warranty_schema
+    from ..services.cost_tracker import sum_document_cost
 
     if not settings.enable_schema_pipeline:
         return
 
-    llm = LlmService()
-    sections = sections or []
-    full_texts = full_texts or []
-    effective_md = tables_text.strip() + "\n\n" + (md_content or "") if tables_text.strip() else (md_content or "")
-    effective_md = _clean_text(effective_md)
-
-    extraction_groups = SECTION_EXTRACTION_MAP.get(
-        document_type, SECTION_EXTRACTION_MAP["generic_document"]
-    )
-
-    section_extracts = []
-    master = {"document": {}, "vehicle": {}, "profiles": {document_type: {}}, "extensions": []}
-    if existing_vehicle:
-        for k, v in existing_vehicle.items():
-            if v:
-                master["vehicle"][k] = {"value": v, "status": "extracted", "confidence": 1.0}
-
-    # ── 1) PER-SECTION EXTRACTION ────────────────────────────────────────
-    for group in extraction_groups:
-        step_key = f"schema_{group['name']}"
-        step_label = group.get("event_label", f"Extracting: {group['name']}")
-        step = start_step(document_id, 2, "schema", step_key, step_label)
-        try:
-            extracted = _run_section_extraction(
-                group, document_type, sections, effective_md, plain_text, llm,
-                full_texts=full_texts,
-            )
-            extracted = _normalize_field_wrappers_deep(extracted)
-            section_extracts.append({
-                "name": group["name"],
-                "labels": group["labels"],
-                "extracted": extracted,
-            })
-            # Merge into master based on group identity
-            if group["name"] in ("vehicle_identification", "vehicle_and_header"):
-                _merge_section_extracts("vehicle", extracted.get("vehicle", extracted), master["vehicle"])
-                _merge_section_extracts("document", extracted.get("document", {}), master["document"])
-                profile = master["profiles"].setdefault(document_type, {})
-                for k in ("invoice_no", "ro_no", "invoice_date", "customer", "complaint", "correction"):
-                    if k in extracted:
-                        profile.setdefault(k, extracted[k])
-            elif group["name"] in ("coverage_summary", "coverage_codes", "line_items", "exclusions", "claim_procedure"):
-                profile = master["profiles"].setdefault(document_type, {})
-                profile_extracts = (extracted.get("profiles", {}) or {}).get(document_type, extracted)
-                _merge_section_extracts(group["name"], profile_extracts, profile)
-            elif group["name"] == "full_document":
-                _merge_section_extracts("document", extracted.get("document", {}), master["document"])
-                _merge_section_extracts("vehicle", extracted.get("vehicle", {}), master["vehicle"])
-                for ext in extracted.get("extensions", []):
-                    master["extensions"].append(ext)
-
-            elif document_type == "krones_supplier_doc":
-                if group["name"] == "document_header":
-                    _merge_section_extracts("document", extracted.get("document", {}), master["document"])
-                else:
-                    prof_src = (extracted.get("profiles") or {}).get("krones_supplier_doc") or extracted
-                    profile = master["profiles"].setdefault("krones_supplier_doc", {})
-                    _merge_section_extracts(group["name"], prof_src, profile)
-
-            finish_step(step, {
-                "name": group["name"],
-                "fields_in_section": _count_extracted_in(extracted),
-                "section_labels_used": group["labels"],
-            })
-        except Exception as exc:
-            logger.warning("[%s] Section %s extraction failed: %s", document_id, group["name"], exc)
-            finish_step(step, {"name": group["name"], "error": str(exc)[:300]}, status="failed")
-
-    if document_type == "coverage_code_table":
-        from ..services.coverage_table_parser import (
-            merge_into_master,
-            parse_coverage_codes_from_pipe_text,
-            parse_coverage_codes_from_tables,
-        )
-
-        parsed = parse_coverage_codes_from_tables(structured_tables or [])
-        if not parsed and tables_text:
-            parsed = parse_coverage_codes_from_pipe_text(tables_text)
-        if parsed:
-            merge_into_master(master, parsed)
-            logger.info(
-                "[%s] coverage codes overridden deterministically: %d rows",
-                document_id,
-                len(parsed),
-            )
-
-    # ── Invoice extraction (runs even when document_type == coverage_code_table) ──
+    step = start_step(document_id, 2, "schema", "schema_profile", "Extracting document profile")
     try:
-        from ..services.invoice_header_parser import (
-            looks_like_invoice,
-            merge_invoice_header,
-            parse_invoice_header,
+        profile = extract_profile(
+            document_id,
+            md_content=md_content,
+            plain_text=plain_text,
+            filename=filename,
         )
-        from ..services.invoice_table_parser import parse_invoice_from_tables
-
-        invoice_text = (plain_text or "") + "\n" + (effective_md or "")
-        if looks_like_invoice(invoice_text):
-            inv_profile = master.setdefault("profiles", {}).setdefault("repair_invoice", {})
-
-            table_inv = parse_invoice_from_tables(structured_tables or [])
-            if table_inv.get("line_items"):
-                inv_profile["line_items"] = table_inv["line_items"]
-            if table_inv.get("totals"):
-                inv_profile.setdefault("totals", {}).update(table_inv["totals"])
-
-            header = parse_invoice_header(invoice_text)
-            merge_invoice_header(inv_profile, header)
-
-            logger.info(
-                "[%s] invoice extracted: line_items=%d unit=%s grand_total=%s",
-                document_id,
-                len(inv_profile.get("line_items", [])),
-                (inv_profile.get("unit_number") or {}).get("value"),
-                (inv_profile.get("totals", {}).get("grand_total") or {}).get("value"),
-            )
+        finish_step(step, {
+            "make": (profile.get("applicability") or {}).get("make"),
+            "program": (profile.get("warranty_program") or {}).get("program_name"),
+            "stage_cost_usd": sum_document_cost(document_id),
+        })
     except Exception as exc:
-        logger.warning("[%s] invoice extraction failed: %s", document_id, exc)
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
 
-    # ── 2) NORMALIZE + QUALITY ───────────────────────────────────────────
-    step = start_step(document_id, 2, "schema", "schema_normalize", "Normalizing & validating fields")
-    master = _normalize_field_wrappers_deep(master)
-    master = _normalize(master)
-    quality = _compute_quality(master, page_count)
-    master["quality"] = quality
-    finish_step(step, {
-        "completeness": quality["overall_completeness"],
-        "extracted": quality["fields_extracted"],
-        "missing": quality["fields_missing"],
-        "low_confidence": quality["fields_low_confidence"],
-    })
-
-    # ── 3) SAVE MASTER SCHEMA ────────────────────────────────────────────
-    step = start_step(document_id, 2, "schema", "schema_save", "Saving master schema to database")
-    vehicle = master.get("vehicle", {}) or {}
-    inv = master.get("profiles", {}).get("repair_invoice", {}) or {}
-    vin_val = _fw_value(vehicle.get("vin")) or _fw_value(inv.get("vin"))
-    chassis_val = _fw_value(vehicle.get("chassis_id"))
-    unit_val = _fw_value(vehicle.get("unit_number")) or _fw_value(inv.get("unit_number"))
-    marketing_val = _fw_value(vehicle.get("marketing_type"))
-    make_val = _fw_value(vehicle.get("make"))
-    model_val = _fw_value(vehicle.get("model"))
-    year_val = _fw_value(vehicle.get("model_year"))
-    if document_type == "krones_supplier_doc":
-        from ..krones.required_fields import has_krones_required_fields
-
-        required_missing = not has_krones_required_fields(master.get("document") or {})
-    else:
-        from ..services.required_fields import has_required_fields
-
-        required_missing = not has_required_fields(
-            vin_val, chassis_val, make_val, model_val, document_type, unit_val
+    region_hint = profile.pop("coverage_region_hint", "") or ""
+    step = start_step(document_id, 2, "schema", "schema_coverage", "Extracting coverage components")
+    try:
+        coverage_payload = extract_coverage_components(
+            document_id,
+            md_content=md_content,
+            plain_text=plain_text,
+            tables_text=tables_text,
+            structured_tables=structured_tables,
+            region_hint=region_hint,
         )
+        finish_step(step, {
+            "coverage_count": len(coverage_payload.get("coverage_components") or []),
+            "source": coverage_payload.get("source", "llm"),
+            "stage_cost_usd": sum_document_cost(document_id),
+        })
+    except Exception as exc:
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
+
+    schema: dict = {
+        "document": profile.get("document") or {},
+        "warranty_program": profile.get("warranty_program") or {},
+        "asset_context": profile.get("asset_context") or {},
+        "applicability": profile.get("applicability") or {},
+        "coverage_components": coverage_payload.get("coverage_components") or [],
+        "general_conditions": coverage_payload.get("general_conditions") or [],
+        "general_exclusions": coverage_payload.get("general_exclusions") or [],
+        "source_references": [],
+        "extraction_notes": [],
+    }
+    if coverage_payload.get("source") == "table_bridge":
+        schema["extraction_notes"].append("Coverage rows extracted deterministically from Docling tables.")
+
+    step = start_step(document_id, 2, "schema", "schema_normalize", "Normalizing warranty schema")
+    try:
+        schema = normalize_warranty_schema(
+            schema,
+            filename=filename,
+            existing_vehicle=existing_vehicle,
+        )
+        completeness = compute_completeness(schema)
+        required_missing = compute_required_fields_missing(schema)
+        finish_step(step, {
+            "completeness": completeness,
+            "coverage_count": len(schema.get("coverage_components") or []),
+            "required_missing": required_missing,
+        })
+    except Exception as exc:
+        finish_step(step, {"error": str(exc)[:300]}, status="failed")
+        raise
+
+    step = start_step(document_id, 2, "schema", "schema_validate", "Validating schema contract")
+    ok, errors = validate_warranty_schema(schema)
+    if not ok:
+        schema.setdefault("extraction_notes", []).extend(errors)
+    finish_step(step, {"valid": ok, "errors": errors[:5]})
+
+    step = start_step(document_id, 2, "schema", "schema_save", "Saving master schema to database")
+    asset = schema.get("asset_context") or {}
+    applicability = schema.get("applicability") or {}
+    make_val = applicability.get("make") or asset.get("make")
+    models = applicability.get("models") or []
+    model_val = asset.get("model") or (models[0] if models else None)
+    year_val = None
+    years = applicability.get("model_years") or {}
+    if isinstance(years, dict):
+        specific = years.get("specific_years") or []
+        if specific:
+            year_val = specific[0]
+        elif years.get("from"):
+            year_val = years.get("from")
 
     from sqlalchemy import text as sqla_text
     with SessionLocal() as session:
@@ -490,7 +413,6 @@ async def _run_schema_pipeline(
             sqla_text("""
                 UPDATE documents
                 SET master_schema_json      = CAST(:schema AS jsonb),
-                    section_extracts_json   = CAST(:extracts AS jsonb),
                     completeness            = :comp,
                     required_fields_missing = :req,
                     make                    = COALESCE(:make, make),
@@ -502,33 +424,26 @@ async def _run_schema_pipeline(
                 WHERE id = :id
             """),
             {
-                "schema": json.dumps(master),
-                "extracts": json.dumps(section_extracts),
-                "comp": quality["overall_completeness"],
+                "schema": json.dumps(schema),
+                "comp": completeness,
                 "req": required_missing,
-                "make": make_val, "model": model_val, "year": year_val,
+                "make": make_val,
+                "model": model_val,
+                "year": year_val,
                 "meta": json.dumps({k: v for k, v in {
-                    "vin": vin_val, "chassis_id": chassis_val,
-                    "unit_number": unit_val, "marketing_type": marketing_val,
+                    "vin": asset.get("vin"),
+                    "chassis_id": asset.get("chassis_id"),
+                    "unit_number": asset.get("unit_number"),
                 }.items() if v}),
                 "id": document_id,
             },
         )
         session.commit()
     finish_step(step, {
-        "extracted": quality["fields_extracted"],
-        "missing": quality["fields_missing"],
+        "coverage_count": len(schema.get("coverage_components") or []),
         "required_missing": required_missing,
+        "valid": ok,
     })
-
-    # ── 4) AI NARRATIVE SUMMARY ──────────────────────────────────────────
-    step = start_step(document_id, 2, "schema", "summary_generate", "Generating AI summary")
-    try:
-        summary_text = generate_document_summary(document_id, master)
-        finish_step(step, {"summary_chars": len(summary_text)})
-    except Exception as exc:
-        logger.warning("[%s] Summary generation failed: %s", document_id, exc)
-        finish_step(step, {"error": str(exc)[:200]}, status="failed")
 
 
 async def _run_embedding_pipeline(
@@ -537,6 +452,8 @@ async def _run_embedding_pipeline(
     pages_text: list,
     plain_text: str,
 ) -> None:
+    from ..services.cost_tracker import sum_document_cost
+
     with SessionLocal() as session:
         row = session.execute(
             text(
@@ -571,7 +488,7 @@ async def _run_embedding_pipeline(
         ).first()
         doc_type_row = dt_row[0] if dt_row else None
 
-    if doc_type_row != "krones_supplier_doc" and not metadata.get("vin") and plain_text:
+    if not metadata.get("vin") and plain_text:
         parsed = parse_vin_chassis_from_text(plain_text)
         if parsed.get("vin"):
             metadata["vin"] = parsed["vin"]
@@ -589,18 +506,9 @@ async def _run_embedding_pipeline(
 
     step = start_step(document_id, 2, "embedding", "chunk_generate", "Generating chunks")
     try:
-        if doc_type_row == "krones_supplier_doc":
-            from ..krones.chunk_builder import build_krones_schema_chunks, has_usable_krones_schema
-
-            if has_usable_krones_schema(master):
-                flat = build_krones_schema_chunks(master, document_id)
-                source = "krones_schema"
-            elif pages_text:
-                flat = chunk_pages_flat(pages_text)
-                source = "docling_tables"
-            else:
-                flat = chunk_text(plain_text)
-                source = "plain_text"
+        if has_usable_warranty_schema(master):
+            flat = build_warranty_chunks(master, metadata, document_id)
+            source = "warranty_schema"
         elif has_usable_schema(master):
             flat = build_schema_chunks(master, metadata, document_id)
             source = "schema"
@@ -637,6 +545,7 @@ async def _run_embedding_pipeline(
         plain_text,
         enable_contextual=settings.enable_contextual_retrieval,
         enable_sparse=qdrant.hybrid,
+        document_id=document_id,
     )
     enriched = []
     for chunk in chunks:
@@ -655,26 +564,24 @@ async def _run_embedding_pipeline(
             "vin": metadata.get("vin"),
             "chassisId": metadata.get("chassisId"),
         }
-        if doc_type_row == "krones_supplier_doc":
-            kdoc = (master.get("document") or {}) if master else {}
-            from ..krones.chunk_builder import _fw, _clean
-
-            payload_extra.update(
-                {
-                    "docCategory": _clean(_fw(kdoc.get("doc_category"))),
-                    "sectionNo": item.get("sectionNo"),
-                    "requestType": item.get("requestType"),
-                    "standardCode": item.get("standardCode"),
-                    "contactTopic": item.get("contactTopic"),
-                    "esgPillar": item.get("esgPillar"),
-                }
-            )
+        meta = item.get("structuredMeta") or {}
+        if isinstance(meta, dict):
+            for key in (
+                "coverage_id", "coverage_type", "system", "subsystem",
+                "component_group", "asset_category", "mileage_limit", "mileage_unit",
+            ):
+                if meta.get(key) is not None:
+                    payload_extra[key] = meta[key]
         item.update(payload_extra)
         enriched.append(item)
     finish_step(step, {"enriched": len(enriched)})
 
     step = start_step(document_id, 2, "embedding", "embed_generate", "Creating embeddings (OpenAI)")
-    finish_step(step, {"chunks": len(enriched), "model": settings.small_model})
+    finish_step(step, {
+        "chunks": len(enriched),
+        "model": "text-embedding-3-small",
+        "stage_cost_usd": sum_document_cost(document_id),
+    })
 
     step = start_step(document_id, 2, "embedding", "qdrant_index", "Indexing (Qdrant)")
     try:

@@ -94,7 +94,7 @@ export default function Sidebar() {
                 lineHeight: 1.2,
               }}
             >
-              Krones
+              Fixyee
             </div>
             <div
               style={{

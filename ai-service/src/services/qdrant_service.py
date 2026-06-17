@@ -28,7 +28,8 @@ class QdrantService:
 
     SEARCHABLE_KEYS = {
         "make", "model", "year", "country", "warrantyType", "vin", "chassisId", "documentId",
-        "docCategory", "sectionNo", "requestType", "standardCode", "contactTopic", "esgPillar",
+        "coverage_id", "coverage_type", "system", "subsystem", "component_group",
+        "asset_category", "mileage_limit", "mileage_unit",
     }
 
     def __init__(self) -> None:
@@ -68,6 +69,11 @@ class QdrantService:
                 ("parentChunkId", PayloadSchemaType.KEYWORD),
                 ("vin", PayloadSchemaType.KEYWORD),
                 ("chassisId", PayloadSchemaType.KEYWORD),
+                ("coverage_id", PayloadSchemaType.KEYWORD),
+                ("coverage_type", PayloadSchemaType.KEYWORD),
+                ("system", PayloadSchemaType.KEYWORD),
+                ("subsystem", PayloadSchemaType.KEYWORD),
+                ("component_group", PayloadSchemaType.KEYWORD),
             ]:
                 try:
                     self.client.create_payload_index(

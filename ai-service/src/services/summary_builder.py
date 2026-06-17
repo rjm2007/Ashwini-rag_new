@@ -1,113 +1,56 @@
-"""Transform master_schema_json into UI-friendly summary payload."""
+"""Build WARR-1172 summary response with stats rollup."""
 
 from __future__ import annotations
 
 
-def build_summary(master_schema: dict, document_id: str, filename: str) -> dict:
-    doc_type = _fw_value((master_schema.get("document") or {}).get("document_type")) or "generic_document"
-    quality = master_schema.get("quality", {})
-    sections = []
+def _period(row: dict) -> dict:
+    return row.get("coverage_period") or {}
 
-    doc_fields = _extract_field_rows(master_schema.get("document", {}), exclude={"document_type"})
-    if doc_fields:
-        sections.append({"id": "document", "title": "Document", "icon": "FileText", "kind": "fields", "fields": doc_fields})
 
-    vehicle_fields = _extract_field_rows(master_schema.get("vehicle", {}))
-    if vehicle_fields:
-        sections.append({"id": "vehicle", "title": "Vehicle", "icon": "Truck", "kind": "fields", "fields": vehicle_fields})
-
-    profiles = master_schema.get("profiles", {}) or {}
-    active_profile = profiles.get(doc_type, {}) or {}
-    if doc_type == "warranty_certificate":
-        sections.append(_build_warranty_section(active_profile))
-    elif doc_type == "coverage_code_table":
-        sections.append(_build_code_table_section(active_profile))
-    elif doc_type == "repair_invoice":
-        sections.append(_build_invoice_section(active_profile))
-    elif active_profile:
-        sections.append({
-            "id": "profile",
-            "title": "Extracted Content",
-            "icon": "FileText",
-            "kind": "fields",
-            "fields": _extract_field_rows(active_profile),
-        })
-
-    extensions = master_schema.get("extensions", [])
-    if extensions:
-        sections.append({
-            "id": "extensions",
-            "title": "Additional Sections",
-            "icon": "Layers",
-            "kind": "accordion",
-            "fields": extensions,
-        })
-
+def build_summary_stats(schema: dict) -> dict:
+    rows = schema.get("coverage_components") or []
+    with_time = sum(1 for r in rows if _period(r).get("duration_months") is not None)
+    with_mileage = sum(
+        1
+        for r in rows
+        if _period(r).get("mileage_limit") is not None
+        or _period(r).get("mileage_unit") == "unlimited"
+    )
+    with_lol = sum(1 for r in rows if r.get("limit_of_liability"))
+    with_deductible = sum(1 for r in rows if r.get("deductible"))
+    systems: set[str] = set()
+    for row in rows:
+        system = (row.get("coverage_hierarchy") or {}).get("system")
+        if system:
+            systems.add(str(system))
     return {
+        "coverage_count": len(rows),
+        "with_time_limit": with_time,
+        "with_mileage_limit": with_mileage,
+        "with_limit_of_liability": with_lol,
+        "with_deductible": with_deductible,
+        "system_count": len(systems),
+        "extraction_confidence": (schema.get("document") or {}).get("extraction_confidence"),
+    }
+
+
+def build_summary_response(schema: dict, document_id: str, filename: str) -> dict:
+    if not schema:
+        return {
+            "document": {},
+            "warranty_program": {},
+            "asset_context": {},
+            "applicability": {},
+            "coverage_components": [],
+            "general_conditions": [],
+            "general_exclusions": [],
+            "stats": build_summary_stats({}),
+            "document_id": document_id,
+            "filename": filename,
+        }
+    return {
+        **schema,
         "document_id": document_id,
         "filename": filename,
-        "document_type": doc_type,
-        "completeness": {
-            "overall": quality.get("overall_completeness", 0),
-            "extracted": quality.get("fields_extracted", 0),
-            "missing": quality.get("fields_missing", 0),
-            "low_confidence": quality.get("fields_low_confidence", 0),
-        },
-        "sections": sections,
-    }
-
-
-def _fw_value(fw: object):
-    if isinstance(fw, dict):
-        return fw.get("value")
-    return None
-
-
-def _extract_field_rows(obj: dict, exclude: set | None = None) -> list[dict]:
-    rows = []
-    exclude = exclude or set()
-    for key, val in (obj or {}).items():
-        if key in exclude or key.startswith("_"):
-            continue
-        if isinstance(val, dict) and "status" in val and "value" in val:
-            rows.append({"key": key, "label": key.replace("_", " ").title(), "wrapper": val})
-    return rows
-
-
-def _build_warranty_section(profile: dict) -> dict:
-    cs = profile.get("coverage_summary", {}) or {}
-    return {
-        "id": "profile",
-        "title": "Warranty Coverage",
-        "icon": "ShieldCheck",
-        "kind": "warranty",
-        "coverage_summary": _extract_field_rows(cs),
-        "covered_components": profile.get("covered_components", []),
-        "exclusions": profile.get("exclusions", []),
-        "towing": _extract_field_rows(profile.get("towing", {}) or {}),
-        "claim_procedure": _fw_value(profile.get("claim_procedure")),
-        "fuel_def_requirements": _fw_value(profile.get("fuel_def_requirements")),
-    }
-
-
-def _build_code_table_section(profile: dict) -> dict:
-    return {
-        "id": "profile",
-        "title": "Coverage Codes",
-        "icon": "Table",
-        "kind": "code_table",
-        "coverage_codes": profile.get("coverage_codes", []),
-    }
-
-
-def _build_invoice_section(profile: dict) -> dict:
-    skip = {"line_items", "totals"}
-    return {
-        "id": "profile",
-        "title": "Invoice",
-        "icon": "Receipt",
-        "kind": "invoice",
-        "header_fields": _extract_field_rows({k: v for k, v in profile.items() if k not in skip}),
-        "line_items": profile.get("line_items", []),
-        "totals": _extract_field_rows(profile.get("totals", {}) or {}),
+        "stats": build_summary_stats(schema),
     }

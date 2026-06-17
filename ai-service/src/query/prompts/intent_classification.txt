@@ -53,14 +53,6 @@ single JSON object that classifies the question and signals routing hints.
 - ambiguous                  : Too short, vague, or missing context to
                                classify confidently.
 
-# KRONES SUPPLIER DOC INTENTS (when doc_context indicates krones_supplier_doc)
-- requirement_lookup         : Supplier requirement, rule, threshold, packaging ban, ESG.
-- process_lookup             : Process steps, LTSD workflow, ticket lifecycle.
-- contact_lookup             : Email, phone, address, registration contact.
-- standard_lookup            : DIN/ISO/REACH/RoHS standard citation lookup.
-All four require_retrieval = true. When document is doc-scoped, never return ambiguous
-for broad questions like "what does this cover?" — route to requirement_lookup instead.
-
 # OUTPUT SCHEMA
 {
   "intent": string,

@@ -12,6 +12,14 @@ CODE_RE = re.compile(
     r"^(U\d{2,4}[A-Z]?|D\d{3,4}|ET\d{2,4}|E\d{3,4}|G\d{2,3}|HAC\d{1,3}|TOW\d+|Z\d{3,4})$",
     re.IGNORECASE,
 )
+_CODE_TOKEN_RE = re.compile(
+    r"\b(U\d{2,4}[A-Z]?|D\d{3,4}|ET\d{2,4}|E\d{3,4}|G\d{2,3}|HAC\d{1,3}|TOW\d+|Z\d{3,4})\b",
+    re.IGNORECASE,
+)
+_OCR_CODE_FIXES = {
+    "UOG": "U06A",
+    "U0650": "U056",
+}
 
 _DURATION_RE = re.compile(r"(\d+)\s*(?:months?|mo)\b", re.IGNORECASE)
 _MILES_RE = re.compile(r"([\d,]+|\d+\s*K)\s*(?:miles?|mi)\b", re.IGNORECASE)
@@ -43,6 +51,50 @@ def _page_no(item: dict) -> int | None:
     if prov and isinstance(prov[0], dict):
         return prov[0].get("page_no")
     return None
+
+
+def _normalize_code_token(token: str) -> str | None:
+    t = (token or "").strip().upper()
+    if not t:
+        return None
+    t = _OCR_CODE_FIXES.get(t, t)
+    return t if CODE_RE.match(t) else None
+
+
+def _extract_codes(*texts: str) -> list[str]:
+    """Pull all warranty code tokens from one or more text fields (OCR-tolerant)."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for text in texts:
+        if not text:
+            continue
+        normalized = text.upper().replace("UOG", "U06A")
+        for token in re.split(r"[\s|]+", normalized):
+            code = _normalize_code_token(token)
+            if code and code not in seen:
+                seen.add(code)
+                ordered.append(code)
+        for match in _CODE_TOKEN_RE.finditer(normalized):
+            code = _normalize_code_token(match.group(1))
+            if code and code not in seen:
+                seen.add(code)
+                ordered.append(code)
+    return ordered
+
+
+def _make_entry(code: str, desc_raw: str, start_raw: str, end_raw: str, page: int = 1) -> dict:
+    duration, distance = _parse_duration_distance(desc_raw)
+    start_val, start_status = _date_value(start_raw)
+    end_val, end_status = reconcile_end_date(start_raw, duration, end_raw)
+    return {
+        "code": _fw(code.upper(), page=page),
+        "description": _fw(desc_raw, page=page),
+        "category": _fw(_category_for(code), page=page),
+        "duration": _fw(duration, page=page) if duration else _fw(None),
+        "distance": _fw(distance, page=page) if distance else _fw(None),
+        "start_date": _fw(start_val, status=start_status, page=page) if start_val else _fw(None),
+        "end_date": _fw(end_val, status=end_status, page=page) if end_val else _fw(None),
+    }
 
 
 def _category_for(code: str) -> str:
@@ -276,23 +328,14 @@ def parse_coverage_codes_from_tables(tables: list[dict]) -> list[dict]:
             code_raw = (row.get(code_col) or "").strip()
             desc_raw = (row.get(desc_col) or "").strip()
 
-            if CODE_RE.match(code_raw):
-                duration, distance = _parse_duration_distance(desc_raw)
+            codes = _extract_codes(code_raw, desc_raw)
+            if codes:
                 start_raw = (row.get(start_col) or "").strip() if start_col is not None else ""
                 end_raw = (row.get(end_col) or "").strip() if end_col is not None else ""
-                start_val, start_status = _date_value(start_raw)
-                end_val, end_status = reconcile_end_date(start_raw, duration, end_raw)
-                entry = {
-                    "code": _fw(code_raw.upper(), page=page),
-                    "description": _fw(desc_raw, page=page),
-                    "category": _fw(_category_for(code_raw), page=page),
-                    "duration": _fw(duration, page=page) if duration else _fw(None),
-                    "distance": _fw(distance, page=page) if distance else _fw(None),
-                    "start_date": _fw(start_val, status=start_status, page=page) if start_val else _fw(None),
-                    "end_date": _fw(end_val, status=end_status, page=page) if end_val else _fw(None),
-                }
-                out.append(entry)
-                last_entry = entry
+                for code in codes:
+                    entry = _make_entry(code, desc_raw, start_raw, end_raw, page=page)
+                    out.append(entry)
+                    last_entry = entry
             elif not code_raw and desc_raw and last_entry is not None:
                 prev = last_entry["description"]
                 prev_val = (prev.get("value") or "") if isinstance(prev, dict) else ""
@@ -323,24 +366,15 @@ def parse_coverage_codes_from_pipe_text(tables_text: str) -> list[dict]:
         if not parts:
             continue
         code_raw = parts[0]
-        if CODE_RE.match(code_raw):
-            desc = parts[1] if len(parts) > 1 else ""
-            start_raw = parts[-2] if len(parts) >= 4 else ""
-            end_raw = parts[-1] if len(parts) >= 4 else ""
-            duration, distance = _parse_duration_distance(desc)
-            start_val, start_status = _date_value(start_raw)
-            end_val, end_status = reconcile_end_date(start_raw, duration, end_raw)
-            entry = {
-                "code": _fw(code_raw.upper()),
-                "description": _fw(desc),
-                "category": _fw(_category_for(code_raw)),
-                "duration": _fw(duration) if duration else _fw(None),
-                "distance": _fw(distance) if distance else _fw(None),
-                "start_date": _fw(start_val, status=start_status) if start_val else _fw(None),
-                "end_date": _fw(end_val, status=end_status) if end_val else _fw(None),
-            }
-            out.append(entry)
-            last_entry = entry
+        desc = parts[1] if len(parts) > 1 else ""
+        start_raw = parts[-2] if len(parts) >= 4 else ""
+        end_raw = parts[-1] if len(parts) >= 4 else ""
+        codes = _extract_codes(code_raw, desc, line)
+        if codes:
+            for code in codes:
+                entry = _make_entry(code, desc or line, start_raw, end_raw)
+                out.append(entry)
+                last_entry = entry
         elif last_entry is not None and len(parts) >= 2 and parts[1]:
             prev = last_entry["description"]
             prev_val = (prev.get("value") or "") if isinstance(prev, dict) else ""

@@ -10,7 +10,11 @@ import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
 import { parseAnswerWithCitations } from "./CitationChip";
-import type { ChatMessageItem, EvidencePayload } from "../../lib/types";
+import type { ChatMessageItem, EvidencePayload, QueryContext } from "../../lib/types";
+import DisambiguationCard from "./DisambiguationCard";
+import EligibilityForm from "./EligibilityForm";
+import DecisionCard from "./DecisionCard";
+import CoverageListTable from "./CoverageListTable";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -139,6 +143,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
+  const [context, setContext] = useState<QueryContext>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -201,11 +206,11 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
 
   /* ---------- send a message ---------- */
   const handleSend = useCallback(
-    async (text: string) => {
+    async (text: string, contextOverride?: QueryContext) => {
       if (!sessionId || !text.trim() || sending) return;
       const content = text.trim();
+      const activeContext = contextOverride ?? context;
 
-      // Optimistically add user message
       const userMsg: ChatMessageItem = {
         id: `tmp-${Date.now()}`,
         role: "user",
@@ -216,8 +221,12 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
       setSending(true);
 
       try {
-        const res = await sendChatMessage(sessionId, content, docId);
+        const res = await sendChatMessage(sessionId, content, docId, activeContext);
         const assistantMsg: ChatMessageItem = res.data?.assistantMessage ?? res.data;
+        const meta = assistantMsg.metadataFiltersAppliedJson || {};
+        if (meta.context && typeof meta.context === "object") {
+          setContext(meta.context as QueryContext);
+        }
         setMessages((prev) => [...prev, assistantMsg]);
       } catch (err) {
         console.error("Send failed:", err);
@@ -231,7 +240,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
         setSending(false);
       }
     },
-    [sessionId, sending, docId],
+    [sessionId, sending, docId, context],
   );
 
   /* ---------- keyboard handler ---------- */
@@ -297,6 +306,31 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
           Ask questions about this document
         </p>
         <MonoChip text={filename} />
+        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+          <input
+            placeholder="Make"
+            value={context.make || ""}
+            onChange={(e) => setContext((c) => ({ ...c, make: e.target.value }))}
+            style={{ fontSize: 11, padding: "4px 8px", width: 90, borderRadius: 6, border: "1px solid var(--border)" }}
+          />
+          <input
+            placeholder="Model"
+            value={context.model || ""}
+            onChange={(e) => setContext((c) => ({ ...c, model: e.target.value }))}
+            style={{ fontSize: 11, padding: "4px 8px", width: 90, borderRadius: 6, border: "1px solid var(--border)" }}
+          />
+          <input
+            placeholder="Year"
+            value={context.year?.toString() || ""}
+            onChange={(e) =>
+              setContext((c) => ({
+                ...c,
+                year: e.target.value ? Number(e.target.value) : undefined,
+              }))
+            }
+            style={{ fontSize: 11, padding: "4px 8px", width: 70, borderRadius: 6, border: "1px solid var(--border)" }}
+          />
+        </div>
       </div>
 
       {/* ===== Messages ===== */}
@@ -384,10 +418,15 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
 
             /* ----- Assistant message ----- */
             const confidence = msg.confidenceScore ?? 0;
+            const evidencePayload = msg.evidenceJson as EvidencePayload[] | { evidence?: EvidencePayload[] } | undefined;
+            const evidence = Array.isArray(evidencePayload)
+              ? evidencePayload
+              : (evidencePayload as { evidence?: EvidencePayload[] })?.evidence || [];
+            const structured = !Array.isArray(msg.evidenceJson) ? (msg.evidenceJson as Record<string, unknown>) : {};
+            const responseType = msg.responseType || (structured.responseType as string | undefined);
             const decision =
               msg.coverageDecision ||
               inferCoverageDecision(confidence, msg.metadataFiltersAppliedJson);
-            const evidence = (msg.evidenceJson || []) as EvidencePayload[];
 
             const isLatestAssistant =
               index === messages.length - 1 || 
@@ -445,6 +484,44 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
 
                   {/* Coverage decision */}
                   {decision && <CoverageDecisionTag decision={decision} />}
+
+                  {responseType === "disambiguation" && Array.isArray(structured.candidates) ? (
+                    <DisambiguationCard
+                      prompt={msg.content}
+                      candidates={structured.candidates as Array<{ coverage_id: string; label: string }>}
+                      onSelect={(coverageId) =>
+                        handleSend(`Selected coverage ${coverageId}`, {
+                          ...context,
+                          selectedCoverageId: coverageId,
+                        })
+                      }
+                    />
+                  ) : null}
+
+                  {responseType === "needs_eligibility" && Array.isArray(structured.fields) ? (
+                    <EligibilityForm
+                      prompt={msg.content}
+                      fields={structured.fields as string[]}
+                      onSubmit={(values) =>
+                        handleSend("Eligibility details submitted", {
+                          ...context,
+                          eligibility: { ...(context.eligibility || {}), ...values },
+                        })
+                      }
+                    />
+                  ) : null}
+
+                  {responseType === "decision" ? (
+                    <DecisionCard
+                      decision={(structured.decision as { decision?: string })?.decision as any || decision}
+                      reasons={(structured.decision as { reasons?: string[] })?.reasons}
+                      turnCostUsd={structured.turnCostUsd as number | undefined}
+                    />
+                  ) : null}
+
+                  {responseType === "coverage_list" && Array.isArray(structured.coverages) ? (
+                    <CoverageListTable coverages={structured.coverages as any[]} />
+                  ) : null}
 
                   {/* Sources panel */}
                   <SourcesPanel sources={evidence} answerText={msg.content} />

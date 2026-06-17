@@ -209,12 +209,6 @@ SECTION_EXTRACTION_MAP: dict[str, list[dict]] = {
     ],
 }
 
-# Krones supplier docs (additive — see Planning/Krones.md)
-from ..krones.schema_map import KRONES_SECTION_EXTRACTION_MAP  # noqa: E402
-
-SECTION_EXTRACTION_MAP["krones_supplier_doc"] = KRONES_SECTION_EXTRACTION_MAP
-
-
 def _collect_section_text(
     sections: list[dict],
     target_labels: list[str],
@@ -230,9 +224,7 @@ def _collect_section_text(
         - Otherwise → join the full text of matched sections (preview only as fallback)
     - If no labeled sections match → use full md_content (cleaned), then plain_text.
     """
-    from ..krones.schema_map import KRONES_TABLE_LABELS
-
-    table_labels = {"coverage_code_row", "invoice_line_item"} | KRONES_TABLE_LABELS
+    table_labels = {"coverage_code_row", "invoice_line_item"}
     use_md_table = bool(table_labels.intersection(target_labels))
 
     if use_md_table:
@@ -267,10 +259,7 @@ def _run_section_extraction(
 ) -> dict:
     """Run one LLM extraction call for a section group. Returns field dict."""
     pf = section_config["prompt_file"]
-    if pf.startswith("krones/"):
-        prompt_path = Path(__file__).resolve().parent.parent / "krones" / "prompts" / pf.split("/", 1)[1]
-    else:
-        prompt_path = _PROMPT_DIR / pf
+    prompt_path = _PROMPT_DIR / pf
     if not prompt_path.exists():
         # Fallback: use generic extraction prompt with field hints
         prompt_path = _PROMPT_DIR / "schema_extraction.txt"
@@ -419,14 +408,6 @@ def extract_master_schema(
             for ext in extracted.get("extensions", []):
                 master["extensions"].append(ext)
 
-        elif document_type == "krones_supplier_doc":
-            if group["name"] == "document_header":
-                _merge_section_extracts("document", extracted.get("document", {}), master["document"])
-            else:
-                prof_src = (extracted.get("profiles") or {}).get("krones_supplier_doc") or extracted
-                profile = master["profiles"].setdefault("krones_supplier_doc", {})
-                _merge_section_extracts(group["name"], prof_src, profile)
-
     # Normalize all field wrappers to canonical status, then make/model/VIN
     master = _normalize_field_wrappers_deep(master)
     master = _normalize(master)
@@ -444,17 +425,12 @@ def extract_master_schema(
     chassis_val = _fw_value(vehicle.get("chassis_id"))
 
     # Required fields check — use shared helper that respects document_type
-    if document_type == "krones_supplier_doc":
-        from ..krones.required_fields import has_krones_required_fields
+    from .required_fields import has_required_fields
 
-        required_missing = not has_krones_required_fields(master.get("document") or {})
-    else:
-        from .required_fields import has_required_fields
-
-        unit_val = _fw_value(vehicle.get("unit_number"))
-        required_missing = not has_required_fields(
-            vin_val, chassis_val, make_val, model_val, document_type, unit_val
-        )
+    unit_val = _fw_value(vehicle.get("unit_number"))
+    required_missing = not has_required_fields(
+        vin_val, chassis_val, make_val, model_val, document_type, unit_val
+    )
 
     with SessionLocal() as session:
         session.execute(

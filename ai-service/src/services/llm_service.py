@@ -1,6 +1,7 @@
 import logging
 from openai import OpenAI
 from ..config import settings
+from .cost_tracker import record_cost
 
 logger = logging.getLogger("llm")
 logger.setLevel(logging.INFO)
@@ -12,7 +13,16 @@ class LlmService:
     def __init__(self) -> None:
         self.client = OpenAI(api_key=settings.openai_api_key)
 
-    def _chat(self, model: str, prompt: str, system_message: str, preferred_temperature: float | None) -> str:
+    def _chat(
+        self,
+        model: str,
+        prompt: str,
+        system_message: str,
+        preferred_temperature: float | None,
+        stage: str = "llm",
+        document_id: str | None = None,
+        session_id: str | None = None,
+    ) -> str:
         """Generic chat-completion wrapper that retries without temperature if the model rejects it."""
         messages = [
             {"role": "system", "content": system_message},
@@ -42,28 +52,61 @@ class LlmService:
             else:
                 logger.exception("LLM call FAILED model=%s error=%s", model, error)
                 raise
-        return response.choices[0].message.content or ""
+        content = response.choices[0].message.content or ""
+        usage = getattr(response, "usage", None)
+        if usage:
+            record_cost(
+                stage=stage,
+                provider="openai",
+                model=model,
+                document_id=document_id,
+                session_id=session_id,
+                input_tokens=getattr(usage, "prompt_tokens", None),
+                output_tokens=getattr(usage, "completion_tokens", None),
+            )
+        return content
 
-    def small_model_call(self, prompt: str, system_message: str) -> str:
+    def small_model_call(
+        self,
+        prompt: str,
+        system_message: str,
+        stage: str = "llm_small",
+        document_id: str | None = None,
+    ) -> str:
         """This function calls the configured low-cost model for extraction tasks."""
         logger.info("LLM small call model=%s prompt_chars=%d", settings.small_model, len(prompt))
-        content = self._chat(settings.small_model, prompt, system_message, preferred_temperature=0)
+        content = self._chat(
+            settings.small_model,
+            prompt,
+            system_message,
+            preferred_temperature=0,
+            stage=stage,
+            document_id=document_id,
+        )
         if not content:
             content = "{}"
         logger.info("LLM small call ok response_chars=%d", len(content))
         return content
 
-    def large_model_call(self, prompt: str, system_message: str) -> str:
+    def large_model_call(
+        self,
+        prompt: str,
+        system_message: str,
+        stage: str = "llm_large",
+        document_id: str | None = None,
+        session_id: str | None = None,
+    ) -> str:
         """This function calls the configured reasoning model for final responses."""
         logger.info("LLM large call model=%s prompt_chars=%d", settings.large_model, len(prompt))
-        # gpt-5.* reasoning models reject explicit temperature values and force default.
-        # Skip sending temperature for those models to avoid a guaranteed 400 + retry delay.
         preferred_temperature = None if settings.large_model.startswith("gpt-5") else 0.1
         content = self._chat(
             settings.large_model,
             prompt,
             system_message,
             preferred_temperature=preferred_temperature,
+            stage=stage,
+            document_id=document_id,
+            session_id=session_id,
         )
         logger.info("LLM large call ok response_chars=%d", len(content))
         return content

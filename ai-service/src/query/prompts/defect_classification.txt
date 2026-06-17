@@ -1,0 +1,18 @@
+Classify a vehicle defect report into hierarchy targets for warranty matching.
+
+Return ONLY JSON:
+{
+  "defect_summary": "short plain summary",
+  "candidate_targets": [
+    {
+      "system": "Powertrain|Chassis|Cab|...",
+      "subsystem": "...",
+      "component_group": "...",
+      "confidence": 0.0
+    }
+  ],
+  "abuse_signal": false,
+  "language": "en"
+}
+
+Map free text to automotive hierarchy levels only. Do not invent coverage codes.

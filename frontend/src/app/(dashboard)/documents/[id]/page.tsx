@@ -18,21 +18,23 @@ import StatusPill from "../../../../components/ui/StatusPill";
 import TypePill from "../../../../components/ui/TypePill";
 import PipelineTab from "../../../../components/pipeline/PipelineTab";
 import RequiredFieldsForm from "../../../../components/review/RequiredFieldsForm";
-import SummaryView, { SummarySkeleton } from "../../../../components/summary/SummaryView";
+import CoverageExplorer, { CoverageSkeleton } from "../../../../components/coverage/CoverageExplorer";
 import ChatSidebar from "../../../../components/chat/ChatSidebar";
-import type { MasterSchema, SummaryPayload } from "../../../../lib/types";
+import type { SummaryPayload } from "../../../../lib/types";
 
 /* ─── Lazy imports for new components (graceful fallback if not yet built) ─── */
 let AiAnalystPanel: React.ComponentType<{ docId: string; filename: string }> | null = null;
 let AnalystLockedPlaceholder: React.ComponentType<{ status?: string }> | null = null;
 let LogsView: React.ComponentType<{ events: any[] }> | null = null;
 let MetricsView: React.ComponentType<{ events: any[]; document?: any }> | null = null;
+let CostView: React.ComponentType<{ documentId: string }> | null = null;
 let ApprovalCard: React.ComponentType<{ docId: string; document: any; masterSchema?: any; onApproved?: () => void }> | null = null;
 
 try { AiAnalystPanel = require("../../../../components/chat/AiAnalystPanel").default; } catch {}
 try { AnalystLockedPlaceholder = require("../../../../components/chat/AnalystLockedPlaceholder").default; } catch {}
 try { LogsView = require("../../../../components/observability/LogsView").default; } catch {}
 try { MetricsView = require("../../../../components/observability/MetricsView").default; } catch {}
+try { CostView = require("../../../../components/observability/CostView").default; } catch {}
 try { ApprovalCard = require("../../../../components/review/ApprovalCard").default; } catch {}
 
 export default function DocumentDetailPage({ params }: { params: { id: string } }) {
@@ -40,7 +42,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
   const { doc, loading, error, refresh } = useDocument(params.id);
   const processingStatus = doc?.processingStatus || "";
   const { events } = usePipelineEvents(params.id, processingStatus);
-  const [leftTab, setLeftTab] = useState<"pipeline" | "summary" | "logs" | "metrics">("pipeline");
+  const [leftTab, setLeftTab] = useState<"pipeline" | "summary" | "logs" | "metrics" | "cost">("pipeline");
   const [summaryPayload, setSummaryPayload] = useState<SummaryPayload | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [certifyConfirm, setCertifyConfirm] = useState(false);
@@ -127,7 +129,8 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
 
   // Add summary tab when processing is complete
   if (chatReady) {
-    tabs.unshift({ key: "summary", label: "Summary" });
+    tabs.unshift({ key: "summary", label: "Coverage" });
+    tabs.push({ key: "cost", label: "Cost" });
   }
 
   return (
@@ -402,13 +405,9 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
             {leftTab === "summary" && chatReady && (
               <div style={{ padding: 24 }}>
                 {summaryLoading ? (
-                  <SummarySkeleton />
-                ) : summaryPayload?.masterSchema ? (
-                  <SummaryView
-                    summary={summaryPayload.masterSchema as MasterSchema}
-                    fallbackTitle={doc.originalFilename}
-                    aiSummaryText={summaryPayload.aiSummaryText}
-                  />
+                  <CoverageSkeleton />
+                ) : summaryPayload ? (
+                  <CoverageExplorer summary={summaryPayload} />
                 ) : (
                   <div
                     style={{
@@ -420,8 +419,18 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
                       fontSize: 13,
                     }}
                   >
-                    Summary data is not available
+                    Coverage data is not available
                   </div>
+                )}
+              </div>
+            )}
+
+            {leftTab === "cost" && chatReady && (
+              <div style={{ padding: 24 }}>
+                {CostView ? (
+                  <CostView documentId={params.id} />
+                ) : (
+                  <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Cost view loading…</div>
                 )}
               </div>
             )}

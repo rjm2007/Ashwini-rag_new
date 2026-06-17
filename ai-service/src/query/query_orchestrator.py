@@ -14,7 +14,8 @@ from ..services.structured_query_engine import is_simple_retrieval_query, is_str
 from .query_mode import is_hallucination_probe
 from .retriever import retrieve_chunks
 from .reasoner import reason_over_evidence
-from ..services.schema_chunk_builder import extract_coverage_facts
+from ..services.warranty_chunk_builder import extract_coverage_facts
+from .defect_workflow import route_specialized_query
 logger = logging.getLogger(__name__)
 
 _VIN_RE = _re.compile(r"\b([A-HJ-NPR-Z0-9]{17})\b")
@@ -28,23 +29,6 @@ _DOC_LEVEL_RE = _re.compile(
     _re.IGNORECASE,
 )
 
-# Regression guard (H12/H13/N4): warranty framing on a Krones doc → NOT_IN_DOCUMENT, never clarify.
-_KRONES_WARRANTY_MISFIRE_RE = _re.compile(
-    r"\b(warranty|coverage period|engine coverage|what does this warranty cover|"
-    r"what does this cover|what'?s covered|what is the warranty period)\b",
-    _re.IGNORECASE,
-)
-
-KRONES_WARRANTY_MISFIRE_REPLY = (
-    "This document is a Krones supplier handbook, LTSD instructions, or SRSM ticket guide — "
-    "not a vehicle warranty. It does not define warranty coverage, exclusions, or coverage periods."
-)
-
-
-def _is_krones_warranty_misfire(question: str) -> bool:
-    return bool(_KRONES_WARRANTY_MISFIRE_RE.search(question or ""))
-
-
 def _is_document_level_query(q: str) -> bool:
     """Detect broad document-level questions that need full coverage context."""
     return bool(_DOC_LEVEL_RE.search(q or ""))
@@ -55,20 +39,9 @@ GREETING_REPLY = (
     "(make, model, year, or VIN) and I'll answer from your certified warranty documents."
 )
 
-KRONES_GREETING_REPLY = (
-    "Hi! I'm your Krones supplier document assistant. "
-    "Ask me about requirements, processes, contacts, standards, request types, "
-    "or LTSD procedures — I'll answer from this certified document."
-)
-
 OUT_OF_SCOPE_REPLY = (
     "I can only help with warranty coverage questions based on your certified warranty documents. "
     "Try asking whether a component is covered, what the warranty period is, or what applies to a specific VIN."
-)
-
-KRONES_OUT_OF_SCOPE_REPLY = (
-    "I can only help with questions about this Krones supplier document "
-    "(requirements, processes, contacts, standards, LTSD, or SRSM tickets)."
 )
 
 INJECTION_REPLY = (
@@ -218,12 +191,6 @@ def _load_schema_facts(document_ids: list[str]) -> list[dict]:
                 continue
             metadata = row[3] if isinstance(row[3], dict) else {}
             master = row[4] if isinstance(row[4], dict) else {}
-            doc_type = row[5] if len(row) > 5 else None
-            if doc_type == "krones_supplier_doc":
-                from ..krones.chunk_builder import extract_krones_schema_facts
-
-                facts.append(extract_krones_schema_facts(master, document_id))
-                continue
             vehicle_parts = [str(item) for item in (row[0], row[1], row[2]) if item]
             if metadata.get("vin"):
                 vehicle_parts.append(f"VIN {metadata.get('vin')}")
@@ -233,34 +200,32 @@ def _load_schema_facts(document_ids: list[str]) -> list[dict]:
                 {
                     "documentId": document_id,
                     "vehicle": " ".join(vehicle_parts).strip(),
-                    "coverage_codes": extract_coverage_facts(master),
+                    "coverage_components": extract_coverage_facts(master),
                 }
             )
     return facts
 
 
-async def answer_question(question: str, conversation_history: list[dict], document_id: str | None = None) -> dict:
+async def answer_question(
+    question: str,
+    conversation_history: list[dict],
+    document_id: str | None = None,
+    context: dict | None = None,
+    session_id: str | None = None,
+) -> dict:
     """Intent routing → metadata extraction → hybrid retrieval → large-model reasoning."""
     scoped_doc_type = _load_document_type(document_id)
-    is_krones = scoped_doc_type == "krones_supplier_doc"
+    ctx = dict(context or {})
 
     if _is_simple_greeting(question):
         return {
-            "answer": KRONES_GREETING_REPLY if is_krones else GREETING_REPLY,
+            "responseType": "answer",
+            "answer": GREETING_REPLY,
             "evidence": [],
             "confidence": 0.95,
             "filters": {},
             "intent": "greeting_or_smalltalk",
-        }
-
-    if is_krones and document_id and _is_krones_warranty_misfire(question):
-        return {
-            "answer": KRONES_WARRANTY_MISFIRE_REPLY,
-            "evidence": [],
-            "confidence": 0.92,
-            "filters": {"documentId": document_id},
-            "coverageDecision": "not_in_document",
-            "intent": "requirement_lookup",
+            "context": ctx,
         }
 
     # Count / group-by / "all vehicles" → deterministic full-scan, not retrieval.
@@ -275,18 +240,22 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         master_schema = _load_master_schema(document_id)
         if master_schema:
             doc_context = {}
-            if is_krones:
-                doc_hdr = master_schema.get("document", {}) or {}
-                for key in ("doc_title", "doc_category", "issuer"):
-                    fw = doc_hdr.get(key)
-                    if isinstance(fw, dict) and fw.get("value"):
-                        doc_context[key] = fw["value"]
-            else:
-                vehicle = master_schema.get("vehicle", {}) or {}
-                for key in ("make", "model", "model_year", "vin", "chassis_id"):
-                    fw = vehicle.get(key)
-                    if isinstance(fw, dict) and fw.get("value"):
-                        doc_context[key] = fw["value"]
+            asset = master_schema.get("asset_context") or {}
+            applicability = master_schema.get("applicability") or {}
+            vehicle = master_schema.get("vehicle", {}) or {}
+            for key in ("make", "model", "vin", "chassis_id", "unit_number"):
+                val = asset.get(key)
+                if not val and isinstance(vehicle.get(key), dict):
+                    val = vehicle[key].get("value")
+                if val:
+                    doc_context[key] = val
+            if applicability.get("make"):
+                doc_context.setdefault("make", applicability.get("make"))
+            models = applicability.get("models") or []
+            if models:
+                doc_context.setdefault("model", models[0])
+            for key in ("make", "model", "year"):
+                ctx.setdefault(key, doc_context.get(key))
 
     classification = classify_intent(
         question,
@@ -297,9 +266,17 @@ async def answer_question(question: str, conversation_history: list[dict], docum
     classification_intent = classification.get("intent", "warranty_coverage")
     intent = classification_intent
 
+    specialized = route_specialized_query(
+        question, ctx, document_id, conversation_history, intent
+    )
+    if specialized:
+        specialized.setdefault("intent", intent)
+        return specialized
+
     if intent == "greeting_or_smalltalk":
         return {
-            "answer": KRONES_GREETING_REPLY if is_krones else GREETING_REPLY,
+            "responseType": "answer",
+            "answer": GREETING_REPLY,
             "evidence": [],
             "confidence": 0.95,
             "filters": {},
@@ -308,6 +285,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
 
     if intent == "prompt_injection_attempt":
         return {
+            "responseType": "answer",
             "answer": INJECTION_REPLY,
             "evidence": [],
             "confidence": 0.1,
@@ -317,7 +295,8 @@ async def answer_question(question: str, conversation_history: list[dict], docum
 
     if intent == "out_of_scope":
         return {
-            "answer": KRONES_OUT_OF_SCOPE_REPLY if is_krones else OUT_OF_SCOPE_REPLY,
+            "responseType": "answer",
+            "answer": OUT_OF_SCOPE_REPLY,
             "evidence": [],
             "confidence": 0.1,
             "filters": {},
@@ -332,8 +311,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
             # Document is pinned → a broad question is answerable. Fall through to retrieval.
             intent = "warranty_coverage"
             logger.info(
-                "Ambiguous intent overridden to %s (doc-scoped: %s)",
-                "krones_lookup" if is_krones else "warranty_coverage",
+                "Ambiguous intent overridden to warranty_coverage (doc-scoped: %s)",
                 document_id,
             )
         else:
@@ -342,6 +320,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
                 "Please include make, model, year, or VIN if you can."
             )
             return {
+                "responseType": "answer",
                 "answer": clarification,
                 "evidence": [],
                 "confidence": float(classification.get("confidence", 0.3)),
@@ -433,6 +412,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
             evidence.append(chunks[position]["payload"])
 
     return {
+        "responseType": "answer",
         "answer": reasoned.get("answer", "No answer generated."),
         "evidence": evidence,
         "confidence": compute_confidence(reasoned),
@@ -440,7 +420,7 @@ async def answer_question(question: str, conversation_history: list[dict], docum
         "metadata": metadata,
         "coverageDecision": reasoned.get(
             "coverage_decision",
-            "not_in_document" if is_krones else "insufficient_evidence",
+            "insufficient_evidence",
         ),
         "intent": intent,
         "queryMode": {

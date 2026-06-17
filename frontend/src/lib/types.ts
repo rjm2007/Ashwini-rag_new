@@ -5,6 +5,8 @@ export interface DocumentItem {
   processingStatus: string;
   documentType?: string;
   uploadedAt?: string;
+  coverageCount?: number;
+  masterSchemaJson?: WarrantyDocumentSchema;
 }
 
 export interface DocumentDetail extends DocumentItem {
@@ -99,9 +101,71 @@ export interface SummaryPayload {
   documentType?: string | null;
   completeness?: number;
   requiredFieldsMissing?: boolean;
-  aiSummaryText?: string | null;
-  masterSchema: MasterSchema;
-  sectionExtracts?: unknown[];
+  stats?: WarrantySummaryStats;
+  coverage_components?: CoverageComponent[];
+  document?: Record<string, unknown>;
+  warranty_program?: Record<string, unknown>;
+  asset_context?: Record<string, unknown>;
+  applicability?: Record<string, unknown>;
+  general_conditions?: Array<Record<string, unknown>>;
+  general_exclusions?: Array<Record<string, unknown>>;
+}
+
+export type WarrantySummaryPayload = SummaryPayload;
+
+export interface WarrantySummaryStats {
+  coverage_count: number;
+  with_time_limit?: number;
+  with_mileage_limit?: number;
+  with_limit_of_liability?: number;
+  with_deductible?: number;
+  extraction_confidence?: number | null;
+}
+
+export interface CoverageComponent {
+  coverage_id: string;
+  coverage_name: string;
+  coverage_type?: string;
+  coverage_hierarchy?: {
+    system?: string | null;
+    subsystem?: string | null;
+    component_group?: string | null;
+    component?: string | null;
+  };
+  coverage_period?: {
+    duration_text?: string;
+    duration_months?: number | null;
+    mileage_limit?: number | null;
+    mileage_unit?: string | null;
+  };
+  limit_of_liability?: { amount?: number; currency?: string };
+  deductible?: { amount?: number; currency?: string };
+  plan_tier?: string | null;
+  confidence_score?: number;
+}
+
+export interface WarrantyDocumentSchema {
+  coverage_components?: CoverageComponent[];
+  applicability?: { make?: string; models?: string[] };
+  document?: { document_type?: string };
+}
+
+export type QueryResponseType =
+  | "answer"
+  | "disambiguation"
+  | "needs_eligibility"
+  | "decision"
+  | "coverage_list";
+
+export interface QueryContext {
+  make?: string;
+  model?: string;
+  year?: number;
+  selectedCoverageId?: string;
+  eligibility?: {
+    purchase_date?: string;
+    current_mileage?: string | number;
+  };
 }
 
 export interface ChatMessageItem {
@@ -112,6 +176,7 @@ export interface ChatMessageItem {
   confidenceScore?: number;
   metadataFiltersAppliedJson?: Record<string, unknown>;
   coverageDecision?: CoverageDecision;
+  responseType?: QueryResponseType;
 }
 
 /**

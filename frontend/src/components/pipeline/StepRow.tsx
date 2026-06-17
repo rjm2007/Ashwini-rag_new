@@ -16,7 +16,10 @@ export type StepRowData = {
 function timingText(step: StepRowData): { text: string; color: string; breathe?: boolean } {
   if (step.status === "done") {
     const sec = ((step.duration_ms ?? 1000) / 1000).toFixed(1);
-    return { text: `done in ${sec}s`, color: "var(--state-done)" };
+    const cost = step.detail?.stage_cost_usd;
+    const costText =
+      typeof cost === "number" ? ` · $${cost.toFixed(4)}` : "";
+    return { text: `done in ${sec}s${costText}`, color: "var(--state-done)" };
   }
   if (step.status === "running") return { text: "running…", color: "var(--accent)" };
   if (step.status === "failed") return { text: "failed", color: "var(--state-failed)" };
