@@ -393,7 +393,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
                   processingStatus={doc.processingStatus}
                   isAdmin={isAdmin}
                   onCertify={() => setCertifyConfirm(true)}
-                  masterSchema={summaryPayload?.masterSchema}
+                  masterSchema={doc.masterSchemaJson}
                   filename={doc.originalFilename}
                   docId={params.id}
                   onViewSummary={() => setLeftTab("summary")}
