@@ -172,6 +172,7 @@ export type QueryResponseType =
   | "coverage_list";
 
 export interface QueryContext {
+  documentId?: string;
   make?: string;
   model?: string;
   year?: number;

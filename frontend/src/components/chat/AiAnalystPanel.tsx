@@ -129,6 +129,22 @@ function SuggestionChips({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function lastAssistantResponseType(messages: ChatMessageItem[]): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== "assistant") continue;
+    const structured = !Array.isArray(msg.evidenceJson)
+      ? (msg.evidenceJson as Record<string, unknown> | undefined)
+      : undefined;
+    return msg.responseType || (structured?.responseType as string | undefined);
+  }
+  return undefined;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Component                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -144,8 +160,32 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [context, setContext] = useState<QueryContext>({});
+  const [purchaseDate, setPurchaseDate] = useState<string>(""); // yyyy-mm-dd
+  const [currentMileage, setCurrentMileage] = useState<string>(""); // numeric string
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /* ---------- eligibility + running flow context (backend FIX 2 pairing) ---------- */
+  const eligibilityFromInputs = useCallback(() => {
+    const e: { purchase_date?: string; current_mileage?: string } = {};
+    if (purchaseDate) e.purchase_date = purchaseDate;
+    if (currentMileage) e.current_mileage = currentMileage;
+    return e;
+  }, [purchaseDate, currentMileage]);
+
+  const buildContext = useCallback(
+    (extra: Partial<QueryContext> = {}): QueryContext => ({
+      ...context,
+      ...extra,
+      documentId: docId,
+      eligibility: {
+        ...(context.eligibility || {}),
+        ...eligibilityFromInputs(),
+        ...(extra.eligibility || {}),
+      },
+    }),
+    [context, docId, eligibilityFromInputs],
+  );
 
   /* ---------- scroll to bottom whenever messages change ---------- */
   const scrollToBottom = useCallback(() => {
@@ -243,11 +283,30 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
     [sessionId, sending, docId, context],
   );
 
+  /* ---------- free-text / starter send through the running flow context ---------- */
+  const onSend = useCallback(
+    (text: string) => {
+      const ctx = buildContext();
+      setContext(ctx);
+      handleSend(text, ctx);
+    },
+    [buildContext, handleSend],
+  );
+
+  /* ---------- reset the pin after a decision (keep eligibility) ---------- */
+  const latestResponseType =
+    lastAssistantResponseType(messages);
+  useEffect(() => {
+    if (latestResponseType === "decision") {
+      setContext((c) => ({ ...c, selectedCoverageId: undefined }));
+    }
+  }, [latestResponseType]);
+
   /* ---------- keyboard handler ---------- */
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend(inputValue);
+      onSend(inputValue);
     }
   };
 
@@ -306,6 +365,50 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
           Ask questions about this document
         </p>
         <MonoChip text={filename} />
+
+        {/* Proactive eligibility inputs (replaces make/model/year) */}
+        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Purchase date</span>
+            <input
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              style={{
+                fontSize: 11,
+                fontFamily: "'IBM Plex Mono', monospace",
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "var(--bg-raised)",
+                color: "var(--text-primary)",
+              }}
+            />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>Current mileage</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="e.g. 312000"
+              value={currentMileage}
+              onChange={(e) => setCurrentMileage(e.target.value)}
+              style={{
+                fontSize: 11,
+                fontFamily: "'IBM Plex Mono', monospace",
+                padding: "4px 8px",
+                width: 120,
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                background: "var(--bg-raised)",
+                color: "var(--text-primary)",
+              }}
+            />
+          </label>
+        </div>
+        <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "6px 0 0" }}>
+          Optional — fill these so I can check coverage without asking.
+        </p>
       </div>
 
       {/* ===== Messages ===== */}
@@ -465,12 +568,11 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                     <DisambiguationCard
                       prompt={msg.content}
                       candidates={structured.candidates as Array<{ coverage_id: string; label: string }>}
-                      onSelect={(coverageId) =>
-                        handleSend(`Selected coverage ${coverageId}`, {
-                          ...context,
-                          selectedCoverageId: coverageId,
-                        })
-                      }
+                      onSelect={(coverageId) => {
+                        const ctx = buildContext({ selectedCoverageId: coverageId });
+                        setContext(ctx);
+                        handleSend(`Selected coverage ${coverageId}`, ctx);
+                      }}
                     />
                   ) : null}
 
@@ -478,12 +580,14 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                     <EligibilityForm
                       prompt={msg.content}
                       fields={structured.fields as string[]}
-                      onSubmit={(values) =>
-                        handleSend("Eligibility details submitted", {
-                          ...context,
+                      onSubmit={(values) => {
+                        const ctx = buildContext({
+                          selectedCoverageId: context.selectedCoverageId,
                           eligibility: { ...(context.eligibility || {}), ...values },
-                        })
-                      }
+                        });
+                        setContext(ctx);
+                        handleSend("Eligibility details submitted", ctx);
+                      }}
                     />
                   ) : null}
 
@@ -523,7 +627,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                   {isLatestAssistant && showSuggestions && (
                     <SuggestionChips
                       suggestions={SUGGESTED_QUESTIONS}
-                      onSelect={handleSend}
+                      onSelect={onSend}
                     />
                   )}
                 </div>
@@ -619,7 +723,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
         />
         <button
           type="button"
-          onClick={() => handleSend(inputValue)}
+          onClick={() => onSend(inputValue)}
           disabled={!sessionId || sending || !inputValue.trim()}
           style={{
             width: 36,

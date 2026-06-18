@@ -17,12 +17,26 @@ Return ONLY JSON:
 
 Map free text to automotive hierarchy levels only. Do not invent coverage codes.
 
-Few-shot examples:
-USER: "my engine won't start"
-OUTPUT candidate_targets: [{"system":"Powertrain","subsystem":"Engine","component_group":"Engine","confidence":0.9},{"system":"Powertrain","subsystem":"Engine","component_group":"Major Engine Components","confidence":0.6}]
+EVERY candidate_targets[] entry MUST include "subsystem" (not just "system"); a system-only target
+will be rejected by the matcher. The subsystem vocabulary must match the extractor's: Engine,
+Transmission, Driveline, Axle, Steering, Frame, Aftertreatment, Air Conditioning, Cab Structure.
 
-USER: "hard to turn right"
-OUTPUT candidate_targets: [{"system":"Chassis","subsystem":"Steering","component_group":"Steering Linkage","confidence":0.7},{"system":"Chassis","subsystem":"Front Axle","component_group":"Steering Knuckle & Tie Rod","confidence":0.6}]
+Few-shot examples:
+USER: "my engine is not functioning / engine won't start"
+{ "defect_summary":"Engine fails to run/start",
+  "candidate_targets":[
+    {"system":"Powertrain","subsystem":"Engine","component_group":"Engine","confidence":0.9},
+    {"system":"Powertrain","subsystem":"Engine","component_group":"Major Engine Components","confidence":0.6}
+  ],"language":"en" }
+
+USER: "hard to turn right, steering stiff"
+{ "candidate_targets":[
+    {"system":"Chassis","subsystem":"Steering","component_group":"Steering Linkage","confidence":0.7},
+    {"system":"Chassis","subsystem":"Axle","component_group":"Front Non-Drive Steering Axle","confidence":0.6}
+  ],"language":"en" }
+
+USER: "transmission slipping"
+{ "candidate_targets":[{"system":"Powertrain","subsystem":"Transmission","component_group":"Transmission","confidence":0.9}],"language":"en" }
 
 USER: "turbo failure"
-OUTPUT candidate_targets: [{"system":"Powertrain","subsystem":"Engine","component_group":"Turbo","confidence":0.85}]
+{ "candidate_targets":[{"system":"Powertrain","subsystem":"Engine","component_group":"Turbo","confidence":0.85}],"language":"en" }

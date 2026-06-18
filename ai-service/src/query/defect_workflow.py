@@ -334,6 +334,11 @@ def route_specialized_query(
     context = context or {}
     classification = classification or {}
 
+    # (1) A coverage has been selected (disambiguation) OR eligibility is being submitted against a
+    #     pinned coverage -> always continue the defect workflow, regardless of message text/intent.
+    if context.get("selectedCoverageId"):
+        return handle_defect_workflow(question, context, document_id, conversation_history)
+
     if (question or "").strip().lower().startswith("/defect"):
         defect_q = question.split("/defect", 1)[1].strip() or question
         return handle_defect_workflow(defect_q, context, document_id, conversation_history)
