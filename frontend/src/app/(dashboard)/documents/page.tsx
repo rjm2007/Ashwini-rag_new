@@ -323,7 +323,7 @@ export default function DocumentsPage() {
                 <TypePill type={doc.documentType || "generic_document"} />
               </div>
               <div>
-                <MonoChip text={String(doc.coverageCount ?? 0)} />
+                <MonoChip value={String(doc.coverageCount ?? 0)} />
               </div>
               <div>
                 <StatusPill status={doc.processingStatus} />

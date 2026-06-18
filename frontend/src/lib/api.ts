@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { PipelineEvent, SummaryPayload } from "./types";
+import type { PipelineEvent, QueryContext, SummaryPayload } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -52,7 +52,7 @@ export const sendChatMessage = (
   sessionId: string,
   content: string,
   documentId?: string,
-  context?: Record<string, unknown>
+  context?: QueryContext | Record<string, unknown>
 ) => api.post(`/query/sessions/${sessionId}/messages`, { content, documentId, context });
 
 export const getDocumentCost = (docId: string) => api.get(`/cost/document/${docId}`);
