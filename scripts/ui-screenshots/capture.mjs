@@ -9,8 +9,10 @@ import { join } from "path";
 const BASE = process.env.UI_BASE_URL || "http://localhost:3000";
 const OUT_DIR = process.env.UI_SCREENSHOT_DIR || "C:\\Users\\rudra\\Desktop\\images";
 // Defaults from Postgres (run_005 corpus + in-progress doc) — override via env if DB changes
-const DOC_ID = process.env.UI_SAMPLE_DOC_ID || "a0c9c2d0-3ff1-44d9-8e79-8a71088b995b"; // 1169 WARRENTY.pdf (certified)
-const FAILED_DOC_ID = process.env.UI_FAILED_DOC_ID || "b2a0450d-1d5d-4f20-953b-985dc61f352c"; // 1167 WARRENTY.pdf (parsing)
+const DOC_ID = process.env.UI_SAMPLE_DOC_ID || "a9e9505f-0c30-4d2a-940a-670a0c5d9662"; // Volvo_1172.pdf (certified)
+const FAILED_DOC_ID = process.env.UI_FAILED_DOC_ID || "ccba12bc-c67c-48ad-b2de-3c97d7530514"; // Kenworth_MD.pdf
+
+const DOC_LABEL = process.env.UI_SAMPLE_DOC_LABEL || "Volvo_1172";
 
 const VIEWPORT = { width: 1440, height: 900 };
 
@@ -33,7 +35,7 @@ async function login(page, email = "admin@demo.com", password = "admin123") {
 }
 
 async function waitForDocumentReady(page) {
-  await page.waitForSelector("text=1169 WARRENTY", { timeout: 20000 }).catch(() => {});
+  await page.waitForSelector(`text=${DOC_LABEL}`, { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(1200);
 }
 
@@ -120,8 +122,8 @@ async function main() {
       { file: "09-document-failed-state.png", screen: "In-progress document (1167 WARRENTY.pdf, parsing)" }
     ],
     notes: [
-      "Sample doc: 1169 WARRENTY.pdf (certified, processing_complete).",
-      "Screenshot 09 uses 1167 WARRENTY.pdf (parsing) — no failed docs in DB currently.",
+      "Sample doc: Volvo_1172.pdf (certified, processing_complete).",
+      "Screenshot 09 uses Kenworth_MD.pdf document detail.",
       "Dark theme as rendered in browser."
     ]
   };
