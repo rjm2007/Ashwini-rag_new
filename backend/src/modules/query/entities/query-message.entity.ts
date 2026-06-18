@@ -20,7 +20,7 @@ export class QueryMessageEntity {
   content!: string;
 
   @Column({ name: "evidence_json", type: "jsonb", nullable: true })
-  evidenceJson?: unknown[];
+  evidenceJson?: Record<string, unknown> | unknown[];
 
   @Column({ name: "confidence_score", type: "float", nullable: true })
   confidenceScore?: number;
