@@ -69,19 +69,19 @@ async function main() {
   // 4) Document detail — Summary tab (default when complete)
   await page.goto(`${BASE}/documents/${DOC_ID}`, { waitUntil: "networkidle" });
   await waitForDocumentReady(page);
-  const summaryTab = page.getByRole("button", { name: "Summary", exact: true });
+  const coverageTab = page.getByRole("button", { name: "Coverage", exact: true });
   const pipelineTab = page.getByRole("button", { name: "Pipeline", exact: true });
-  await summaryTab.click().catch(() => {});
-  await page.waitForTimeout(1500);
-  captured.push(await shot(page, "04-document-summary-tab.png"));
 
-  // 5) Pipeline tab (was "Pipeline log" in older UI)
-  await pipelineTab.click({ timeout: 15000 }).catch(() => {});
+  // Default tab is Pipeline — capture it first
   await page.waitForTimeout(1500);
   captured.push(await shot(page, "05-document-pipeline-log-tab.png"));
 
-  // 6) Chat sidebar (empty) — back to summary for richer left panel
-  await summaryTab.click();
+  // Coverage tab (WARR-1172 summary explorer)
+  await coverageTab.click({ timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(1500);
+  captured.push(await shot(page, "04-document-summary-tab.png"));
+
+  // Chat sidebar visible on document detail
   await page.waitForTimeout(800);
   captured.push(await shot(page, "06-document-chat-sidebar.png"));
 
@@ -114,7 +114,7 @@ async function main() {
       { file: "01-login-page.png", screen: "Login / sign-in" },
       { file: "02-documents-list.png", screen: "Documents list with sidebar" },
       { file: "03-upload-page.png", screen: "Upload document drop zone" },
-      { file: "04-document-summary-tab.png", screen: "Document detail — Summary tab + AI summary" },
+      { file: "04-document-summary-tab.png", screen: "Document detail — Coverage tab" },
       { file: "05-document-pipeline-log-tab.png", screen: "Document detail — Pipeline tab (Act 1/2 steps)" },
       { file: "06-document-chat-sidebar.png", screen: "Document detail — chat sidebar (doc-scoped)" },
       { file: "07-document-chat-question-typed.png", screen: "Chat input with sample question" },
