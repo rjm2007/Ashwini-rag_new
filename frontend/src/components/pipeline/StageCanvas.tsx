@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { StageState, StageId } from "./stageModel";
-import type { MasterSchema } from "../../lib/types";
+import type { DocumentMasterSchema } from "../../lib/types";
 
 /* ── Lazy-load stage visuals ── */
 import dynamic from "next/dynamic";
@@ -18,7 +18,7 @@ const StageCompletion = dynamic(() => import("./stages/StageCompletion"), { ssr:
 interface StageCanvasProps {
   activeStage: StageState | null;
   stages: StageState[];
-  masterSchema?: MasterSchema | null;
+  masterSchema?: DocumentMasterSchema | null;
   filename?: string;
   docId?: string;
   onViewSummary?: () => void;

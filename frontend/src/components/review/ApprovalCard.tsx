@@ -6,30 +6,33 @@ import {
   ShieldCheck, Loader2, CheckCircle2, AlertCircle, Gauge, Target, ClipboardCheck,
 } from "lucide-react";
 import { certifyDocument, patchReviewMetadata } from "../../lib/api";
-import type { MasterSchema } from "../../lib/types";
+import type { DocumentMasterSchema } from "../../lib/types";
 import type { DocumentDetail } from "../../lib/types";
 
 interface ApprovalCardProps {
   docId: string;
   document: DocumentDetail;
-  masterSchema?: MasterSchema;
+  masterSchema?: DocumentMasterSchema;
   onApproved?: () => void;
 }
 
 type ApprovalState = "idle" | "confirming" | "loading" | "success" | "error";
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-function extractConfidence(s?: MasterSchema): number | null {
-  if (!s?.quality) return null;
+function extractConfidence(s?: DocumentMasterSchema): number | null {
+  if (!s?.quality) {
+    const conf = (s as { document?: { extraction_confidence?: number } })?.document?.extraction_confidence;
+    return conf != null ? Math.round(conf * 100) : null;
+  }
   const { fields_extracted = 0, fields_missing = 0 } = s.quality;
   const total = fields_extracted + fields_missing;
   return total === 0 ? null : Math.round((fields_extracted / total) * 100);
 }
-function extractCoverage(s?: MasterSchema): number | null {
+function extractCoverage(s?: DocumentMasterSchema): number | null {
   if (!s?.quality?.overall_completeness) return null;
   return Math.round(s.quality.overall_completeness * 100);
 }
-function extractValidation(s?: MasterSchema): string {
+function extractValidation(s?: DocumentMasterSchema): string {
   if (!s?.quality) return "Unknown";
   const low = s.quality.fields_low_confidence ?? 0;
   return low === 0 ? "Passed" : `${low} issue${low > 1 ? "s" : ""}`;

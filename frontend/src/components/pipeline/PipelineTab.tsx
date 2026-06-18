@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { PipelineEvent } from "../../lib/types";
-import type { MasterSchema } from "../../lib/types";
+import type { DocumentMasterSchema } from "../../lib/types";
 import { buildStages, getActiveStage } from "./stageModel";
 import type { StageId } from "./stageModel";
 import PipelineRail from "./PipelineRail";
@@ -13,7 +13,7 @@ interface PipelineTabProps {
   processingStatus: string;
   isAdmin: boolean;
   onCertify?: () => void;
-  masterSchema?: MasterSchema | null;
+  masterSchema?: DocumentMasterSchema | null;
   filename?: string;
   docId?: string;
   onViewSummary?: () => void;

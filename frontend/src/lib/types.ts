@@ -147,8 +147,14 @@ export interface CoverageComponent {
 export interface WarrantyDocumentSchema {
   coverage_components?: CoverageComponent[];
   applicability?: { make?: string; models?: string[] };
-  document?: { document_type?: string };
+  document?: { document_type?: string; extraction_confidence?: number };
+  quality?: MasterSchema["quality"];
+  profiles?: MasterSchema["profiles"];
+  vehicle?: MasterSchema["vehicle"];
 }
+
+/** Legacy FIELD_WRAPPER schema or WARR-1172 flat schema */
+export type DocumentMasterSchema = MasterSchema | WarrantyDocumentSchema;
 
 export type QueryResponseType =
   | "answer"
