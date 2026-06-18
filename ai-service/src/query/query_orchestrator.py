@@ -16,6 +16,7 @@ from .retriever import retrieve_chunks
 from .reasoner import reason_over_evidence
 from ..services.warranty_chunk_builder import extract_coverage_facts
 from .defect_workflow import route_specialized_query
+from .session_state import merge_eligibility
 logger = logging.getLogger(__name__)
 
 _VIN_RE = _re.compile(r"\b([A-HJ-NPR-Z0-9]{17})\b")
@@ -216,6 +217,7 @@ async def answer_question(
     """Intent routing → metadata extraction → hybrid retrieval → large-model reasoning."""
     scoped_doc_type = _load_document_type(document_id)
     ctx = dict(context or {})
+    ctx["eligibility"] = merge_eligibility(session_id, ctx.get("eligibility") or {})
 
     if _is_simple_greeting(question):
         return {
@@ -267,7 +269,7 @@ async def answer_question(
     intent = classification_intent
 
     specialized = route_specialized_query(
-        question, ctx, document_id, conversation_history, intent
+        question, ctx, document_id, conversation_history, intent, classification
     )
     if specialized:
         specialized.setdefault("intent", intent)

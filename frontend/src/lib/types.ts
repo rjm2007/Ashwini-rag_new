@@ -144,6 +144,14 @@ export interface CoverageComponent {
   confidence_score?: number;
 }
 
+export interface CoverageListItem extends Partial<CoverageComponent> {
+  coverage_id: string;
+  coverage_name: string;
+  period_label?: string | null;
+  eligibility_hint?: string | null;
+  documentId?: string;
+}
+
 export interface WarrantyDocumentSchema {
   coverage_components?: CoverageComponent[];
   applicability?: { make?: string; models?: string[] };

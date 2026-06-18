@@ -10,11 +10,11 @@ import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
 import { parseAnswerWithCitations } from "./CitationChip";
-import type { ChatMessageItem, EvidencePayload, QueryContext } from "../../lib/types";
+import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem } from "../../lib/types";
 import DisambiguationCard from "./DisambiguationCard";
 import EligibilityForm from "./EligibilityForm";
-import DecisionCard from "./DecisionCard";
-import CoverageListTable from "./CoverageListTable";
+import DecisionCard, { type DecisionCardProps } from "./DecisionCard";
+import CoverageListCard from "./CoverageListCard";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -306,31 +306,6 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
           Ask questions about this document
         </p>
         <MonoChip text={filename} />
-        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-          <input
-            placeholder="Make"
-            value={context.make || ""}
-            onChange={(e) => setContext((c) => ({ ...c, make: e.target.value }))}
-            style={{ fontSize: 11, padding: "4px 8px", width: 90, borderRadius: 6, border: "1px solid var(--border)" }}
-          />
-          <input
-            placeholder="Model"
-            value={context.model || ""}
-            onChange={(e) => setContext((c) => ({ ...c, model: e.target.value }))}
-            style={{ fontSize: 11, padding: "4px 8px", width: 90, borderRadius: 6, border: "1px solid var(--border)" }}
-          />
-          <input
-            placeholder="Year"
-            value={context.year?.toString() || ""}
-            onChange={(e) =>
-              setContext((c) => ({
-                ...c,
-                year: e.target.value ? Number(e.target.value) : undefined,
-              }))
-            }
-            style={{ fontSize: 11, padding: "4px 8px", width: 70, borderRadius: 6, border: "1px solid var(--border)" }}
-          />
-        </div>
       </div>
 
       {/* ===== Messages ===== */}
@@ -513,14 +488,31 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
 
                   {responseType === "decision" ? (
                     <DecisionCard
-                      decision={(structured.decision as { decision?: string })?.decision as any || decision}
-                      reasons={(structured.decision as { reasons?: string[] })?.reasons}
+                      coverageDecision={
+                        (structured.coverageDecision as CoverageDecision) ||
+                        (structured.decision as { decision?: CoverageDecision })?.decision ||
+                        decision
+                      }
+                      explanation={structured.explanation as string | undefined}
+                      matchedComponent={structured.matchedComponent as DecisionCardProps["matchedComponent"]}
+                      durationMonths={structured.durationMonths as number | null | undefined}
+                      mileageLimit={structured.mileageLimit as number | null | undefined}
+                      mileageUnit={structured.mileageUnit as string | null | undefined}
+                      checks={structured.checks as DecisionCardProps["checks"]}
+                      evidence={(structured.evidence as DecisionCardProps["evidence"]) || evidence}
+                      exclusions={structured.exclusions as DecisionCardProps["exclusions"]}
+                      conditions={structured.conditions as DecisionCardProps["conditions"]}
+                      limitOfLiability={structured.limitOfLiability as DecisionCardProps["limitOfLiability"]}
+                      deductible={structured.deductible as DecisionCardProps["deductible"]}
+                      planTier={structured.planTier as string | undefined}
+                      confidence={confidence}
                       turnCostUsd={structured.turnCostUsd as number | undefined}
+                      reasons={(structured.decision as { reasons?: string[] })?.reasons}
                     />
                   ) : null}
 
                   {responseType === "coverage_list" && Array.isArray(structured.coverages) ? (
-                    <CoverageListTable coverages={structured.coverages as any[]} />
+                    <CoverageListCard coverages={structured.coverages as CoverageListItem[]} />
                   ) : null}
 
                   {/* Sources panel */}

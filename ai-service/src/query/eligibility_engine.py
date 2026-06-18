@@ -17,10 +17,12 @@ def fields_needed_for_row(row: dict) -> list[str]:
 
 def missing_eligibility_fields(row: dict, eligibility: dict | None) -> list[str]:
     eligibility = eligibility or {}
+    period = row.get("coverage_period") or {}
     missing: list[str] = []
-    for field in fields_needed_for_row(row):
-        if not eligibility.get(field):
-            missing.append(field)
+    if period.get("duration_months") is not None and not eligibility.get("purchase_date"):
+        missing.append("purchase_date")
+    if period.get("mileage_limit") is not None and not eligibility.get("current_mileage"):
+        missing.append("current_mileage")
     return missing
 
 

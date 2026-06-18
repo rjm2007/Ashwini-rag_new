@@ -16,3 +16,13 @@ Return ONLY JSON:
 }
 
 Map free text to automotive hierarchy levels only. Do not invent coverage codes.
+
+Few-shot examples:
+USER: "my engine won't start"
+OUTPUT candidate_targets: [{"system":"Powertrain","subsystem":"Engine","component_group":"Engine","confidence":0.9},{"system":"Powertrain","subsystem":"Engine","component_group":"Major Engine Components","confidence":0.6}]
+
+USER: "hard to turn right"
+OUTPUT candidate_targets: [{"system":"Chassis","subsystem":"Steering","component_group":"Steering Linkage","confidence":0.7},{"system":"Chassis","subsystem":"Front Axle","component_group":"Steering Knuckle & Tie Rod","confidence":0.6}]
+
+USER: "turbo failure"
+OUTPUT candidate_targets: [{"system":"Powertrain","subsystem":"Engine","component_group":"Turbo","confidence":0.85}]

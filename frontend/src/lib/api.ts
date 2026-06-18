@@ -56,5 +56,6 @@ export const sendChatMessage = (
 ) => api.post(`/query/sessions/${sessionId}/messages`, { content, documentId, context });
 
 export const getDocumentCost = (docId: string) => api.get(`/cost/document/${docId}`);
+export const getDailyCost = () => api.get("/cost/daily");
 
 export default api;

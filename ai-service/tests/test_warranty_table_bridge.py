@@ -4,25 +4,15 @@ from src.services.warranty_table_bridge import table_rows_to_coverage_components
 from test_coverage_parser import tables
 
 
-def test_bridge_converts_all_codes():
+def test_bridge_raw_rows_no_hierarchy():
     rows = table_rows_to_coverage_components(tables)
     by_id = {r["coverage_id"]: r for r in rows}
     assert len(rows) == 9
     for code in ["D0001", "HAC49", "TOW1", "TOW2", "U06", "U06A", "U030", "U065", "Z0421"]:
         assert code in by_id
-
-
-def test_bridge_hierarchy_and_types():
-    rows = table_rows_to_coverage_components(tables)
-    by_id = {r["coverage_id"]: r for r in rows}
-    u065 = by_id["U065"]
-    assert u065["coverage_hierarchy"]["system"] == "Powertrain"
-    assert u065["coverage_hierarchy"]["subsystem"] == "Transmission"
-    assert u065["coverage_type"] == "Transmission"
-
-    z = by_id["Z0421"]
-    assert z["coverage_type"] == "Information Only"
-    assert z["coverage_hierarchy"]["subsystem"] == "Information Only"
+    for row in rows:
+        assert row.get("coverage_name_raw") or row.get("coverage_name")
+        assert row.get("coverage_period", {}).get("duration_text")
 
 
 def test_bridge_no_field_wrapper_keys():

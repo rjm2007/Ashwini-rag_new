@@ -18,7 +18,6 @@ _CODE_TOKEN_RE = re.compile(
 )
 _OCR_CODE_FIXES = {
     "UOG": "U06A",
-    "U0650": "U056",
 }
 
 _DURATION_RE = re.compile(r"(\d+)\s*(?:months?|mo)\b", re.IGNORECASE)

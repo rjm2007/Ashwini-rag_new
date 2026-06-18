@@ -52,6 +52,11 @@ single JSON object that classifies the question and signals routing hints.
                                approving / deleting documents.
 - ambiguous                  : Too short, vague, or missing context to
                                classify confidently.
+- defect_report              : User reports a vehicle defect or failure
+                               (engine won't start, leak, noise, overheating)
+                               needing coverage matching — routes to defect workflow.
+- list_coverage              : User asks to list or enumerate all coverage
+                               rows/warranties/components in the document.
 
 # OUTPUT SCHEMA
 {
@@ -215,6 +220,34 @@ OUTPUT:
   "clarification_question": null,
   "abuse_signal": false,
   "scope_reason": "Maintenance schedule question, not warranty coverage.",
+  "language": "en"
+}
+
+## Example J
+USER: "my engine won't start"
+OUTPUT:
+{
+  "intent": "defect_report",
+  "confidence": 0.93,
+  "requires_retrieval": false,
+  "needs_clarification": false,
+  "clarification_question": null,
+  "abuse_signal": false,
+  "scope_reason": "Vehicle defect report requiring coverage matching.",
+  "language": "en"
+}
+
+## Example K
+USER: "list all warranties"
+OUTPUT:
+{
+  "intent": "list_coverage",
+  "confidence": 0.95,
+  "requires_retrieval": false,
+  "needs_clarification": false,
+  "clarification_question": null,
+  "abuse_signal": false,
+  "scope_reason": "User wants enumeration of all coverage rows.",
   "language": "en"
 }
 

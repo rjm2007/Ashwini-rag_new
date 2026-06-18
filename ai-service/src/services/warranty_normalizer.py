@@ -7,16 +7,17 @@ import re
 from datetime import date
 from typing import Any
 
-_MONTHS_RE = re.compile(
-    r"(\d+(?:\.\d+)?)\s*(month|months|mo|mos)\b", re.IGNORECASE
-)
+_MONTHS_RE = re.compile(r"(\d+)\s*(month|months|mo)\b", re.IGNORECASE)
+_YEARS_RE = re.compile(r"(\d+)\s*(year|years|yr)\b", re.IGNORECASE)
 _DAYS_RE = re.compile(r"(\d+)\s*(day|days)\b", re.IGNORECASE)
-_YEARS_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(year|years|yr|yrs)\b", re.IGNORECASE)
-_MILES_RE = re.compile(
-    r"(\d[\d,]*)\s*(mile|miles|mi)\b", re.IGNORECASE
+_HOURS_RE = re.compile(r"([\d,]+)\s*(hour|hours|hrs?)\b", re.IGNORECASE)
+_MILES_RE = re.compile(r"([\d,\.]+)\s*(k)?\s*(mile|miles|mi)\b", re.IGNORECASE)
+_KM_RE = re.compile(r"([\d,\.]+)\s*(k)?\s*(km|kilometer|kilometers)\b", re.IGNORECASE)
+_RANGE_YEARS_RE = re.compile(r"(\d+)\s*to\s*(\d+)\s*year", re.IGNORECASE)
+_RANGE_MI_RE = re.compile(
+    r"([\d,]+)\s*to\s*([\d,]+)\s*(?:mile|miles|mi|km|kilometer|kilometers)\b", re.IGNORECASE
 )
-_KM_RE = re.compile(r"(\d[\d,]*)\s*(km|kilometer|kilometers)\b", re.IGNORECASE)
-_UNLIMITED_RE = re.compile(r"\bunlimited\b", re.IGNORECASE)
+_RANGE_MONTHS_RE = re.compile(r"(\d+)\s*/\s*(\d+)\s*(month|months|mo)\b", re.IGNORECASE)
 
 
 def _slug(value: str) -> str:
@@ -24,54 +25,112 @@ def _slug(value: str) -> str:
     return s or "UNKNOWN"
 
 
-def _parse_int(text: str) -> int | None:
-    if not text:
+def _num(s: str | None) -> int | None:
+    s = (s or "").replace(",", "").strip()
+    if not s:
         return None
-    cleaned = re.sub(r"[^\d]", "", text)
-    return int(cleaned) if cleaned else None
+    try:
+        return int(float(s))
+    except ValueError:
+        return None
+
+
+def _miles(match: re.Match | None) -> int | None:
+    if not match:
+        return None
+    base = _num(match.group(1))
+    if base is None:
+        return None
+    if (match.group(2) or "").lower() == "k":
+        base *= 1000
+    return base
 
 
 def normalize_duration_period(period: dict) -> dict:
     """Fill duration_months / mileage_limit / mileage_unit from duration_text."""
     period = dict(period or {})
     text = str(period.get("duration_text") or "")
-    if period.get("duration_months") is None:
-        m = _MONTHS_RE.search(text)
-        if m:
-            period["duration_months"] = int(float(m.group(1)))
+    notes: list[str] = list(period.get("_notes") or [])
+
+    p: dict[str, Any] = {
+        "duration_text": text or None,
+        "duration_months": period.get("duration_months"),
+        "duration_days": period.get("duration_days"),
+        "mileage_limit": period.get("mileage_limit"),
+        "mileage_unit": period.get("mileage_unit"),
+        "hours_limit": period.get("hours_limit"),
+        "start_basis": period.get("start_basis"),
+        "range": period.get("range"),
+    }
+
+    if p["duration_months"] is None:
+        ry = _RANGE_YEARS_RE.search(text)
+        if ry:
+            lo, hi = int(ry.group(1)) * 12, int(ry.group(2)) * 12
+            p["duration_months"] = hi
+            p["range"] = {"duration_months_from": lo, "duration_months_to": hi}
         else:
-            y = _YEARS_RE.search(text)
-            if y:
-                period["duration_months"] = int(float(y.group(1)) * 12)
+            rm = _RANGE_MONTHS_RE.search(text)
+            if rm:
+                lo, hi = int(rm.group(1)), int(rm.group(2))
+                p["duration_months"] = lo
+                p["range"] = {"duration_months_from": lo, "duration_months_to": hi}
+            elif _YEARS_RE.search(text):
+                p["duration_months"] = int(_YEARS_RE.search(text).group(1)) * 12
+            elif _MONTHS_RE.search(text):
+                p["duration_months"] = int(_MONTHS_RE.search(text).group(1))
             elif _DAYS_RE.search(text):
-                period["duration_months"] = None
-    if period.get("mileage_limit") is None and not _UNLIMITED_RE.search(text):
-        mi = _MILES_RE.search(text)
-        if mi:
-            period["mileage_limit"] = _parse_int(mi.group(1))
-            period["mileage_unit"] = period.get("mileage_unit") or "miles"
-        else:
-            km = _KM_RE.search(text)
-            if km:
-                period["mileage_limit"] = _parse_int(km.group(1))
-                period["mileage_unit"] = period.get("mileage_unit") or "km"
-    if _UNLIMITED_RE.search(text):
-        period["mileage_unit"] = "unlimited"
-        if period.get("mileage_limit") is None:
-            period["mileage_limit"] = None
-    return period
+                p["duration_days"] = int(_DAYS_RE.search(text).group(1))
+
+    if re.search(r"unlimited", text, re.IGNORECASE):
+        p["mileage_unit"] = "unlimited"
+        p["mileage_limit"] = None
+    elif p["mileage_limit"] is None:
+        mi = _miles(_MILES_RE.search(text))
+        km = _miles(_KM_RE.search(text))
+        rm = _RANGE_MI_RE.search(text)
+        if rm:
+            lo, hi = _num(rm.group(1)), _num(rm.group(2))
+            p["mileage_limit"] = hi
+            p["mileage_unit"] = "miles" if "km" not in rm.group(0).lower() else "km"
+            p["range"] = {**(p["range"] or {}), "mileage_from": lo, "mileage_to": hi}
+        elif mi is not None:
+            p["mileage_limit"] = mi
+            p["mileage_unit"] = "miles"
+        elif km is not None:
+            p["mileage_limit"] = km
+            p["mileage_unit"] = "km"
+
+    h = _HOURS_RE.search(text)
+    if h:
+        p["hours_limit"] = _num(h.group(1))
+
+    if p["mileage_limit"] is not None and p["mileage_limit"] <= 0:
+        p["mileage_limit"] = None
+        notes.append("mileage <=0 discarded (OCR damage)")
+    if p["mileage_limit"] is not None and 0 < p["mileage_limit"] < 100:
+        p["mileage_limit"] = None
+        notes.append("mileage <100 discarded (likely OCR damage)")
+
+    if notes:
+        p["_notes"] = notes
+    elif "_notes" in p:
+        p.pop("_notes", None)
+
+    return p
 
 
 def normalize_coverage_row(row: dict) -> dict:
     out = dict(row)
     out["coverage_period"] = normalize_duration_period(out.get("coverage_period") or {})
     hierarchy = out.get("coverage_hierarchy") or {}
-    out["coverage_hierarchy"] = {
-        "system": hierarchy.get("system"),
-        "subsystem": hierarchy.get("subsystem"),
-        "component_group": hierarchy.get("component_group"),
-        "component": hierarchy.get("component"),
-    }
+    if hierarchy:
+        out["coverage_hierarchy"] = {
+            "system": hierarchy.get("system"),
+            "subsystem": hierarchy.get("subsystem"),
+            "component_group": hierarchy.get("component_group"),
+            "component": hierarchy.get("component"),
+        }
     for opt in ("limit_of_liability", "deductible", "plan_tier"):
         if opt in out and out[opt] in (None, {}, ""):
             out.pop(opt, None)
