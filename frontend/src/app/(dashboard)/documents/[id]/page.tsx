@@ -377,7 +377,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
                   <ApprovalCard
                     docId={params.id}
                     document={doc}
-                    masterSchema={summaryPayload?.masterSchema}
+                    masterSchema={doc.masterSchemaJson}
                     onApproved={refresh}
                   />
                 ) : (
