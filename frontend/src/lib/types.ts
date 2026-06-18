@@ -104,9 +104,9 @@ export interface SummaryPayload {
   stats?: WarrantySummaryStats;
   coverage_components?: CoverageComponent[];
   document?: Record<string, unknown>;
-  warranty_program?: Record<string, unknown>;
+  warranty_program?: { program_name?: string; [key: string]: unknown };
   asset_context?: Record<string, unknown>;
-  applicability?: Record<string, unknown>;
+  applicability?: { make?: string; models?: string[]; [key: string]: unknown };
   general_conditions?: Array<Record<string, unknown>>;
   general_exclusions?: Array<Record<string, unknown>>;
 }
