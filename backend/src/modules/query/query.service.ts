@@ -144,7 +144,6 @@ export class QueryService {
       role: QueryMessageRole.ASSISTANT,
       content: assistantContent,
       confidenceScore: aiResponse.confidence || 0,
-      coverageDecision: aiResponse.coverageDecision || aiResponse.decision?.decision,
       evidenceJson: {
         evidence: aiResponse.evidence || [],
         responseType: aiResponse.responseType,

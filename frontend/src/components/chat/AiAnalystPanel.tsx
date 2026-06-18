@@ -401,6 +401,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
             const responseType = msg.responseType || (structured.responseType as string | undefined);
             const decision =
               msg.coverageDecision ||
+              (structured.coverageDecision as CoverageDecision | undefined) ||
               inferCoverageDecision(confidence, msg.metadataFiltersAppliedJson);
 
             const isLatestAssistant =
