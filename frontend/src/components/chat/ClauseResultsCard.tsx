@@ -15,7 +15,8 @@ function decisionColor(d: string): string {
   return "var(--text-muted, #8B949E)";
 }
 
-function Eligibility({ e }: { e: ClauseResult["asset_eligibility"] }) {
+function Eligibility({ e }: { e?: ClauseResult["asset_eligibility"] }) {
+  if (!e) return null;
   const dur =
     e.duration_months != null ? `${e.duration_months} months` : "No time limit";
   const mil =
@@ -39,8 +40,11 @@ function Eligibility({ e }: { e: ClauseResult["asset_eligibility"] }) {
 }
 
 export default function ClauseResultsCard({ data }: { data: MultiDecisionResponse }) {
+  if (!data) return null;
   const di = data.defect_interpretation;
   const ex = data.exclusions_checked && data.exclusions_checked[0];
+  const results = data.clause_results || [];
+  
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {/* Defect interpretation header */}
@@ -54,7 +58,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
       )}
 
       {/* One card per matched clause */}
-      {data.clause_results.map((c) => {
+      {results.map((c) => {
         const pct = Math.round((c.context_confidence_score || 0) * 100);
         return (
           <div key={c.coverage_id + String(c.rank)} style={{ background: "var(--bg-surface, #161B22)", borderRadius: 8, padding: "0.85rem", borderLeft: `3px solid ${decisionColor(c.decision)}` }}>
