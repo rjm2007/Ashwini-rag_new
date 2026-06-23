@@ -86,12 +86,19 @@ export class ReviewService {
     if (metadata.metadataJson) {
       document.metadataJson = metadata.metadataJson;
     }
-    if (metadata.vin || metadata.chassisId) {
+    if (
+      metadata.vin !== undefined ||
+      metadata.chassisId !== undefined ||
+      metadata.purchase_date !== undefined ||
+      metadata.current_mileage !== undefined
+    ) {
       const existingMeta = (document.metadataJson as Record<string, unknown>) || {};
       document.metadataJson = {
         ...existingMeta,
-        ...(metadata.vin ? { vin: metadata.vin } : {}),
-        ...(metadata.chassisId ? { chassis_id: metadata.chassisId } : {})
+        ...(metadata.vin !== undefined ? { vin: metadata.vin } : {}),
+        ...(metadata.chassisId !== undefined ? { chassis_id: metadata.chassisId } : {}),
+        ...(metadata.purchase_date !== undefined ? { purchase_date: metadata.purchase_date } : {}),
+        ...(metadata.current_mileage !== undefined ? { current_mileage: metadata.current_mileage } : {})
       };
     }
 

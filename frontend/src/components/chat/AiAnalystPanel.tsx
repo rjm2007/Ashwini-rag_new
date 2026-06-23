@@ -10,7 +10,8 @@ import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
 import { parseAnswerWithCitations } from "./CitationChip";
-import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem } from "../../lib/types";
+import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem, DocumentDetail, MultiDecisionResponse } from "../../lib/types";
+import ClauseResultsCard from "./ClauseResultsCard";
 import DisambiguationCard from "./DisambiguationCard";
 import EligibilityForm from "./EligibilityForm";
 import DecisionCard, { type DecisionCardProps } from "./DecisionCard";
@@ -151,17 +152,20 @@ function lastAssistantResponseType(messages: ChatMessageItem[]): string | undefi
 interface AiAnalystPanelProps {
   docId: string;
   filename: string;
+  document?: DocumentDetail;
 }
 
-export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps) {
+export default function AiAnalystPanel({ docId, filename, document }: AiAnalystPanelProps) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [context, setContext] = useState<QueryContext>({});
-  const [purchaseDate, setPurchaseDate] = useState<string>(""); // yyyy-mm-dd
-  const [currentMileage, setCurrentMileage] = useState<string>(""); // numeric string
+  const [purchaseDate, setPurchaseDate] = useState<string>(document?.assetPurchaseDate || "");
+  const [currentMileage, setCurrentMileage] = useState<string>(
+    document?.assetCurrentMileage != null ? String(document.assetCurrentMileage) : ""
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -564,6 +568,10 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                   {/* Coverage decision */}
                   {decision && <CoverageDecisionTag decision={decision} />}
 
+                  {responseType === "multi_decision" ? (
+                    <ClauseResultsCard data={structured as unknown as MultiDecisionResponse} />
+                  ) : null}
+
                   {responseType === "disambiguation" && Array.isArray(structured.candidates) ? (
                     <DisambiguationCard
                       prompt={msg.content}
@@ -600,6 +608,7 @@ export default function AiAnalystPanel({ docId, filename }: AiAnalystPanelProps)
                       }
                       explanation={structured.explanation as string | undefined}
                       matchedComponent={structured.matchedComponent as DecisionCardProps["matchedComponent"]}
+                      assetEligibility={structured.asset_eligibility as import("../../lib/types").ClauseEligibility | undefined}
                       durationMonths={structured.durationMonths as number | null | undefined}
                       mileageLimit={structured.mileageLimit as number | null | undefined}
                       mileageUnit={structured.mileageUnit as string | null | undefined}

@@ -139,6 +139,9 @@ export class DocumentsService {
     if (!document) {
       throw new NotFoundException("Document not found");
     }
+    const meta = (document.metadataJson as Record<string, any>) || {};
+    (document as any).assetPurchaseDate = meta.purchase_date ?? null;
+    (document as any).assetCurrentMileage = meta.current_mileage ?? null;
     return document;
   }
 

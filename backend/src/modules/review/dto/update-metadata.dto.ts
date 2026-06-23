@@ -32,4 +32,12 @@ export class UpdateMetadataDto {
   @IsOptional()
   @IsString()
   chassisId?: string;
+
+  @IsOptional()
+  @IsString()
+  purchase_date?: string;
+
+  @IsOptional()
+  @IsInt()
+  current_mileage?: number;
 }

@@ -60,6 +60,8 @@ export default function ApprovalCard({
   const [year, setYear] = useState(document.year ? String(document.year) : "");
   const [vin, setVin] = useState(String(meta.vin || ""));
   const [chassisId, setChassisId] = useState(String(meta.chassis_id || ""));
+  const [purchaseDate, setPurchaseDate] = useState(document.assetPurchaseDate || "");
+  const [currentMileage, setCurrentMileage] = useState(document.assetCurrentMileage ? String(document.assetCurrentMileage) : "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -71,6 +73,8 @@ export default function ApprovalCard({
     setYear(document.year ? String(document.year) : "");
     setVin(String(m.vin || ""));
     setChassisId(String(m.chassis_id || ""));
+    setPurchaseDate(document.assetPurchaseDate || "");
+    setCurrentMileage(document.assetCurrentMileage ? String(document.assetCurrentMileage) : "");
   }, [document]);
 
   const isCoverageTable = document.documentType === "coverage_code_table";
@@ -95,6 +99,8 @@ export default function ApprovalCard({
         year: year.trim() ? parseInt(year, 10) : undefined,
         vin: vin.trim() || undefined,
         chassisId: chassisId.trim() || undefined,
+        purchase_date: purchaseDate.trim() || undefined,
+        current_mileage: currentMileage.trim() ? parseInt(currentMileage, 10) : undefined,
       });
       setSaved(true);
       onApproved?.();
@@ -229,13 +235,32 @@ export default function ApprovalCard({
               placeholder="17-character VIN"
             />
           </div>
-          <div style={{ gridColumn: "1 / -1" }}>
+          <div style={{ gridColumn: "1" }}>
             <label style={labelStyle}>Chassis ID (if no VIN)</label>
             <input
               style={inputStyle}
               value={chassisId}
               onChange={(e) => setChassisId(e.target.value)}
               placeholder="e.g. 218380"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Purchase Date</label>
+            <input
+              type="date"
+              style={inputStyle}
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Current Mileage</label>
+            <input
+              type="number"
+              style={inputStyle}
+              value={currentMileage}
+              onChange={(e) => setCurrentMileage(e.target.value)}
+              placeholder="e.g. 120000"
             />
           </div>
         </div>

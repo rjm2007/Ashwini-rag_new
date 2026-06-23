@@ -19,6 +19,8 @@ export interface DocumentDetail extends DocumentItem {
   requiredFieldsMissing?: boolean;
   completeness?: number;
   aiSummaryText?: string | null;
+  assetPurchaseDate?: string | null;
+  assetCurrentMileage?: number | null;
 }
 
 export interface PipelineEvent {
@@ -169,7 +171,8 @@ export type QueryResponseType =
   | "disambiguation"
   | "needs_eligibility"
   | "decision"
-  | "coverage_list";
+  | "coverage_list"
+  | "multi_decision";
 
 export interface QueryContext {
   documentId?: string;
@@ -221,3 +224,47 @@ export type CoverageDecision =
   | "covered_with_limits";
 
 export type ConfidenceBand = "high" | "medium" | "low";
+
+export interface ClauseEligibility {
+  make_match?: boolean;
+  model_match?: boolean;
+  model_year_match?: boolean;
+  time_eligible?: boolean;
+  mileage_eligible?: boolean;
+  duration_months?: number;
+  warranty_mileage_limit?: number;
+  current_mileage?: number;
+  purchase_date?: string;
+  warranty_expiration_date?: string;
+}
+
+export interface ClauseResult {
+  rank: number;
+  coverage_id?: string;
+  warranty_heading: string;
+  context_confidence_score: number;
+  matched_context_summary: string;
+  why_matched: string;
+  page_number?: number;
+  chunk_id?: string;
+  decision: "COVERED" | "POSSIBLY_COVERED" | "NOT_COVERED" | "INFORMATION_ONLY";
+  asset_eligibility: ClauseEligibility;
+  explanation: string;
+}
+
+export interface MultiDecisionResponse {
+  responseType: "multi_decision";
+  request_id: string;
+  primary_decision: "COVERED" | "POSSIBLY_COVERED" | "NOT_COVERED" | "INFORMATION_ONLY";
+  overall_confidence_score: number;
+  defect_interpretation: Record<string, unknown>;
+  asset: Record<string, unknown>;
+  exclusions_checked: Array<Record<string, unknown>>;
+  clause_results: ClauseResult[];
+  user_message: string;
+  coverageDecision?: string;
+  answer?: string;
+  confidence?: number;
+  filters?: Record<string, unknown>;
+  context?: QueryContext;
+}

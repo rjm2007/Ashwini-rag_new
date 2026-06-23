@@ -12,6 +12,7 @@ export type DecisionCardProps = {
     coverage_name: string;
     hierarchy?: Record<string, string | null>;
   };
+  assetEligibility?: import("../../lib/types").ClauseEligibility;
   durationMonths?: number | null;
   mileageLimit?: number | null;
   mileageUnit?: string | null;
@@ -109,17 +110,8 @@ export default function DecisionCard(props: DecisionCardProps) {
         ) : null}
 
         <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          <div>
-            Duration: {durationMonths != null ? `${durationMonths} months` : "No time limit"}
-          </div>
-          <div>
-            Mileage:{" "}
-            {mileageUnit === "unlimited"
-              ? "Unlimited"
-              : mileageLimit != null
-                ? `${mileageLimit.toLocaleString()} ${mileageUnit || "miles"}`
-                : "No mileage limit"}
-          </div>
+          <div>Duration: {props.assetEligibility?.duration_months != null ? `${props.assetEligibility.duration_months} months` : "No time limit"}</div>
+          <div>Mileage: {props.assetEligibility?.warranty_mileage_limit != null ? `${props.assetEligibility.warranty_mileage_limit.toLocaleString()} miles` : "No mileage limit"}</div>
         </div>
 
         {checks?.length ? (
