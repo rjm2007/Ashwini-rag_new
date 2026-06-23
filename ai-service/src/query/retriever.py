@@ -49,4 +49,21 @@ def retrieve_chunks(
         subqueries=subqueries,
     )
     logger.info("Retrieval pipeline trace: %s", trace)
+
+    # Enrich payload with chunk_id, section_heading, document_name (§3)
+    for i, chunk in enumerate(chunks):
+        p = chunk.get("payload") or {}
+        if "chunk_id" not in p:
+            p["chunk_id"] = (
+                p.get("chunkId") or p.get("id")
+                or f"{p.get('documentId', 'unknown')}-CHUNK-{i:04d}"
+            )
+        if "section_heading" not in p:
+            p["section_heading"] = (
+                p.get("sectionTitle") or p.get("sectionHeading")
+                or p.get("coverageName") or None
+            )
+        if "document_name" not in p:
+            p["document_name"] = p.get("filename") or p.get("documentName") or None
+
     return chunks

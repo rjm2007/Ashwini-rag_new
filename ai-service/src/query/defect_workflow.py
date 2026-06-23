@@ -5,17 +5,20 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime
+import uuid
+from pathlib import Path
 
 from sqlalchemy import text
 
-from .coverage_decider import decide_coverage, plain_language_explanation
-from .defect_classifier import classify_defect
+from .coverage_decider import decide_coverage, plain_language_explanation, decide_warranty, _overall_confidence
+from .defect_classifier import classify_defect, interpret_defect, _parse_json
 from .defect_matcher import match_coverage_rows
 from .document_resolver import resolve_documents_by_make_model_year
-from .eligibility_engine import build_eligibility_prompt, missing_eligibility_fields
+from .eligibility_engine import build_eligibility_prompt, missing_eligibility_fields, compute_asset_eligibility, has_limits
 from .retriever import retrieve_chunks
 from ..database import SessionLocal
-
+from ..services.llm_service import LlmService
 logger = logging.getLogger(__name__)
 
 _LIST_RE = re.compile(
@@ -113,61 +116,221 @@ def _eligibility_blocked(row: dict, eligibility: dict | None) -> list[str]:
     return missing
 
 
+def _request_id() -> str:
+    return f"WRG-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4().int)[:6]}"
+
+
+def _document_name(document_id: str | None) -> str | None:
+    if not document_id:
+        return None
+    try:
+        with SessionLocal() as session:
+            row = session.execute(
+                text("SELECT master_schema_json, filename FROM documents WHERE id = :id"),
+                {"id": document_id},
+            ).first()
+        if not row:
+            return None
+        schema = row[0] if isinstance(row[0], dict) else json.loads(row[0] or "{}")
+        filename = row[1]
+        return schema.get("warranty_program", {}).get("program_name") or filename
+    except Exception as exc:
+        logger.warning("Failed to load document name for %s: %s", document_id, exc)
+        return None
+
+
+def _asset_from_context(context: dict, document_id: str | None) -> dict:
+    appl = {}
+    if document_id:
+        try:
+            with SessionLocal() as session:
+                row = session.execute(
+                    text("SELECT master_schema_json FROM documents WHERE id = :id"),
+                    {"id": document_id},
+                ).first()
+            if row and row[0]:
+                schema = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+                appl = schema.get("applicability") or schema.get("asset_context") or {}
+        except Exception:
+            pass
+    eligibility = context.get("eligibility", {})
+    models = appl.get("models")
+    return {
+        "make": appl.get("make", context.get("make")),
+        "model": context.get("model") if not models else (models[0] if isinstance(models, list) else models),
+        "model_year": context.get("year"),
+        "vin": context.get("vin"),
+        "current_mileage": eligibility.get("current_mileage"),
+        "purchase_date": eligibility.get("purchase_date"),
+        "_applicability": appl
+    }
+
+
+def build_matched_context(reported_defect: str, matched_rows: list[dict], document_id: str | None, document_name: str | None, llm: LlmService) -> list[dict]:
+    _PROMPT = (Path(__file__).resolve().parent / "prompts" / "context_why_matched.txt").read_text(encoding="utf-8")
+    ctx = []
+    for rank, row in enumerate(matched_rows, start=1):
+        chunks = retrieve_chunks(f"{row.get('coverage_name')} {reported_defect}",
+                                 {"documentId": document_id, "coverage_id": row.get("coverage_id")}, list_mode=False)
+        top = (chunks or [{}])[0].get("payload", {})
+        out = llm.small_model_call(json.dumps({
+            "reported_defect": reported_defect,
+            "warranty_heading": row.get("coverage_name"),
+            "chunk_text": top.get("text") or row.get("source_reference",{}).get("text_reference",""),
+        }), _PROMPT, stage="why_matched", document_id=document_id)
+        try:
+            j = _parse_json(out)
+        except Exception:
+            j = {}
+        ctx.append({
+            "rank": rank,
+            "coverage_id": row.get("coverage_id"),
+            "warranty_heading": row.get("coverage_name"),
+            "document_name": document_name,
+            "page_number": (row.get("source_reference") or {}).get("page") or top.get("page"),
+            "chunk_id": top.get("chunk_id") or f"{document_id}-CHUNK-{rank:04d}",
+            "context_confidence_score": round(float(j.get("context_confidence_score", row.get("_match_score") or 0.6)), 2),
+            "matched_context_summary": j.get("matched_context_summary", ""),
+            "why_matched": j.get("why_matched", ""),
+        })
+    ctx.sort(key=lambda c: float(c.get("context_confidence_score", 0)), reverse=True)
+    for i, c in enumerate(ctx, start=1):
+        c["rank"] = i
+    return ctx
+
+
+def check_exclusions(defect_interpretation: dict, doc_exclusions: list[dict], llm: LlmService) -> dict:
+    _PROMPT = (Path(__file__).resolve().parent / "prompts" / "exclusion_check.txt").read_text(encoding="utf-8")
+    if not doc_exclusions and (defect_interpretation.get("is_wear_or_consumable") or defect_interpretation.get("is_accident_or_misuse")):
+        heading = "Normal Wear Items" if defect_interpretation.get("is_wear_or_consumable") else "Accident & Misuse"
+        return {
+            "exclusions_checked": [{
+                "warranty_heading": heading,
+                "page_number": None,
+                "exclusion_confidence_score": 0.95,
+                "exclusion_result": "Strong exclusion found",
+                "explanation": f"The reported defect is interpreted as a standard {heading} exclusion."
+            }],
+            "strong_exclusion": True
+        }
+    if not doc_exclusions:
+        return {"exclusions_checked": [], "strong_exclusion": False}
+    out = llm.small_model_call(json.dumps({
+        "interpreted_defect": defect_interpretation,
+        "warranty_exclusions": doc_exclusions
+    }), _PROMPT)
+    try:
+        return _parse_json(out)
+    except Exception:
+        return {"exclusions_checked": [], "strong_exclusion": False}
+
+
+def compose_final(decision: str, asset_eligibility: dict, defect_interpretation: dict, matched_context: list[dict], exclusions_checked: dict, llm: LlmService) -> dict:
+    _PROMPT = (Path(__file__).resolve().parent / "prompts" / "final_explanation.txt").read_text(encoding="utf-8")
+    out = llm.small_model_call(json.dumps({
+        "decision": decision,
+        "asset_eligibility": asset_eligibility,
+        "defect_interpretation": defect_interpretation,
+        "matched_context": matched_context,
+        "exclusions_checked": exclusions_checked
+    }), _PROMPT)
+    try:
+        return _parse_json(out)
+    except Exception:
+        return {
+            "final_explanation": f"Decision: {decision}.",
+            "recommended_action": "Review the warranty document.",
+            "user_message": f"**Warranty Status: {decision.replace('_', ' ').title()}**\n\nPlease review the full document."
+        }
+
+
+def interp_public(interp: dict) -> dict:
+    return {
+        "reported_defect": interp.get("interpreted_component", "Unknown"),
+        "interpreted_component": interp.get("interpreted_component"),
+        "interpreted_failure_type": interp.get("interpreted_failure_type"),
+        "defect_category": interp.get("defect_category")
+    }
+
+
+def _information_only_response(interp: dict, asset: dict, context: dict, matched_context: list[dict]) -> dict:
+    return {
+        "responseType": "decision",
+        "request_id": _request_id(),
+        "decision": "INFORMATION_ONLY",
+        "overall_confidence_score": matched_context[0].get("context_confidence_score", 0.4) if matched_context else 0.4,
+        "asset_eligibility": {
+            "purchase_date": None,
+            "current_mileage": None,
+            "make_match": None,
+            "model_match": None,
+            "model_year_match": None,
+            "time_eligible": None,
+            "mileage_eligible": None,
+            "warranty_mileage_limit": None,
+            "warranty_expiration_date": None
+        },
+        "defect_interpretation": interp_public(interp),
+        "matched_warranty_context": matched_context,
+        "exclusions_checked": [],
+        "final_explanation": "Warranty has limits but no purchase date or mileage was provided. Information only.",
+        "recommended_action": "Provide in-service/purchase date and current mileage for a coverage decision.",
+        "user_message": "**Warranty Status: Information Only**\n\nWithout an in-service/purchase date and current mileage, this is information only and not a coverage decision.",
+        "coverageDecision": "INFORMATION_ONLY",
+        "explanation": "Information only.",
+        "answer": "**Warranty Status: Information Only**\n\nWithout an in-service/purchase date and current mileage, this is information only and not a coverage decision.",
+        "confidence": 0.4,
+        "context": context
+    }
+
+
 def _build_decision_response(
     question: str,
-    row: dict,
+    row_or_rows: dict | list[dict],
     eligibility: dict,
     context: dict,
+    document_id: str | None = None,
+    reported_defect: str = "",
 ) -> dict:
-    missing = _eligibility_blocked(row, eligibility)
-    if missing:
-        return _needs_eligibility(row, missing, context)
+    llm = LlmService()
+    asset = _asset_from_context(context, document_id)
+    interp = interpret_defect(reported_defect, asset, llm)
 
-    verdict = decide_coverage(row, eligibility)
-    exclusions, conditions = _load_doc_exclusions(row.get("_documentId"))
-    chunks = retrieve_chunks(
-        question,
-        {"documentId": row.get("_documentId"), "coverage_id": row.get("coverage_id")},
-        list_mode=False,
-    )
-    explanation = plain_language_explanation(verdict, row)
-    evidence = []
-    for chunk in chunks[:3]:
-        payload = chunk.get("payload") or {}
-        evidence.append(
-            {
-                "page": payload.get("page"),
-                "text_reference": payload.get("text") or payload.get("text_reference"),
-                "quote": payload.get("text") or payload.get("quote"),
-                "coverageId": row.get("coverage_id"),
-            }
-        )
+    matched_rows = row_or_rows if isinstance(row_or_rows, list) else [row_or_rows]
+    document_name = _document_name(document_id)
+    matched_context = build_matched_context(reported_defect, matched_rows, document_id, document_name, llm)
+
+    if has_limits(row_or_rows) and not eligibility.get("purchase_date") and not eligibility.get("current_mileage"):
+        return _information_only_response(interp, asset, context, matched_context)
+
+    elig = compute_asset_eligibility(row_or_rows, asset, eligibility)
+
+    doc_excl, _ = _load_doc_exclusions(document_id)
+    excl = check_exclusions(interp, doc_excl, llm)
+
+    decision = decide_warranty(elig, matched_context, excl, interp)
+    overall = _overall_confidence(decision, matched_context, excl)
+
+    composed = compose_final(decision, elig, interp, matched_context, excl, llm)
 
     return {
         "responseType": "decision",
-        "coverageDecision": verdict.get("decision"),
-        "explanation": explanation,
-        "matchedComponent": {
-            "coverage_id": row.get("coverage_id"),
-            "coverage_name": row.get("coverage_name"),
-            "hierarchy": row.get("coverage_hierarchy"),
-        },
-        "durationMonths": verdict.get("duration_months"),
-        "mileageLimit": verdict.get("mileage_limit"),
-        "mileageUnit": verdict.get("mileage_unit"),
-        "checks": verdict.get("checks") or [],
-        "evidence": evidence,
-        "exclusions": exclusions,
-        "conditions": conditions,
-        "limitOfLiability": row.get("limit_of_liability"),
-        "deductible": row.get("deductible"),
-        "planTier": row.get("plan_tier"),
-        "confidence": round(0.6 + 0.3 * float(row.get("_match_score") or 0.5), 2),
-        "decision": verdict,
-        "answer": explanation,
-        "coverage": row,
-        "filters": {"coverage_id": row.get("coverage_id")},
-        "context": {**context, "selectedCoverageId": row.get("coverage_id")},
+        "request_id": _request_id(),
+        "decision": decision,
+        "overall_confidence_score": overall,
+        "asset_eligibility": elig,
+        "defect_interpretation": interp_public(interp),
+        "matched_warranty_context": matched_context,
+        "exclusions_checked": excl.get("exclusions_checked", []),
+        "final_explanation": composed.get("final_explanation", ""),
+        "recommended_action": composed.get("recommended_action", ""),
+        "user_message": composed.get("user_message", ""),
+        # back-compat
+        "coverageDecision": decision,
+        "explanation": composed.get("final_explanation", ""),
+        "answer": composed.get("user_message", ""),
+        "confidence": overall,
+        "context": {**context, "selectedCoverageId": matched_rows[0].get("coverage_id") if matched_rows else None},
     }
 
 
@@ -280,16 +443,18 @@ def handle_defect_workflow(
                 "filters": {},
                 "context": context,
             }
-        return _build_decision_response(question, matched[0], eligibility, context)
+        return _build_decision_response(question, matched[0], eligibility, context, document_id, question)
 
-    classification = classify_defect(
-        question,
-        make=context.get("make"),
-        model=context.get("model"),
-        year=context.get("year"),
-    )
-    candidates = match_coverage_rows(all_rows, classification.get("candidate_targets") or [])
+    llm = LlmService()
+    asset = _asset_from_context(context, document_id)
+    interp = interpret_defect(question, asset, llm)
+    
+    candidates = match_coverage_rows(all_rows, interp.get("candidate_targets") or [])
     if not candidates:
+        # Before failing, if it's a strong exclusion, we might still want to output it
+        if interp.get("is_wear_or_consumable") or interp.get("is_accident_or_misuse"):
+            return _build_decision_response(question, [], eligibility, context, document_id, question)
+
         return {
             "responseType": "answer",
             "answer": (
@@ -301,17 +466,20 @@ def handle_defect_workflow(
             "filters": {},
             "context": context,
         }
+        
     if len(candidates) > 1 and not selected_id:
+        document_name = _document_name(document_id)
+        candidates_ctx = build_matched_context(question, candidates, document_id, document_name, llm)
         return {
             "responseType": "disambiguation",
             "prompt": "I found multiple possible matches. Which best matches your issue?",
             "candidates": [
                 {
                     "coverage_id": c.get("coverage_id"),
-                    "label": f"{c.get('coverage_id')}: {c.get('coverage_name')}",
-                    "documentId": c.get("_documentId"),
-                }
-                for c in candidates
+                    "warranty_heading": c.get("warranty_heading"),
+                    "context_confidence_score": c.get("context_confidence_score"),
+                    "why_matched": c.get("why_matched")
+                } for c in candidates_ctx
             ],
             "answer": "I found multiple possible matches. Which best matches your issue?",
             "evidence": [],
@@ -320,7 +488,7 @@ def handle_defect_workflow(
             "context": context,
         }
 
-    return _build_decision_response(question, candidates[0], eligibility, context)
+    return _build_decision_response(question, candidates[0], eligibility, context, document_id, question)
 
 
 def route_specialized_query(

@@ -90,3 +90,45 @@ def plain_language_explanation(verdict: dict, row: dict) -> str:
     return (
         f"I matched this to {name} ({cid}) but need your purchase date and/or mileage to confirm coverage."
     )
+
+
+# ---------------------------------------------------------------------------
+#  §6  3-Value Decision Logic (Contract Version)
+# ---------------------------------------------------------------------------
+
+def decide_warranty(elig: dict, matched_context: list[dict], excl: dict, interp: dict) -> str:
+    """Return COVERED | POSSIBLY_COVERED | NOT_COVERED."""
+    has_match = bool(matched_context) and matched_context[0].get("context_confidence_score", 0.0) >= 0.55
+    strong_exclusion = excl.get("strong_exclusion") is True
+    te = elig.get("time_eligible")
+    me = elig.get("mileage_eligible")
+
+    # A strong exclusion overrides eligibility
+    if strong_exclusion:
+        return "NOT_COVERED"
+    if not has_match:
+        return "NOT_COVERED"
+
+    # Eligibility verdict over the limits that EXIST (null = not constraining)
+    checks = [v for v in (te, me) if v is not None]
+    if not checks:
+        # component matches but we have no date/mileage to confirm
+        # This should have been caught as INFORMATION_ONLY upstream, but fallback to POSSIBLY_COVERED
+        return "POSSIBLY_COVERED"
+    if all(checks):
+        return "COVERED"
+    if any(checks):
+        # one limit passes, the other fails (Example 1)
+        return "POSSIBLY_COVERED"
+    # both exceeded -> manual review / extended warranty
+    return "POSSIBLY_COVERED"
+
+
+def _overall_confidence(decision: str, matched_context: list[dict], excl: dict) -> float:
+    if decision == "NOT_COVERED" and excl.get("strong_exclusion"):
+        checked = excl.get("exclusions_checked") or []
+        scores = [float(e.get("exclusion_confidence_score", 0.0)) for e in checked]
+        return max(scores, default=0.9)
+    if matched_context:
+        return float(matched_context[0].get("context_confidence_score", 0.4))
+    return 0.4
