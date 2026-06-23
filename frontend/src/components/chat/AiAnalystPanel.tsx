@@ -11,7 +11,7 @@ import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
 import { parseAnswerWithCitations } from "./CitationChip";
 import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem, DocumentDetail, MultiDecisionResponse } from "../../lib/types";
-import ClauseResultsCard from "./ClauseResultsCard";
+import ClauseResultsCard, { decisionBadge } from "./ClauseResultsCard";
 import DisambiguationCard from "./DisambiguationCard";
 import EligibilityForm from "./EligibilityForm";
 import DecisionCard, { type DecisionCardProps } from "./DecisionCard";
@@ -562,11 +562,15 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
                     {parseAnswerWithCitations(msg.content, evidence)}
                   </div>
 
-                  {/* Confidence tag */}
-                  {confidence > 0 && <ConfidenceBand confidence={confidence} />}
-
-                  {/* Coverage decision */}
-                  {decision && <CoverageDecisionTag decision={decision} />}
+                  {/* Coverage decision badge */}
+                  {responseType === "multi_decision" ? (() => {
+                    const badge = decisionBadge(decision);
+                    return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6, padding: "4px 10px", borderRadius: 999, background: "var(--bg-hover)", fontSize: 12, fontWeight: 600, color: badge.color }}>
+                        {badge.label}
+                      </div>
+                    );
+                  })() : decision && <CoverageDecisionTag decision={decision} />}
 
                   {responseType === "multi_decision" ? (
                     <ClauseResultsCard data={structured as unknown as MultiDecisionResponse} />

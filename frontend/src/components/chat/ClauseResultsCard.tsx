@@ -3,10 +3,31 @@ import type { MultiDecisionResponse, ClauseResult } from "../../lib/types";
 
 const DECISION_LABEL: Record<string, string> = {
   COVERED: "Covered",
-  POSSIBLY_COVERED: "Possibly Covered — Manual Review",
+  POSSIBLY_COVERED: "Possibly Covered",
   NOT_COVERED: "Not Covered",
-  INFORMATION_ONLY: "Information Only",
+  INFORMATION_ONLY: "More Info Needed",
 };
+
+function confidenceWord(score: number): string {
+  if (score >= 0.85) return "strong match";
+  if (score >= 0.65) return "likely match";
+  return "possible match";
+}
+
+export function decisionBadge(d?: string): { label: string; color: string } {
+  switch ((d || "").toUpperCase()) {
+    case "COVERED":
+      return { label: "Covered", color: "var(--state-done, #3FB950)" };
+    case "POSSIBLY_COVERED":
+      return { label: "Possibly Covered", color: "var(--state-gate, #D29922)" };
+    case "NOT_COVERED":
+      return { label: "Not Covered", color: "var(--state-failed, #F85149)" };
+    case "INFORMATION_ONLY":
+      return { label: "More Info Needed", color: "var(--text-muted, #8B949E)" };
+    default:
+      return { label: "Result", color: "var(--text-muted, #8B949E)" };
+  }
+}
 
 function decisionColor(d: string): string {
   if (d === "COVERED") return "var(--state-done, #3FB950)";
@@ -47,6 +68,11 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
   
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      {/* User-facing verdict message (rendered as plain text with markdown bold) */}
+      {data.user_message ? (
+        <div style={{ whiteSpace: "pre-wrap", marginBottom: "0.75rem" }}>{data.user_message}</div>
+      ) : null}
+
       {/* Defect interpretation header */}
       {di && (
         <div style={{ background: "var(--bg-surface, #161B22)", borderRadius: 8, padding: "0.75rem" }}>
@@ -70,7 +96,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
                 </span>
               </div>
               <span style={{ color: decisionColor(c.decision), fontWeight: 700, fontSize: "0.85rem" }}>
-                {DECISION_LABEL[c.decision] || c.decision} · {pct}%
+                {DECISION_LABEL[c.decision] || c.decision} · {confidenceWord(c.context_confidence_score || 0)}
               </span>
             </div>
             {c.why_matched && <div style={{ fontSize: "0.88rem", marginTop: "0.4rem" }}>{c.why_matched}</div>}

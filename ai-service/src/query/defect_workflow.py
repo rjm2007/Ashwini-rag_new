@@ -202,6 +202,58 @@ def route_specialized_query(
     return None
 
 
+def _is_secondary_row(r):
+    """Towing / roadside / rental / info-only / administrative are benefits, not component coverage."""
+    ct = str(r.get("coverage_type") or "").lower()
+    sys = str((r.get("coverage_hierarchy") or {}).get("system") or "").lower()
+    name = str(r.get("coverage_name") or "").lower()
+    if ct in ("towing", "information only", "roadside", "rental"):
+        return True
+    if sys == "administrative":
+        return True
+    if any(w in name for w in ("towing", "roadside", "rental", "trip interruption", "info only")):
+        return True
+    return False
+
+def _is_secondary_result(c):
+    ct = str(c.get("coverage_type") or "").lower()
+    name = str(c.get("warranty_heading") or "").lower()
+    return ct in ("towing", "information only", "roadside", "rental") or any(
+        w in name for w in ("towing", "roadside", "rental", "trip interruption", "info only")
+    )
+
+def _name_fallback_match(reported_defect, interp, all_rows):
+    """Safety net when the hierarchy match finds nothing (e.g. air conditioning).
+    Matches a coverage row by the SYSTEM the defect clearly belongs to."""
+    text = " ".join([
+        str(reported_defect or ""),
+        str(interp.get("interpreted_component") or ""),
+        str(interp.get("defect_category") or ""),
+    ]).lower()
+    SYS_SYNONYMS = {
+        "hvac": ["air condition", "a/c", "hvac", "cooling", "heater", "freon", "climate", "ac sealed"],
+        "powertrain": ["engine", "transmission", "motor", "gear", "clutch", "driveline", "axle", "differential", "water pump"],
+        "chassis": ["brake", "frame", "crossmember", "suspension", "steering"],
+        "emission": ["emission", "aftertreatment", "dpf", "def", "exhaust", "scr", "egr"],
+        "cab": ["cab", "corrosion", "cab structure"],
+        "electrical": ["battery", "alternator", "starter", "charging", "wiring"],
+    }
+    wanted = {sys for sys, kws in SYS_SYNONYMS.items() if any(k in text for k in kws)}
+    if not wanted:
+        return []
+    out = []
+    for r in all_rows:
+        sys = str((r.get("coverage_hierarchy") or {}).get("system") or "").lower()
+        ct = str(r.get("coverage_type") or "").lower()
+        if sys in wanted or ct in wanted:
+            rr = dict(r)
+            rr["_match_score"] = 0.5
+            out.append(rr)
+    # real coverage first, secondary last
+    out.sort(key=lambda r: (_is_secondary_row(r), -(r.get("_match_score") or 0.0)))
+    return out[:3]
+
+
 def _request_id():
     import datetime, random
     return "WRG-" + datetime.date.today().strftime("%Y%m%d") + "-" + str(random.randint(0, 999999)).zfill(6)
@@ -241,51 +293,137 @@ def _fmt_date(s):
 
 def _clause_explanation(decision, row, elig, interp_public):
     name = row.get("coverage_name")
-    dm = elig.get("duration_months")
-    ml = elig.get("warranty_mileage_limit")
     if decision == "INFORMATION_ONLY":
-        return f"This issue may relate to {name}. Provide an in-service/purchase date and current mileage for a coverage decision."
-    bits = []
-    if dm is not None:
-        bits.append(f"{dm} months" + (f" (expires {_fmt_date(elig.get('warranty_expiration_date'))})" if elig.get("warranty_expiration_date") else ""))
-    else:
-        bits.append("no time limit")
-    if ml is not None:
-        bits.append(f"{int(ml):,} miles")
-    else:
-        bits.append("no mileage limit")
-    limits = "; ".join(bits)
+        return f"Relates to your {name} coverage. Add the purchase date and current mileage to check if it is covered."
     if decision == "COVERED":
-        return f"{name} covers this. Coverage runs {limits}, and the truck is within the limits, so the repair should be covered."
+        return f"Covered under your {name} coverage — your truck is within the limits."
     if decision == "POSSIBLY_COVERED":
-        return f"{name} may cover this ({limits}), but the truck is outside the time or mileage limit, so a manual review or extended-warranty check is recommended."
-    return f"{name} does not cover this issue."
+        return f"Matches your {name} coverage, but your truck is outside the time or mileage limit, so it needs a quick review."
+    return f"Your {name} coverage does not apply to this problem."
+
+def _confidence_word(score):
+    if score is None:
+        return "possible match"
+    if score >= 0.85:
+        return "strong match"
+    if score >= 0.65:
+        return "likely match"
+    return "possible match"
+
+def _verdict_header(decision):
+    return {
+        "COVERED": "✅ **Covered**",
+        "POSSIBLY_COVERED": "⚠️ **Possibly Covered — Needs Review**",
+        "NOT_COVERED": "❌ **Not Covered**",
+        "INFORMATION_ONLY": "ℹ️ **We need a bit more information**",
+    }.get(decision, "ℹ️ **Result**")
+
+def _limits_phrase(e):
+    dm = e.get("duration_months")
+    ml = e.get("warranty_mileage_limit")
+    parts = []
+    if dm is not None:
+        parts.append(f"up to {dm} months")
+    if ml is not None:
+        parts.append(f"{int(ml):,} miles")
+    if not parts:
+        return "no time or mileage limit"
+    s = " and ".join(parts)
+    if e.get("warranty_expiration_date"):
+        s += f" (your coverage runs out {_fmt_date(e['warranty_expiration_date'])})"
+    return s
+
+def _truck_status_phrase(e):
+    bits = []
+    if e.get("purchase_date"):
+        bits.append(f"purchased {_fmt_date(e['purchase_date'])}")
+    if e.get("current_mileage") is not None:
+        bits.append(f"now at {int(e['current_mileage']):,} miles")
+    if not bits:
+        return None
+    status = []
+    if e.get("time_eligible") is True:
+        status.append("within the time limit")
+    elif e.get("time_eligible") is False:
+        status.append("past the time limit")
+    if e.get("mileage_eligible") is True:
+        status.append("within the mileage limit")
+    elif e.get("mileage_eligible") is False:
+        status.append("over the mileage limit")
+    tail = (" — " + ", ".join(status)) if status else ""
+    return ", ".join(bits) + tail
+
+def _why_possible(e):
+    te, me = e.get("time_eligible"), e.get("mileage_eligible")
+    if te is False and me is False:
+        return "your truck is past both the time and mileage limits"
+    if te is False:
+        return "your truck is past the time limit"
+    if me is False:
+        return "your truck is over the mileage limit"
+    return "we could not fully confirm eligibility"
 
 def _multi_user_message(reported_defect, interp_public, clause_results, excl, info_only):
-    lines = []
+    component = interp_public.get("interpreted_component") or "issue"
+    real = [c for c in clause_results if not _is_secondary_result(c)]
+    primary = (real or clause_results)[0]
+    decision = "INFORMATION_ONLY" if info_only else primary["decision"]
+    heading = primary["warranty_heading"]
+    lines = [_verdict_header(decision), ""]
+
+    # 1) one plain sentence telling the user what this means
     if info_only:
-        lines.append("**Warranty Status: Information Only**")
-        lines.append("Without an in-service/purchase date and current mileage, this is information only and not a coverage decision.")
-    else:
-        primary = clause_results[0]
-        status = {"COVERED": "Covered", "POSSIBLY_COVERED": "Possibly Covered — Manual Review",
-                  "NOT_COVERED": "Not Covered", "INFORMATION_ONLY": "Information Only"}.get(primary["decision"], primary["decision"])
-        lines.append(f"**Warranty Status: {status}**")
-    lines.append(f'Reported defect: "{reported_defect}" → interpreted as **{interp_public.get("interpreted_component")}** ({interp_public.get("defect_category")}).')
+        lines.append(
+            f"Your **{component}** problem looks like it falls under your **{heading}** coverage. "
+            f"To tell you for sure if it is covered, we just need the truck's **purchase date** and "
+            f"**current mileage**."
+        )
+        return "\n".join(lines)
+    if decision == "COVERED":
+        lines.append(f"Good news — your **{component}** problem is **covered** under your **{heading}** coverage.")
+    elif decision == "POSSIBLY_COVERED":
+        lines.append(
+            f"Your **{component}** problem falls under your **{heading}** coverage, but "
+            f"{_why_possible(primary['asset_eligibility'])}, so it needs a quick review before it can be approved."
+        )
+    elif decision == "NOT_COVERED":
+        lines.append(f"Unfortunately, your **{component}** problem is **not covered** under this warranty.")
+
+    # 2) plain details
+    e = primary["asset_eligibility"]
     lines.append("")
-    lines.append(f"I found {len(clause_results)} possible matching coverage(s):")
-    for c in clause_results:
-        e = c["asset_eligibility"]
-        pct = int(round(c["context_confidence_score"] * 100))
-        lines.append(f"- **{c['warranty_heading']}** — {c['decision'].replace('_',' ').title()} ({pct}% match). {c['why_matched']}")
-        if not info_only and (e.get("duration_months") is not None or e.get("warranty_mileage_limit") is not None):
-            dl = f"{e['duration_months']} mo" if e.get("duration_months") is not None else "no time limit"
-            mlx = f"{int(e['warranty_mileage_limit']):,} mi" if e.get("warranty_mileage_limit") is not None else "no mileage limit"
-            lines.append(f"  - Limits: {dl} / {mlx}; expiration: {e.get('warranty_expiration_date') or 'n/a'}; current mileage: {e.get('current_mileage') or 'n/a'}")
-    ex = (excl.get("exclusions_checked") or [{}])[0]
-    if ex.get("exclusion_result"):
+    lines.append("**Here is why:**")
+    cov = _limits_phrase(e)
+    lines.append(f"- Your **{heading}** coverage lasts {cov}.")
+    truck = _truck_status_phrase(e)
+    if truck:
+        lines.append(f"- Your truck was {truck}.")
+    if decision == "COVERED":
+        lines.append("- Your truck is within the limits, so this repair should be covered. ✅")
+    elif decision == "POSSIBLY_COVERED":
+        lines.append("- A warranty reviewer should confirm this, or check whether you have an extended warranty. ⚠️")
+
+    # 3) other real coverage that may also apply
+    others = [c for c in real if c is not primary][:2]
+    if others:
         lines.append("")
-        lines.append(f"Exclusion check: {ex['exclusion_result']} — {ex.get('explanation','')}")
+        lines.append("**Other coverage that may also apply:**")
+        for c in others:
+            word = _confidence_word(c.get("context_confidence_score"))
+            verdict = c["decision"].replace("_", " ").lower()
+            lines.append(f"- Your **{c['warranty_heading']}** coverage ({verdict}, {word}).")
+
+    # 4) exclusion note only when it actually blocks the claim
+    ex = (excl.get("exclusions_checked") or [{}])[0]
+    if ex.get("exclusion_result") == "Strong exclusion found":
+        lines.append("")
+        lines.append(f"⚠️ **Important:** {ex.get('explanation', '')}")
+
+    # 5) small reference for staff (codes live here, not in the headline)
+    codes = ", ".join(str(c.get("coverage_id")) for c in (real or clause_results) if c.get("coverage_id"))
+    if codes:
+        lines.append("")
+        lines.append(f"_For warranty staff — coverage reference: {codes}_")
     return "\n".join(lines)
 
 def _clause_context(reported_defect, row, document_id, llm):
@@ -359,8 +497,14 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
         "defect_category": interp.get("defect_category"),
     }
 
-    # 4) match the top clauses (matcher already caps at 3 and requires system+subsystem)
+    # 4) match the top clauses (matcher caps at 3 and requires system+subsystem)
     matched_rows = match_coverage_rows(all_rows, interp.get("candidate_targets") or [])
+    # 4b) safety net: if nothing matched, try a system-keyword fallback (rescues air conditioning, etc.)
+    if not matched_rows:
+        matched_rows = _name_fallback_match(reported_defect, interp, all_rows)
+    # 4c) put real component coverage ABOVE secondary benefits (towing / roadside / rental / info)
+    matched_rows.sort(key=lambda r: (_is_secondary_row(r), -(r.get("_match_score") or 0.0)))
+    matched_rows = matched_rows[:3]
 
     # 5) defect-level exclusion check (wear / accident / misuse). Shared across clauses.
     doc_excl, _ = _load_doc_exclusions(document_id)
@@ -372,11 +516,17 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
                        (r.get("coverage_period") or {}).get("mileage_limit") is not None) for r in matched_rows)
     no_inputs = not eligibility.get("purchase_date") and not eligibility.get("current_mileage")
 
-    # 7) no clause matched at all
+    # 7) no clause matched at all — tell the user what IS covered (plain language)
     if not matched_rows:
+        covered_systems = sorted({
+            str((r.get("coverage_hierarchy") or {}).get("system") or r.get("coverage_type") or "").strip()
+            for r in all_rows
+        } - {""})
+        systems_text = ", ".join(s.lower() for s in covered_systems) or "the listed components"
         return {"responseType": "answer",
-                "answer": ("I could not match this defect to a covered component in this warranty. "
-                           "Try describing the component or system (for example: engine, transmission, brakes, cab)."),
+                "answer": ("ℹ️ **This warranty does not appear to cover that problem.**\n\n"
+                           f"This warranty covers: {systems_text}. "
+                           "If you believe this should be covered, a warranty reviewer can take a closer look."),
                 "defect_interpretation": interp_public,
                 "evidence": [], "confidence": 0.35, "filters": {}, "context": context}
 
@@ -394,6 +544,7 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
             "rank": rank,
             "coverage_id": row.get("coverage_id"),
             "warranty_heading": row.get("coverage_name"),     # PLAIN LANGUAGE label (not the code)
+            "coverage_type": row.get("coverage_type"),
             "context_confidence_score": cx["context_confidence_score"],
             "matched_context_summary": cx["matched_context_summary"],
             "why_matched": cx["why_matched"],
@@ -409,8 +560,9 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
     for i, c in enumerate(clause_results, start=1):
         c["rank"] = i
 
-    # 9) overall summary
-    primary = clause_results[0]
+    # 9) overall summary — the VERDICT comes from real component coverage, not a towing/info benefit
+    real_results = [c for c in clause_results if not _is_secondary_result(c)]
+    primary = (real_results or clause_results)[0]
     overall_decision = "INFORMATION_ONLY" if (has_limited and no_inputs) else primary["decision"]
     user_message = _multi_user_message(reported_defect, interp_public, clause_results, excl, has_limited and no_inputs)
 
