@@ -1,5 +1,5 @@
 import React from "react";
-import type { MultiDecisionResponse, ClauseResult } from "@/lib/types";
+import type { MultiDecisionResponse, ClauseResult } from "../../lib/types";
 
 const DECISION_LABEL: Record<string, string> = {
   COVERED: "Covered",
