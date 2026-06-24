@@ -47,6 +47,8 @@ async def _update_status(document_id: str, status: str, error: str | None = None
 
 async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
     """ACT 1: parse → tree → classify → awaiting_certification (no embeddings)."""
+    from ..services.cost_tracker import start_request, request_cost_summary
+    start_request()
     logger.info("[%s] ACT 1 START", document_id)
     s3 = S3Service()
 
@@ -192,6 +194,16 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
             finish_step(step, {"error": str(exc)[:300], "required_missing": True}, status="failed")
 
         await _update_status(document_id, "awaiting_certification")
+        cost_sum = request_cost_summary()
+        if cost_sum:
+            with SessionLocal() as session:
+                session.execute(
+                    text("""UPDATE documents 
+                            SET metadata_json = COALESCE(metadata_json, '{}'::jsonb) || jsonb_build_object('processing_cost_act1', CAST(:cost AS jsonb))
+                            WHERE id = :id"""),
+                    {"cost": json.dumps(cost_sum), "id": document_id}
+                )
+                session.commit()
         await s3.upload_json(
             f"processing-artifacts/{document_id}/act1_complete.json",
             {"document_type": doc_type, "tree_nodes": len(doc_tree)},
@@ -204,6 +216,8 @@ async def run_act1_parse(document_id: str, s3_path: str | None = None) -> None:
 
 async def run_act2_process(document_id: str) -> None:
     """ACT 2: schema extraction followed by schema-aware embedding."""
+    from ..services.cost_tracker import start_request, request_cost_summary
+    start_request()
     logger.info("[%s] ACT 2 START", document_id)
     await _update_status(document_id, "schema_extraction")
     s3 = S3Service()
@@ -289,6 +303,16 @@ async def run_act2_process(document_id: str) -> None:
             logger.error("[%s] Embedding pipeline failed: %s — schema completed", document_id, embed_err)
             await _update_status(document_id, "processing_complete", error=f"embed:{embed_err}")
         else:
+            cost_sum = request_cost_summary()
+            if cost_sum:
+                with SessionLocal() as session:
+                    session.execute(
+                        text("""UPDATE documents 
+                                SET metadata_json = COALESCE(metadata_json, '{}'::jsonb) || jsonb_build_object('processing_cost', CAST(:cost AS jsonb))
+                                WHERE id = :id"""),
+                        {"cost": json.dumps(cost_sum), "id": document_id}
+                    )
+                    session.commit()
             await _update_status(document_id, "processing_complete")
         logger.info("[%s] ACT 2 COMPLETE", document_id)
     except Exception as exc:

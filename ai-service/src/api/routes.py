@@ -114,13 +114,17 @@ async def get_daily_cost() -> dict:
 
 @router.post("/query/answer")
 async def query_answer(payload: QueryRequest) -> dict[str, Any]:
-    return await answer_question(
+    from ..services.cost_tracker import start_request, request_cost_summary
+    start_request()
+    ans = await answer_question(
         payload.question,
         payload.conversationHistory,
         payload.documentId,
         context=payload.context,
         session_id=payload.sessionId,
     )
+    ans["cost"] = request_cost_summary()
+    return ans
 
 
 @router.post("/internal/set-repository/{document_id}")

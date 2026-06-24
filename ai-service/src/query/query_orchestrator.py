@@ -218,6 +218,25 @@ async def answer_question(
     scoped_doc_type = _load_document_type(document_id)
     ctx = dict(context or {})
     ctx["eligibility"] = merge_eligibility(session_id, ctx.get("eligibility") or {})
+    # Backfill eligibility from the certified document (captured at certification) when the chat
+    # did not already provide it. This stops the chat from re-asking for date/mileage.
+    if document_id:
+        elig = ctx.get("eligibility") or {}
+        if not elig.get("purchase_date") or not elig.get("current_mileage"):
+            try:
+                with SessionLocal() as _s:
+                    _row = _s.execute(
+                        text("SELECT metadata_json FROM documents WHERE id = :id"),
+                        {"id": document_id},
+                    ).first()
+                _md = (_row[0] if _row and isinstance(_row[0], dict) else {}) or {}
+                if not elig.get("purchase_date") and _md.get("purchase_date"):
+                    elig["purchase_date"] = _md.get("purchase_date")
+                if not elig.get("current_mileage") and _md.get("current_mileage") is not None:
+                    elig["current_mileage"] = _md.get("current_mileage")
+                ctx["eligibility"] = elig
+            except Exception as _exc:
+                logger.warning("Eligibility backfill from document failed: %s", _exc)
 
     if _is_simple_greeting(question):
         return {

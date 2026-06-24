@@ -227,7 +227,7 @@ export default function ApprovalCard({
             />
           </div>
           <div>
-            <label style={reqLabel}>VIN *</label>
+            <label style={!vin && !chassisId ? reqLabel : labelStyle}>VIN {!chassisId && !vin ? "*" : ""}</label>
             <input
               style={inputStyle}
               value={vin}
@@ -236,7 +236,7 @@ export default function ApprovalCard({
             />
           </div>
           <div style={{ gridColumn: "1" }}>
-            <label style={labelStyle}>Chassis ID (if no VIN)</label>
+            <label style={!vin && !chassisId ? reqLabel : labelStyle}>Chassis ID {!vin && !chassisId ? "*" : ""}</label>
             <input
               style={inputStyle}
               value={chassisId}

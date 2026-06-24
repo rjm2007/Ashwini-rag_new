@@ -7,3 +7,7 @@ export function getStoredSession(docId: string): string | null {
 export function storeSession(docId: string, sessionId: string): void {
   localStorage.setItem(KEY(docId), sessionId);
 }
+
+export function clearSession(docId: string): void {
+  localStorage.removeItem(KEY(docId));
+}

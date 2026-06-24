@@ -167,7 +167,8 @@ export class QueryService {
       },
       metadataFiltersAppliedJson: {
         ...(aiResponse.filters || {}),
-        context: aiResponse.context || context || {}
+        context: aiResponse.context || context || {},
+        cost: aiResponse.cost || undefined
       }
     });
     await this.messageRepository.save(assistantMessage);

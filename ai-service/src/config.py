@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     large_model: str = "gpt-5.5"
     embedding_dims: int = 1536
     bm25_vocab_size: int = 262144
+
+    LLM_PRICE_TABLE: dict = {
+        "gpt-5.4-mini": {"prompt": 0.150, "completion": 0.600},
+        "gpt-5.5": {"prompt": 2.50, "completion": 10.00},
+    }
     enable_contextual_retrieval: bool = True
     enable_reranker: bool = True
     reranker_candidates: int = 20

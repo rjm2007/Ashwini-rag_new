@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, SendHorizontal, Bot } from "lucide-react";
 import { createChatSession, getChatSession, sendChatMessage } from "../../lib/api";
-import { getStoredSession, storeSession } from "../../lib/chatSession";
+import { getStoredSession, storeSession, clearSession } from "../../lib/chatSession";
 import { inferCoverageDecision } from "./CoverageDecision";
 import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
@@ -248,6 +248,26 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
     };
   }, [docId, filename]);
 
+  const handleResetChat = async () => {
+    if (sending) return;
+    clearSession(docId);
+    setMessages([]);
+    setSessionId(null);
+    setLoading(true);
+    try {
+      const res = await createChatSession(filename);
+      const newId: string = res.data?.id ?? res.data?.sessionId;
+      if (newId) {
+        storeSession(docId, newId);
+        setSessionId(newId);
+      }
+    } catch (err) {
+      console.error("Failed to reset chat session:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ---------- send a message ---------- */
   const handleSend = useCallback(
     async (text: string, contextOverride?: QueryContext) => {
@@ -368,7 +388,23 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
         >
           Ask questions about this document
         </p>
-        <MonoChip text={filename} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <MonoChip text={filename} />
+          <button
+            onClick={handleResetChat}
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              padding: "2px 8px",
+              cursor: "pointer",
+            }}
+          >
+            Reset chat
+          </button>
+        </div>
 
         {/* Proactive eligibility inputs (replaces make/model/year) */}
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
@@ -511,6 +547,10 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
               (structured.coverageDecision as CoverageDecision | undefined) ||
               inferCoverageDecision(confidence, msg.metadataFiltersAppliedJson);
 
+            const metaFilters = msg.metadataFiltersAppliedJson || {};
+            const costObj = metaFilters.cost as { usd?: number } | undefined;
+            const turnCostUsd = msg.costUsd ?? costObj?.usd ?? (structured.turnCostUsd as number | undefined);
+
             const isLatestAssistant =
               index === messages.length - 1 || 
               (index === messages.length - 1 && msg.role === "assistant");
@@ -635,6 +675,12 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
 
                   {/* Sources panel */}
                   <SourcesPanel sources={evidence} answerText={msg.content} />
+
+                  {turnCostUsd !== undefined && (
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8, textAlign: "right" }}>
+                      Cost: ${turnCostUsd.toFixed(4)}
+                    </div>
+                  )}
 
                   {/* Suggested follow-ups for the latest assistant message */}
                   {isLatestAssistant && showSuggestions && (

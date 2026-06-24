@@ -30,6 +30,47 @@ _DEFECT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Words that signal the user is CONTINUING a previous defect question rather than starting a new one.
+_FOLLOWUP_RE = re.compile(
+    r"\b(now|again|check|recheck|re-?check|covered|is it|are we|what about|filled|added|"
+    r"updated|entered|provided|yes|please check|the same|this|it)\b",
+    re.IGNORECASE,
+)
+
+def _looks_like_defect(text: str) -> bool:
+    """A message is a fresh defect if it names a symptom or component."""
+    t = (text or "").lower()
+    if _DEFECT_RE.search(t):
+        return True
+    for w in ("engine", "transmission", "brake", "air condition", "ac ", "a/c", "frame",
+              "cab", "axle", "driveline", "clutch", "exhaust", "aftertreatment", "cooling",
+              "leak", "overheat", "knock", "noise", "crack", "worn", "damage", "not working",
+              "not functioning", "not cooling", "won't", "wont", "doesn't", "stuck", "frozen"):
+        if w in t:
+            return True
+    return False
+
+def _recall_last_defect(conversation_history: list[dict]) -> str | None:
+    """Scan history backwards for the most recent USER message that was a real defect."""
+    for item in reversed(conversation_history or []):
+        if (item.get("role") or "") != "user":
+            continue
+        content = item.get("content") or ""
+        # skip our own follow-up echoes and selection messages
+        if content.lower().startswith("selected coverage"):
+            continue
+        if _looks_like_defect(content):
+            return content
+    return None
+
+def _is_followup_continuation(question: str, intent: str) -> bool:
+    """True when the user is continuing a prior defect (not starting a new one)."""
+    if _looks_like_defect(question):
+        return False   # it's a fresh defect; handle normally
+    if intent in ("followup_clarification", "warranty_coverage", "ambiguous"):
+        return bool(_FOLLOWUP_RE.search(question or ""))
+    return bool(_FOLLOWUP_RE.search(question or ""))
+
 def _collect_rows(docs: list[dict]) -> list[dict]:
     rows: list[dict] = []
     for doc in docs:
@@ -184,6 +225,14 @@ def route_specialized_query(
 
     if context.get("selectedCoverageId"):
         return handle_defect_workflow(question, context, document_id, conversation_history)
+
+    # MEMORY: a follow-up that continues a prior defect ("now check it", "I filled the date",
+    # "is it covered?") must re-run the LAST defect with the now-updated eligibility — NOT fall
+    # through to generic RAG (which would confuse it with an older question).
+    if _is_followup_continuation(question, intent):
+        last_defect = _recall_last_defect(conversation_history)
+        if last_defect:
+            return handle_defect_workflow(last_defect, context, document_id, conversation_history)
 
     if (question or "").strip().lower().startswith("/defect"):
         defect_q = question.split("/defect", 1)[1].strip() or question
@@ -462,6 +511,8 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
     context = context or {}
     eligibility = context.get("eligibility") or {}
     reported_defect = question
+    # If this turn is a bare follow-up but we were called with the recalled defect, that recalled
+    # text is already in `question` (see route_specialized_query). Nothing else needed here.
 
     # 1) resolve the document (chat is document-scoped)
     docs = resolve_documents_by_make_model_year(

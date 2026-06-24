@@ -195,6 +195,7 @@ export interface ChatMessageItem {
   metadataFiltersAppliedJson?: Record<string, unknown>;
   coverageDecision?: CoverageDecision;
   responseType?: QueryResponseType;
+  costUsd?: number;
 }
 
 /**
