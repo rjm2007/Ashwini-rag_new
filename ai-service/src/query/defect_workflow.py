@@ -432,7 +432,7 @@ def _clause_explanation(decision, row, elig, interp_public):
         return f"Covered under your {name} coverage — your truck is within the limits."
     if decision == "POSSIBLY_COVERED":
         return f"Matches your {name} coverage, but your truck is outside the time or mileage limit, so it needs a quick review."
-    return f"Your {name} coverage does not apply to this problem."
+    return f"Your {name} coverage does not apply here — either an exclusion applies, the defect doesn't match this coverage, or your truck is well outside this coverage's time or mileage limit."
 
 def _confidence_word(score):
     if score is None:

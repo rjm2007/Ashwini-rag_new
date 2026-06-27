@@ -74,16 +74,67 @@ def compute_clause_eligibility(row, asset):
         "warranty_expiration_date": exp,
     }
 
+# How far past a limit still counts as "borderline, let a human decide" rather than a clean
+# denial. Tune these if your actual policy is stricter/looser than this default.
+MILEAGE_OVERAGE_GRACE_RATIO = 1.10   # up to 10% over the mileage limit = borderline
+TIME_OVERAGE_GRACE_DAYS = 60         # up to ~2 months past expiration = borderline
+
+
+def _mileage_overage_state(elig: dict) -> str | None:
+    """'ok' | 'close' | 'far' | None (None = no mileage data to judge at all)."""
+    me = elig.get("mileage_eligible")
+    if me is None:
+        return None
+    if me:
+        return "ok"
+    limit = elig.get("warranty_mileage_limit")
+    current = elig.get("current_mileage")
+    if not limit or current is None:
+        return "close"  # failed but no numbers to size the gap — stay conservative
+    ratio = current / limit
+    return "close" if ratio <= MILEAGE_OVERAGE_GRACE_RATIO else "far"
+
+
+def _time_overage_state(elig: dict) -> str | None:
+    """'ok' | 'close' | 'far' | None (None = no date data to judge at all)."""
+    te = elig.get("time_eligible")
+    if te is None:
+        return None
+    if te:
+        return "ok"
+    exp = elig.get("warranty_expiration_date")
+    if not exp:
+        return "close"
+    try:
+        exp_date = date.fromisoformat(exp)
+    except Exception:
+        return "close"
+    days_over = (date.today() - exp_date).days
+    return "close" if days_over <= TIME_OVERAGE_GRACE_DAYS else "far"
+
+
 def decide_one_clause(elig, context_confidence, strong_exclusion):
-    """Decision for ONE clause. Strong exclusion overrides eligibility (client Example 2)."""
+    """Decision for ONE clause. Strong exclusion overrides eligibility (client Example 2).
+
+    Eligibility has three tiers per factor (time, mileage): within limits, borderline (a little
+    over — ambiguous enough that a human should confirm), or clearly over (resolves straight to
+    NOT_COVERED, nothing to review). A truck a few hundred miles or a few weeks past a limit is
+    genuinely uncertain; a truck millions of miles or years past it is not, and should not get
+    the same "needs review" answer as the borderline case.
+    """
     if strong_exclusion:
         return "NOT_COVERED"
     if context_confidence < 0.5:
         return "NOT_COVERED"
-    te, me = elig.get("time_eligible"), elig.get("mileage_eligible")
-    checks = [v for v in (te, me) if v is not None]
-    if not checks:
-        return "POSSIBLY_COVERED"     # matched but no date/mileage to confirm
-    if all(checks):
-        return "COVERED"
-    return "POSSIBLY_COVERED"          # one or both limits fail -> manual review / extended warranty
+
+    mileage_state = _mileage_overage_state(elig)
+    time_state = _time_overage_state(elig)
+    states = [s for s in (mileage_state, time_state) if s is not None]
+
+    if not states:
+        return "POSSIBLY_COVERED"      # matched but no date/mileage to confirm at all
+    if "far" in states:
+        return "NOT_COVERED"           # clearly, unambiguously outside a hard limit
+    if all(s == "ok" for s in states):
+        return "COVERED"               # within every limit we could check
+    return "POSSIBLY_COVERED"          # borderline on at least one factor — let a human confirm
