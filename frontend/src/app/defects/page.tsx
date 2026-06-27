@@ -8,16 +8,29 @@ import type { Defect, EligibleDocumentOption } from "@/lib/types";
 import Topbar from "@/components/Topbar";
 import { Wrench, Plus, X, Loader2, AlertCircle } from "lucide-react";
 
+const COLORS = {
+  bgPage: "#F8FAFC",
+  bgPanel: "#FFFFFF",
+  border: "#D1DCE8",
+  textPrimary: "#0A1628",
+  textSecondary: "#7A92A8",
+  accent: "#4F46E5",
+  done: "#16A34A",
+  gate: "#D97706",
+  failed: "#DC2626",
+  muted: "#9AA6B5",
+};
+
 function decisionColor(d?: string) {
   switch ((d || "").toUpperCase()) {
     case "COVERED":
-      return "#3FB950";
+      return COLORS.done;
     case "POSSIBLY_COVERED":
-      return "#D29922";
+      return COLORS.gate;
     case "NOT_COVERED":
-      return "#F85149";
+      return COLORS.failed;
     default:
-      return "#8B949E";
+      return COLORS.muted;
   }
 }
 function decisionLabel(d?: string) {
@@ -38,7 +51,7 @@ function decisionLabel(d?: string) {
 function NewDefectModal({
   documents,
   onClose,
-  onCreated
+  onCreated,
 }: {
   documents: EligibleDocumentOption[];
   onClose: () => void;
@@ -73,39 +86,43 @@ function NewDefectModal({
     }
   };
 
+  const inputStyle = {
+    width: "100%",
+    padding: "8px 10px",
+    fontSize: 13,
+    background: COLORS.bgPage,
+    color: COLORS.textPrimary,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 6,
+    boxSizing: "border-box" as const,
+  };
+  const labelStyle = { display: "block" as const, fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 };
+
   return (
     <div
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100
+        position: "fixed", inset: 0, background: "rgba(10,22,40,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
       }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 480, maxWidth: "90vw", background: "var(--bg-panel)",
-          border: "1px solid var(--border)", borderRadius: 12, padding: 24, color: "#FFF"
+          width: 480, maxWidth: "90vw", background: COLORS.bgPanel,
+          border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 24,
+          boxShadow: "0 12px 32px rgba(10,22,40,0.18)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: 16 }}>Report a defect</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: COLORS.textPrimary }}>Report a defect</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: COLORS.textSecondary, cursor: "pointer" }}>
             <X size={18} />
           </button>
         </div>
 
-        <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
-          Vehicle (make · model · year)
-        </label>
-        <select
-          value={documentId}
-          onChange={(e) => setDocumentId(e.target.value)}
-          style={{
-            width: "100%", padding: "8px 10px", marginBottom: 14, fontSize: 13,
-            background: "var(--bg-app)", color: "#FFF", border: "1px solid var(--border)", borderRadius: 6
-          }}
-        >
+        <label style={labelStyle}>Vehicle (make · model · year)</label>
+        <select value={documentId} onChange={(e) => setDocumentId(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }}>
           {documents.length === 0 && <option value="">No certified vehicles available</option>}
           {documents.map((d) => (
             <option key={d.documentId} value={d.documentId}>
@@ -114,48 +131,38 @@ function NewDefectModal({
           ))}
         </select>
 
-        <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>
-          What's wrong?
-        </label>
+        <label style={labelStyle}>What's wrong?</label>
         <textarea
           value={reportedDefect}
           onChange={(e) => setReportedDefect(e.target.value)}
           rows={3}
           placeholder="e.g. my engine is not working"
-          style={{
-            width: "100%", padding: "8px 10px", marginBottom: 14, fontSize: 13, resize: "vertical",
-            background: "var(--bg-app)", color: "#FFF", border: "1px solid var(--border)", borderRadius: 6, boxSizing: "border-box"
-          }}
+          style={{ ...inputStyle, marginBottom: 14, resize: "vertical" }}
         />
 
         <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
           <div style={{ flex: 1 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Purchase date</label>
-            <input
-              type="date"
-              value={purchaseDate}
-              onChange={(e) => setPurchaseDate(e.target.value)}
-              style={{ width: "100%", padding: "8px 10px", fontSize: 13, background: "var(--bg-app)", color: "#FFF", border: "1px solid var(--border)", borderRadius: 6, boxSizing: "border-box" }}
-            />
+            <label style={labelStyle}>Purchase date</label>
+            <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ flex: 1 }}>
-            <label style={{ display: "block", fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>Current mileage</label>
+            <label style={labelStyle}>Current mileage</label>
             <input
               type="number"
               value={currentMileage}
               onChange={(e) => setCurrentMileage(e.target.value)}
               placeholder="e.g. 145000"
-              style={{ width: "100%", padding: "8px 10px", fontSize: 13, background: "var(--bg-app)", color: "#FFF", border: "1px solid var(--border)", borderRadius: 6, boxSizing: "border-box" }}
+              style={inputStyle}
             />
           </div>
         </div>
 
-        <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: "0 0 14px" }}>
+        <p style={{ fontSize: 11, color: COLORS.textSecondary, margin: "0 0 14px" }}>
           Optional — leave blank if unknown, you can fill them in later from this defect's chat.
         </p>
 
         {error && (
-          <p style={{ fontSize: 12, color: "#F85149", margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ fontSize: 12, color: COLORS.failed, margin: "0 0 12px", display: "flex", alignItems: "center", gap: 6 }}>
             <AlertCircle size={14} /> {error}
           </p>
         )}
@@ -164,7 +171,7 @@ function NewDefectModal({
           <button
             type="button"
             onClick={onClose}
-            style={{ padding: "8px 16px", fontSize: 13, background: "transparent", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-secondary)", cursor: "pointer" }}
+            style={{ padding: "8px 16px", fontSize: 13, background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 6, color: COLORS.textSecondary, cursor: "pointer" }}
           >
             Cancel
           </button>
@@ -174,8 +181,8 @@ function NewDefectModal({
             onClick={submit}
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 13,
-              background: "var(--accent)", border: "none", borderRadius: 6, color: "white",
-              cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.7 : 1
+              background: COLORS.accent, border: "none", borderRadius: 6, color: "#FFFFFF",
+              cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.7 : 1,
             }}
           >
             {submitting ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -212,68 +219,73 @@ export default function DefectsPage() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-app)" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: COLORS.bgPage }}>
       <Topbar breadcrumbOverride="Defects" />
-      <div style={{ padding: "24px", flex: 1, overflow: "auto", color: "#FFF" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <Wrench size={24} color="var(--accent)" />
-            <h1 style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}>Defect Reports</h1>
+      <div style={{ padding: 24, flex: 1, overflow: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Wrench size={24} color={COLORS.accent} />
+            <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, color: COLORS.textPrimary }}>Defect Reports</h1>
           </div>
           <button
             type="button"
             onClick={() => setShowModal(true)}
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 13,
-              background: "var(--accent)", border: "none", borderRadius: 6, color: "white", cursor: "pointer"
+              background: COLORS.accent, border: "none", borderRadius: 6, color: "#FFFFFF", cursor: "pointer",
+              fontWeight: 600,
             }}
           >
             <Plus size={14} /> New Defect
           </button>
         </div>
 
-        {error && <div style={{ color: "#ef4444", marginBottom: "16px" }}>{error}</div>}
+        {error && <div style={{ color: COLORS.failed, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
         {loading ? (
-          <div>Loading defects...</div>
+          <div style={{ color: COLORS.textSecondary, fontSize: 13 }}>Loading defects...</div>
         ) : defects.length === 0 ? (
-          <div style={{ color: "var(--text-secondary)" }}>
+          <div style={{ color: COLORS.textSecondary, fontSize: 13 }}>
             No defects reported yet. Click "New Defect" to check coverage for a vehicle problem.
           </div>
         ) : (
-          <div style={{ background: "var(--bg-panel)", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)" }}>
+          <div style={{ background: COLORS.bgPanel, borderRadius: 8, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)", background: "rgba(255,255,255,0.02)" }}>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Reported Defect</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Vehicle</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Decision</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Component</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Date</th>
-                  <th style={{ padding: "12px 16px", fontWeight: 500, color: "var(--text-secondary)" }}>Action</th>
+                <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: "#F1F5F9" }}>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Reported Defect</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Vehicle</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Decision</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Component</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Date</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {defects.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td style={{ padding: "12px 16px" }}>{d.reportedDefect}</td>
-                    <td style={{ padding: "12px 16px" }}>{[d.make, d.model, d.year].filter(Boolean).join(" ") || "-"}</td>
+                  <tr key={d.id} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>{d.reportedDefect}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>
+                      {[d.make, d.model, d.year].filter(Boolean).join(" ") || "-"}
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span
                         style={{
-                          fontSize: 11, fontWeight: 600, color: decisionColor(d.primaryDecision),
-                          padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.06)"
+                          fontSize: 11, fontWeight: 700, color: decisionColor(d.primaryDecision),
+                          padding: "2px 10px", borderRadius: 999, background: `${decisionColor(d.primaryDecision)}1A`,
                         }}
                       >
                         {decisionLabel(d.primaryDecision)}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>
                       {d.primaryComponent ? `${d.primaryComponent}${d.primaryCoverageId ? ` (${d.primaryCoverageId})` : ""}` : "-"}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "-"}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>
+                      {d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "-"}
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
-                      <Link href={`/defects/${d.id}`} style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}>
+                      <Link href={`/defects/${d.id}`} style={{ color: COLORS.accent, textDecoration: "none", fontWeight: 600, fontSize: 13 }}>
                         View Thread
                       </Link>
                     </td>
@@ -286,11 +298,7 @@ export default function DefectsPage() {
       </div>
 
       {showModal && (
-        <NewDefectModal
-          documents={documents}
-          onClose={() => setShowModal(false)}
-          onCreated={(id) => router.push(`/defects/${id}`)}
-        />
+        <NewDefectModal documents={documents} onClose={() => setShowModal(false)} onCreated={(id) => router.push(`/defects/${id}`)} />
       )}
     </div>
   );

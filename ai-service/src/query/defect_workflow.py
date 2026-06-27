@@ -244,6 +244,38 @@ def handle_coverage_lookup(question: str, context: dict, document_id: str | None
         "context": context,
     }
 
+def answer_followup_question(
+    question: str,
+    active_defect: str,
+    last_result: dict,
+    conversation_history: list[dict] | None,
+) -> dict:
+    """A follow-up QUESTION about an existing defect verdict ("explain in detail", "why is it
+    expired", "what does U06A mean") — answered conversationally using the result that was
+    already computed, without re-running matching/eligibility/retrieval from scratch. This is
+    what makes "explain in detail" actually explain, instead of replaying the same card."""
+    llm = LlmService()
+    history_text = "\n".join(
+        f"{m.get('role')}: {m.get('content')}" for m in (conversation_history or [])[-6:]
+    )
+    payload = json.dumps({
+        "reported_defect": active_defect,
+        "prior_result": last_result,
+        "recent_conversation": history_text,
+        "follow_up_question": question,
+    })
+    out = llm.small_model_call(payload, _load_prompt("defect_followup.txt"), stage="defect_followup")
+    j = _parse_json(out) or {}
+    answer = j.get("answer") or "I don't have anything more to add on that — try asking about a specific coverage by name."
+    return {
+        "responseType": "answer",
+        "answer": answer,
+        "evidence": [],
+        "confidence": 0.7,
+        "filters": {},
+        "context": {"activeDefect": active_defect, "lastResult": last_result},
+    }
+
 def answer_defect_thread(
     question: str,
     document_id: str,
@@ -255,6 +287,9 @@ def answer_defect_thread(
     if not _looks_like_defect(question):
         active = context.get("activeDefect") or _recall_last_defect(conversation_history)
         if active:
+            last_result = context.get("lastResult")
+            if last_result:
+                return answer_followup_question(question, active, last_result, conversation_history)
             target = active
     return handle_defect_workflow(target, context, document_id, conversation_history)
 
@@ -686,5 +721,25 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
         "answer": user_message,
         "confidence": primary["context_confidence_score"],
         "filters": {},
-        "context": {**context, "selectedCoverageId": None, "activeDefect": reported_defect},
+        "context": {
+            **context,
+            "selectedCoverageId": None,
+            "activeDefect": reported_defect,
+            "lastResult": {
+                "reported_defect": reported_defect,
+                "primary_decision": overall_decision,
+                "clause_results": [
+                    {
+                        "warranty_heading": c.get("warranty_heading"),
+                        "coverage_id": c.get("coverage_id"),
+                        "decision": c.get("decision"),
+                        "why_matched": c.get("why_matched"),
+                        "explanation": c.get("explanation"),
+                        "asset_eligibility": c.get("asset_eligibility"),
+                    }
+                    for c in clause_results
+                ],
+                "exclusions_checked": excl.get("exclusions_checked", []),
+            },
+        },
     }
