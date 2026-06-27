@@ -13,7 +13,7 @@ import { parseAnswerWithCitations } from "./CitationChip";
 import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem, DocumentDetail, MultiDecisionResponse } from "../../lib/types";
 import ClauseResultsCard, { decisionBadge } from "./ClauseResultsCard";
 import DisambiguationCard from "./DisambiguationCard";
-import EligibilityForm from "./EligibilityForm";
+
 import DecisionCard, { type DecisionCardProps } from "./DecisionCard";
 import CoverageListCard from "./CoverageListCard";
 
@@ -350,6 +350,8 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
   return (
     <div
       style={{
+        width: "36%",
+        flexShrink: 0,
         display: "flex",
         flexDirection: "column",
         height: "100%",
@@ -446,6 +448,18 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
             />
           </label>
         </div>
+        {(document?.make || document?.model || document?.year) && (
+          <p
+            style={{
+              fontSize: 10,
+              color: "var(--text-secondary)",
+              margin: "8px 0 0",
+              fontFamily: "'IBM Plex Mono', monospace",
+            }}
+          >
+            {[document?.make, document?.model, document?.year].filter(Boolean).join(" \u00b7 ")}
+          </p>
+        )}
         <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "6px 0 0" }}>
           Optional — fill these so I can check coverage without asking.
         </p>
@@ -628,20 +642,9 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
                     />
                   ) : null}
 
-                  {responseType === "needs_eligibility" && Array.isArray(structured.fields) ? (
-                    <EligibilityForm
-                      prompt={msg.content}
-                      fields={structured.fields as string[]}
-                      onSubmit={(values) => {
-                        const ctx = buildContext({
-                          selectedCoverageId: context.selectedCoverageId,
-                          eligibility: { ...(context.eligibility || {}), ...values },
-                        });
-                        setContext(ctx);
-                        handleSend("Eligibility details submitted", ctx);
-                      }}
-                    />
-                  ) : null}
+                  {/* Inline eligibility form removed by design — the Purchase date / Current
+                      mileage fields at the top of this panel are the single source of
+                      eligibility. The assistant points users there instead. */}
 
                   {responseType === "decision" ? (
                     <DecisionCard

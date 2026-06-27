@@ -137,11 +137,11 @@ export default function RequiredFieldsForm({
           <input style={inputStyle} value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 2019" />
         </div>
         <div>
-          <label style={requiredLabel}>VIN *</label>
+          <label style={vin.trim() || chassisId.trim() ? labelStyle : requiredLabel}>VIN (or Chassis ID){vin.trim() || chassisId.trim() ? "" : " *"}</label>
           <input style={inputStyle} value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-character VIN" />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
-          <label style={labelStyle}>Chassis ID (if no VIN)</label>
+          <label style={vin.trim() || chassisId.trim() ? labelStyle : requiredLabel}>Chassis ID (or VIN){vin.trim() || chassisId.trim() ? "" : " *"}</label>
           <input style={inputStyle} value={chassisId} onChange={(e) => setChassisId(e.target.value)} placeholder="e.g. 218380" />
         </div>
       </div>

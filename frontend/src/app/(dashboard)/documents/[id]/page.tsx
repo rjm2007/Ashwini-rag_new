@@ -23,7 +23,7 @@ import ChatSidebar from "../../../../components/chat/ChatSidebar";
 import type { SummaryPayload } from "../../../../lib/types";
 
 /* ─── Lazy imports for new components (graceful fallback if not yet built) ─── */
-let AiAnalystPanel: React.ComponentType<{ docId: string; filename: string }> | null = null;
+let AiAnalystPanel: React.ComponentType<{ docId: string; filename: string; document?: any }> | null = null;
 let AnalystLockedPlaceholder: React.ComponentType<{ status?: string }> | null = null;
 let LogsView: React.ComponentType<{ events: any[] }> | null = null;
 let MetricsView: React.ComponentType<{ events: any[]; document?: any }> | null = null;
@@ -320,7 +320,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         {/* ─── Left column (workspace) ─── */}
         <div
           style={{
-            width: chatReady ? "60%" : "100%",
+            width: chatReady ? "64%" : "100%",
             height: "100%",
             display: "flex",
             flexDirection: "column",
@@ -464,7 +464,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         {/* ─── Right column: AI Analyst or Locked Placeholder ─── */}
         {chatReady ? (
           AiAnalystPanel ? (
-            <AiAnalystPanel docId={params.id} filename={doc.originalFilename} />
+            <AiAnalystPanel docId={params.id} filename={doc.originalFilename} document={doc} />
           ) : (
             <ChatSidebar
               docId={params.id}

@@ -29,8 +29,7 @@ function SourceCard({
     String(item.sectionHeading).toLowerCase() !== "unknown"
       ? item.sectionHeading
       : null;
-  const preview = chunkText.slice(0, 180).trimEnd();
-  const isLong = chunkText.length > 180;
+
 
   return (
     <div
@@ -144,20 +143,19 @@ function SourceCard({
                   fontFamily: "inherit",
                 }}
               >
-                {isLong ? `${preview}…` : chunkText}
+                {(() => {
+                  // Tidy the raw chunk for display only: collapse whitespace, drop an exact
+                  // first-half/second-half duplication (e.g. "36 mo / 350k / 36 mo / 350k"),
+                  // and clamp length. No "N chars total" noise.
+                  const clean = (chunkText || "").replace(/\s+/g, " ").trim();
+                  const half = Math.floor(clean.length / 2);
+                  const deduped =
+                    half > 0 && clean.slice(0, half).trim() === clean.slice(half).trim()
+                      ? clean.slice(0, half).trim()
+                      : clean;
+                  return deduped.length > 240 ? `${deduped.slice(0, 240)}…` : deduped;
+                })()}
               </p>
-              {isLong && (
-                <span
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: "var(--text-muted)",
-                    display: "inline-block",
-                  }}
-                >
-                  {chunkText.length} chars total
-                </span>
-              )}
             </div>
           </motion.div>
         )}

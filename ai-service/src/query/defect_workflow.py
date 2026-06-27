@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 _LIST_RE = re.compile(
     r"\b(list|show|all)\b.*\b(coverage|coverages|components|warranties)\b", re.IGNORECASE
 )
-_CODE_RE = re.compile(r"\b([A-Z]\d{3,4})\b")
+_CODE_RE = re.compile(r"\b([A-Z]{1,3}\d{1,4}[A-Z]?)\b")
 _DEFECT_RE = re.compile(
     r"\b(broken|leak|noise|failed|failure|defect|issue|problem|hard to|won'?t|doesn'?t|overheat|sluggish)\b",
     re.IGNORECASE,
@@ -33,7 +33,8 @@ _DEFECT_RE = re.compile(
 # Words that signal the user is CONTINUING a previous defect question rather than starting a new one.
 _FOLLOWUP_RE = re.compile(
     r"\b(now|again|check|recheck|re-?check|covered|is it|are we|what about|filled|added|"
-    r"updated|entered|provided|yes|please check|the same|this|it)\b",
+    r"updated|entered|provided|yes|please check|the same|this|it|asked|meant|wrong|"
+    r"instead|not that|that one|i did|done)\b",
     re.IGNORECASE,
 )
 
@@ -45,7 +46,10 @@ def _looks_like_defect(text: str) -> bool:
     for w in ("engine", "transmission", "brake", "air condition", "ac ", "a/c", "frame",
               "cab", "axle", "driveline", "clutch", "exhaust", "aftertreatment", "cooling",
               "leak", "overheat", "knock", "noise", "crack", "worn", "damage", "not working",
-              "not functioning", "not cooling", "won't", "wont", "doesn't", "stuck", "frozen"):
+              "not functioning", "not cooling", "won't", "wont", "doesn't", "stuck", "frozen",
+              "steering", "steer", "stering", "steerin", "suspension", "alignment", "tie rod",
+              "knuckle", "ball joint", "wheel bearing", "shock", "strut", "smoke", "vibration",
+              "grinding", "rattle", "leaking", "hard to turn", "not turning", "differential"):
         if w in t:
             return True
     return False
@@ -188,14 +192,9 @@ def handle_coverage_lookup(question: str, context: dict, document_id: str | None
     )
     rows = [r for r in _collect_rows(docs) if str(r.get("coverage_id")).upper() == code.upper()]
     if not rows:
-        return {
-            "responseType": "answer",
-            "answer": f"I could not find coverage code {code} in certified documents for this vehicle.",
-            "evidence": [],
-            "confidence": 0.4,
-            "filters": {},
-            "context": context,
-        }
+        # Not a real coverage code for this vehicle (often a false-positive token such as a model
+        # number). Fall through to the defect / retrieval path instead of dead-ending the user.
+        return None
     row = rows[0]
     period = row.get("coverage_period") or {}
     answer = (
@@ -226,13 +225,14 @@ def route_specialized_query(
     if context.get("selectedCoverageId"):
         return handle_defect_workflow(question, context, document_id, conversation_history)
 
-    # MEMORY: a follow-up that continues a prior defect ("now check it", "I filled the date",
-    # "is it covered?") must re-run the LAST defect with the now-updated eligibility — NOT fall
-    # through to generic RAG (which would confuse it with an older question).
-    if _is_followup_continuation(question, intent):
-        last_defect = _recall_last_defect(conversation_history)
-        if last_defect:
-            return handle_defect_workflow(last_defect, context, document_id, conversation_history)
+    # A continuation ("now check it", "I filled the date", "but I asked for steering") must re-run
+    # the ACTIVE defect with the now-updated eligibility. We use the defect persisted in context
+    # (robust across typos like "stering") and only fall back to a history scan. It must NEVER
+    # drop into generic RAG — that is what made the steering follow-up answer about AC.
+    if not _looks_like_defect(question) and _is_followup_continuation(question, intent):
+        target = context.get("activeDefect") or _recall_last_defect(conversation_history)
+        if target:
+            return handle_defect_workflow(target, context, document_id, conversation_history)
 
     if (question or "").strip().lower().startswith("/defect"):
         defect_q = question.split("/defect", 1)[1].strip() or question
@@ -244,7 +244,7 @@ def route_specialized_query(
         lookup = handle_coverage_lookup(question, context, document_id)
         if lookup:
             return lookup
-    if intent == "defect_report":
+    if intent == "defect_report" or _looks_like_defect(question):
         return handle_defect_workflow(question, context, document_id, conversation_history)
     if classification.get("confidence", 1.0) < 0.6 and _DEFECT_RE.search(question or ""):
         return handle_defect_workflow(question, context, document_id, conversation_history)
@@ -343,7 +343,7 @@ def _fmt_date(s):
 def _clause_explanation(decision, row, elig, interp_public):
     name = row.get("coverage_name")
     if decision == "INFORMATION_ONLY":
-        return f"Relates to your {name} coverage. Add the purchase date and current mileage to check if it is covered."
+        return f"Relates to your {name} coverage. Add the truck's purchase date and current mileage in the fields above the chat box, then ask again to check it."
     if decision == "COVERED":
         return f"Covered under your {name} coverage — your truck is within the limits."
     if decision == "POSSIBLY_COVERED":
@@ -424,8 +424,8 @@ def _multi_user_message(reported_defect, interp_public, clause_results, excl, in
     if info_only:
         lines.append(
             f"Your **{component}** problem looks like it falls under your **{heading}** coverage. "
-            f"To tell you for sure if it is covered, we just need the truck's **purchase date** and "
-            f"**current mileage**."
+            f"To tell you for sure, add the truck's **purchase date** and **current mileage** in the "
+            f"fields just above the chat box, then send your question again."
         )
         return "\n".join(lines)
     if decision == "COVERED":
@@ -579,7 +579,8 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
                            f"This warranty covers: {systems_text}. "
                            "If you believe this should be covered, a warranty reviewer can take a closer look."),
                 "defect_interpretation": interp_public,
-                "evidence": [], "confidence": 0.35, "filters": {}, "context": context}
+                "evidence": [], "confidence": 0.35, "filters": {},
+                "context": {**context, "activeDefect": reported_defect}}
 
     # 8) build ONE result per matched clause (answer ALL of them)
     clause_results = []
@@ -632,5 +633,5 @@ def handle_defect_workflow(question, context, document_id, conversation_history)
         "answer": user_message,
         "confidence": primary["context_confidence_score"],
         "filters": {},
-        "context": {**context, "selectedCoverageId": None},
+        "context": {**context, "selectedCoverageId": None, "activeDefect": reported_defect},
     }
