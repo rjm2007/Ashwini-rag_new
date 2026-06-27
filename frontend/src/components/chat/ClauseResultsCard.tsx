@@ -86,8 +86,11 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
         </div>
       )}
 
-      {/* One card per matched clause */}
-      {results.map((c) => {
+      {/* One card per matched clause — skip anything with nothing real to show.
+          Secondary/borderline matches with no heading or explanation are already
+          covered in the plain-language summary above; rendering a bare decision
+          badge with no content is confusing, not informative. */}
+      {results.filter((c) => c.warranty_heading || c.why_matched || c.explanation).map((c) => {
         const pct = Math.round((c.context_confidence_score || 0) * 100);
         return (
           <div key={c.coverage_id + String(c.rank)} style={{ background: "var(--bg-surface, #161B22)", borderRadius: 8, padding: "0.85rem", borderLeft: `3px solid ${decisionColor(c.decision)}` }}>
@@ -105,9 +108,28 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
             {c.why_matched && <div style={{ fontSize: "0.88rem", marginTop: "0.4rem" }}>{c.why_matched}</div>}
             {c.explanation && <div style={{ fontSize: "0.88rem", marginTop: "0.3rem", opacity: 0.9 }}>{c.explanation}</div>}
             {c.decision !== "INFORMATION_ONLY" && <Eligibility e={c.asset_eligibility} />}
-            {(c.page_number != null || c.chunk_id) && (
-              <div style={{ fontSize: "0.72rem", opacity: 0.55, marginTop: "0.4rem", fontFamily: "var(--font-mono, monospace)" }}>
-                Source: {c.page_number != null ? `p.${c.page_number}` : ""} {c.chunk_id ? `· ${c.chunk_id}` : ""}
+            {c.matched_context_summary && (
+              <div style={{ fontSize: "0.82rem", marginTop: "0.4rem", opacity: 0.75, fontStyle: "italic" }}>
+                {c.matched_context_summary}
+              </div>
+            )}
+            {c.page_number != null && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: "0.72rem",
+                  marginTop: "0.5rem",
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "var(--bg-hover, rgba(255,255,255,0.08))",
+                  color: "var(--accent, #00D9C0)",
+                  fontFamily: "var(--font-mono, monospace)",
+                  fontWeight: 600,
+                }}
+              >
+                📄 Page {c.page_number}
               </div>
             )}
           </div>
