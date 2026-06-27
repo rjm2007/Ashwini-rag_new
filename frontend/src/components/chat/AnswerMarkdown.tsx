@@ -17,7 +17,9 @@ export default function AnswerMarkdown({ text, evidence = [] }: AnswerMarkdownPr
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => <p style={{ margin: "0 0 12px" }}>{children}</p>,
-          strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+          strong: ({ children }) => (
+            <strong style={{ fontWeight: 700, color: "#E6EDF3" }}>{children}</strong>
+          ),
           em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
           ul: ({ children }) => <ul style={{ margin: "0 0 12px", paddingLeft: 20 }}>{children}</ul>,
           ol: ({ children }) => <ol style={{ margin: "0 0 12px", paddingLeft: 20 }}>{children}</ol>,
