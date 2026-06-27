@@ -71,7 +71,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
       {/* User-facing verdict message (rendered as plain text with markdown bold) */}
       {data.user_message ? (
-        <div style={{ whiteSpace: "pre-wrap", marginBottom: "0.75rem" }}>
+        <div style={{ marginBottom: "0.75rem" }}>
           <AnswerMarkdown text={data.user_message} />
         </div>
       ) : null}

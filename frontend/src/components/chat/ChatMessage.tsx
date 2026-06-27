@@ -60,7 +60,7 @@ export default function ChatMessage({
           lineHeight: 1.6
         }}
       >
-        <div style={{ whiteSpace: "pre-wrap" }}>
+        <div>
           <AnswerMarkdown text={message.content} evidence={evidence} />
         </div>
         <CoverageDecision decision={decision} />

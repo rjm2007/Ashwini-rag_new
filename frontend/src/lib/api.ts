@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { PipelineEvent, QueryContext, SummaryPayload } from "./types";
+import type { PipelineEvent, QueryContext, SummaryPayload, Defect } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -57,5 +57,17 @@ export const sendChatMessage = (
 
 export const getDocumentCost = (docId: string) => api.get(`/cost/document/${docId}`);
 export const getDailyCost = () => api.get("/cost/daily");
+
+export const createDefect = (documentId: string, reportedDefect: string, purchaseDate?: string, currentMileage?: number) =>
+  api.post("/defects", { documentId, reportedDefect, purchaseDate, currentMileage });
+
+export const getDefects = () =>
+  api.get<Defect[]>("/defects");
+
+export const getDefect = (id: string) =>
+  api.get<Defect>(`/defects/${id}`);
+
+export const sendDefectMessage = (id: string, content: string) =>
+  api.post(`/defects/${id}/messages`, { content });
 
 export default api;

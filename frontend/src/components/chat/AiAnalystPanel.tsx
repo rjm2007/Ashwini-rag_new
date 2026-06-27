@@ -613,7 +613,7 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
                     lineHeight: 1.6,
                   }}
                 >
-                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  <div style={{ lineHeight: 1.6 }}>
                     <AnswerMarkdown text={msg.content} evidence={evidence} />
                   </div>
 

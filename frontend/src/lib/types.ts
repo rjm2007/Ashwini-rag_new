@@ -269,3 +269,30 @@ export interface MultiDecisionResponse {
   filters?: Record<string, unknown>;
   context?: QueryContext;
 }
+
+export interface DefectMessage {
+  id?: string;
+  role: "user" | "assistant";
+  content: string;
+  evidenceJson?: Record<string, unknown>;
+  confidenceScore?: number;
+  createdAt?: string;
+}
+
+export interface Defect {
+  id: string;
+  documentId: string;
+  createdBy: string;
+  reportedDefect: string;
+  purchaseDate?: string;
+  currentMileage?: number;
+  make?: string;
+  model?: string;
+  year?: number;
+  primaryDecision?: string;
+  primaryComponent?: string;
+  primaryCoverageId?: string;
+  overallConfidenceScore?: number;
+  contextJson?: Record<string, unknown>;
+  createdAt?: string;
+}

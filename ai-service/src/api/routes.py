@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from ..database import SessionLocal
 from ..query.query_orchestrator import answer_question
+from ..query.defect_workflow import answer_defect_thread
 from ..services.qdrant_service import QdrantService
 from ..workers.pipeline_orchestrator import run_act1_parse, run_act2_process
 from ..services.cost_tracker import record_cost, sum_document_cost, sum_session_cost
@@ -23,6 +24,12 @@ class QueryRequest(BaseModel):
     documentId: str | None = None
     sessionId: str | None = None
     context: dict[str, Any] | None = None
+
+class DefectAnswerRequest(BaseModel):
+    question: str
+    documentId: str
+    context: dict[str, Any] | None = None
+    conversationHistory: list[dict[str, Any]] = []
 
 
 class SetRepositoryRequest(BaseModel):
@@ -122,6 +129,20 @@ async def query_answer(payload: QueryRequest) -> dict[str, Any]:
         payload.documentId,
         context=payload.context,
         session_id=payload.sessionId,
+    )
+    ans["cost"] = request_cost_summary()
+    return ans
+
+
+@router.post("/defect/answer")
+async def defect_answer(payload: DefectAnswerRequest) -> dict[str, Any]:
+    from ..services.cost_tracker import start_request, request_cost_summary
+    start_request()
+    ans = answer_defect_thread(
+        question=payload.question,
+        document_id=payload.documentId,
+        context=payload.context,
+        conversation_history=payload.conversationHistory,
     )
     ans["cost"] = request_cost_summary()
     return ans

@@ -274,9 +274,7 @@ export default function ApprovalCard({
           }}
         >
           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-            {isCoverageTable
-              ? "Requires VIN/Chassis + Make."
-              : "Requires VIN/Chassis + Make + Model."}
+            {isCoverageTable ? "Requires Make." : "Requires Make + Model."}
           </span>
           <button
             type="button"

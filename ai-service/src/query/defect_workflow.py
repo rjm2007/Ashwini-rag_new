@@ -211,6 +211,20 @@ def handle_coverage_lookup(question: str, context: dict, document_id: str | None
         "context": context,
     }
 
+def answer_defect_thread(
+    question: str,
+    document_id: str,
+    context: dict | None,
+    conversation_history: list[dict],
+) -> dict:
+    context = context or {}
+    target = question
+    if not _looks_like_defect(question):
+        active = context.get("activeDefect") or _recall_last_defect(conversation_history)
+        if active:
+            target = active
+    return handle_defect_workflow(target, context, document_id, conversation_history)
+
 def route_specialized_query(
     question: str,
     context: dict | None,

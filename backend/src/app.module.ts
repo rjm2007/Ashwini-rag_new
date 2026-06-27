@@ -9,6 +9,7 @@ import { QueryModule } from "./modules/query/query.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { SupportModule } from "./modules/support/support.module";
 import { CostModule } from "./modules/cost/cost.module";
+import { DefectsModule } from "./modules/defects/defects.module";
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { CostModule } from "./modules/cost/cost.module";
     QueryModule,
     DashboardModule,
     SupportModule,
-    CostModule
+    CostModule,
+    DefectsModule
   ]
 })
 export class AppModule implements NestModule {
