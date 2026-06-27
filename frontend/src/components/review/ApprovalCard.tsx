@@ -78,9 +78,9 @@ export default function ApprovalCard({
   }, [document]);
 
   const isCoverageTable = document.documentType === "coverage_code_table";
-  // Client-side mirror of the backend gate: VIN/Chassis + Make (+ Model unless coverage_code_table)
+  // Client-side mirror of the backend gate: Make (+ Model unless coverage_code_table)
   const hasRequiredFields =
-    !!(vin.trim() || chassisId.trim()) && !!make.trim() && (isCoverageTable || !!model.trim());
+    !!make.trim() && (isCoverageTable || !!model.trim());
 
   const confidence = extractConfidence(masterSchema);
   const coverage = extractCoverage(masterSchema);
@@ -227,7 +227,7 @@ export default function ApprovalCard({
             />
           </div>
           <div>
-            <label style={!vin && !chassisId ? reqLabel : labelStyle}>VIN {!chassisId && !vin ? "(or Chassis ID) *" : ""}</label>
+            <label style={labelStyle}>VIN (optional)</label>
             <input
               style={inputStyle}
               value={vin}
@@ -236,7 +236,7 @@ export default function ApprovalCard({
             />
           </div>
           <div style={{ gridColumn: "1" }}>
-            <label style={!vin && !chassisId ? reqLabel : labelStyle}>Chassis ID {!vin && !chassisId ? "(or VIN) *" : ""}</label>
+            <label style={labelStyle}>Chassis ID (optional)</label>
             <input
               style={inputStyle}
               value={chassisId}

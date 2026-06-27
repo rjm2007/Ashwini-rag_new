@@ -222,21 +222,17 @@ def route_specialized_query(
     context = context or {}
     classification = classification or {}
 
-    if context.get("selectedCoverageId"):
-        return handle_defect_workflow(question, context, document_id, conversation_history)
-
-    # A continuation ("now check it", "I filled the date", "but I asked for steering") must re-run
-    # the ACTIVE defect with the now-updated eligibility. We use the defect persisted in context
-    # (robust across typos like "stering") and only fall back to a history scan. It must NEVER
-    # drop into generic RAG — that is what made the steering follow-up answer about AC.
-    if not _looks_like_defect(question) and _is_followup_continuation(question, intent):
-        target = context.get("activeDefect") or _recall_last_defect(conversation_history)
-        if target:
-            return handle_defect_workflow(target, context, document_id, conversation_history)
+    # Defect handling moved to Defect tab
 
     if (question or "").strip().lower().startswith("/defect"):
-        defect_q = question.split("/defect", 1)[1].strip() or question
-        return handle_defect_workflow(defect_q, context, document_id, conversation_history)
+        return {
+            "responseType": "answer",
+            "answer": "ℹ️ **Defect routing has moved.** To evaluate a specific defect against this warranty, please use the **Defects** tab in the sidebar.",
+            "evidence": [],
+            "confidence": 0.99,
+            "filters": {},
+            "context": context
+        }
 
     if intent == "list_coverage" or _LIST_RE.search(question or ""):
         return handle_list_coverage(context, document_id)
@@ -244,10 +240,16 @@ def route_specialized_query(
         lookup = handle_coverage_lookup(question, context, document_id)
         if lookup:
             return lookup
-    if intent == "defect_report" or _looks_like_defect(question):
-        return handle_defect_workflow(question, context, document_id, conversation_history)
-    if classification.get("confidence", 1.0) < 0.6 and _DEFECT_RE.search(question or ""):
-        return handle_defect_workflow(question, context, document_id, conversation_history)
+            
+    if intent == "defect_report" or _looks_like_defect(question) or (classification.get("confidence", 1.0) < 0.6 and _DEFECT_RE.search(question or "")):
+        return {
+            "responseType": "answer",
+            "answer": "ℹ️ **Defect routing has moved.** To evaluate a specific defect against this warranty, please use the **Defects** tab in the sidebar.",
+            "evidence": [],
+            "confidence": 0.99,
+            "filters": {},
+            "context": context
+        }
     return None
 
 
@@ -462,11 +464,15 @@ def _multi_user_message(reported_defect, interp_public, clause_results, excl, in
             verdict = c["decision"].replace("_", " ").lower()
             lines.append(f"- Your **{c['warranty_heading']}** coverage ({verdict}, {word}).")
 
-    # 4) exclusion note only when it actually blocks the claim
+    # 4) exclusion note (always shown)
     ex = (excl.get("exclusions_checked") or [{}])[0]
     if ex.get("exclusion_result") == "Strong exclusion found":
         lines.append("")
-        lines.append(f"⚠️ **Important:** {ex.get('explanation', '')}")
+        lines.append(f"⚠️ **Exclusion found:** {ex.get('explanation', '')}")
+    else:
+        conf = int((ex.get("exclusion_confidence_score") or 0) * 100)
+        lines.append("")
+        lines.append(f"✅ **Exclusion check:** No exclusion found ({conf}%) — {ex.get('explanation', '')}")
 
     # 5) small reference for staff (codes live here, not in the headline)
     codes = ", ".join(str(c.get("coverage_id")) for c in (real or clause_results) if c.get("coverage_id"))

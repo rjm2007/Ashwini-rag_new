@@ -4,7 +4,7 @@ import CoverageDecision, { inferCoverageDecision } from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
 import RaiseQueryInline from "./RaiseQueryInline";
-import { parseAnswerWithCitations } from "./CitationChip";
+import AnswerMarkdown from "./AnswerMarkdown";
 import type { ChatMessageItem, EvidencePayload } from "../../lib/types";
 
 export default function ChatMessage({
@@ -61,7 +61,7 @@ export default function ChatMessage({
         }}
       >
         <div style={{ whiteSpace: "pre-wrap" }}>
-          {parseAnswerWithCitations(message.content, evidence)}
+          <AnswerMarkdown text={message.content} evidence={evidence} />
         </div>
         <CoverageDecision decision={decision} />
         {confidence > 0 ? <ConfidenceBand confidence={confidence} /> : null}

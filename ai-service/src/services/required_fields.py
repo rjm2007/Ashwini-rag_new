@@ -18,8 +18,7 @@ def has_required_fields(
     document_type: str = "",
     unit_number: str | None = None,
 ) -> bool:
-    id_ok = bool(vin or chassis or (document_type == "repair_invoice" and unit_number))
-    if not (id_ok and make):
+    if not make:
         return False
     if document_type == "coverage_code_table":
         return True

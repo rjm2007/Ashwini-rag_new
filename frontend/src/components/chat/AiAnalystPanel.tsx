@@ -9,7 +9,7 @@ import { inferCoverageDecision } from "./CoverageDecision";
 import CoverageDecisionTag from "./CoverageDecision";
 import ConfidenceBand from "./ConfidenceBand";
 import SourcesPanel from "./SourcesPanel";
-import { parseAnswerWithCitations } from "./CitationChip";
+import AnswerMarkdown from "./AnswerMarkdown";
 import type { ChatMessageItem, EvidencePayload, QueryContext, CoverageDecision, CoverageListItem, DocumentDetail, MultiDecisionResponse } from "../../lib/types";
 import ClauseResultsCard, { decisionBadge } from "./ClauseResultsCard";
 import DisambiguationCard from "./DisambiguationCard";
@@ -253,6 +253,7 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
     clearSession(docId);
     setMessages([]);
     setSessionId(null);
+    setContext({});
     setLoading(true);
     try {
       const res = await createChatSession(filename);
@@ -613,7 +614,7 @@ export default function AiAnalystPanel({ docId, filename, document }: AiAnalystP
                   }}
                 >
                   <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                    {parseAnswerWithCitations(msg.content, evidence)}
+                    <AnswerMarkdown text={msg.content} evidence={evidence} />
                   </div>
 
                   {/* Coverage decision badge */}

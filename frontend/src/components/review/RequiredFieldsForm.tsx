@@ -111,7 +111,7 @@ export default function RequiredFieldsForm({
             Required fields missing before certification
           </p>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
-            Fill VIN (or Chassis ID), Make, and Model. Admin cannot certify until these are set.
+            Fill Make and Model. Admin cannot certify until these are set.
           </p>
         </div>
       </div>
@@ -137,11 +137,11 @@ export default function RequiredFieldsForm({
           <input style={inputStyle} value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 2019" />
         </div>
         <div>
-          <label style={vin.trim() || chassisId.trim() ? labelStyle : requiredLabel}>VIN (or Chassis ID){vin.trim() || chassisId.trim() ? "" : " *"}</label>
+          <label style={labelStyle}>VIN (optional)</label>
           <input style={inputStyle} value={vin} onChange={(e) => setVin(e.target.value)} placeholder="17-character VIN" />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
-          <label style={vin.trim() || chassisId.trim() ? labelStyle : requiredLabel}>Chassis ID (or VIN){vin.trim() || chassisId.trim() ? "" : " *"}</label>
+          <label style={labelStyle}>Chassis ID (optional)</label>
           <input style={inputStyle} value={chassisId} onChange={(e) => setChassisId(e.target.value)} placeholder="e.g. 218380" />
         </div>
       </div>

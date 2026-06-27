@@ -146,9 +146,7 @@ export class ReviewService {
              ELSE COALESCE(master_schema_json->'vehicle'->'model_year', 'null'::jsonb) END
          ),
          required_fields_missing = NOT (
-           (COALESCE($2::text, metadata_json->>'vin', '') <> '' OR
-            COALESCE($3::text, metadata_json->>'chassis_id', '') <> '')
-           AND COALESCE($4::text, make, '') <> ''
+           COALESCE($4::text, make, '') <> ''
            AND (document_type = 'coverage_code_table' OR COALESCE($5::text, model, '') <> '')
          )
          WHERE id = $1`,
@@ -183,20 +181,15 @@ export class ReviewService {
       throw new NotFoundException("Document not found");
     }
     if (docForGate.requiredFieldsMissing) {
-      const meta = (docForGate.metadataJson as Record<string, unknown>) || {};
-      const hasVinOrChassis = !!(meta.vin || meta.chassis_id);
-      const hasUnit = !!meta.unit_number;
       const hasMake = !!docForGate.make;
       const hasModel = !!docForGate.model;
       const isCoverageTable = docForGate.documentType === "coverage_code_table";
-      const isInvoice = docForGate.documentType === "repair_invoice";
-      const hasIdentifiers =
-        (hasVinOrChassis || (isInvoice && hasUnit)) && hasMake && (isCoverageTable || hasModel);
+      const hasIdentifiers = hasMake && (isCoverageTable || hasModel);
       if (!hasIdentifiers) {
         throw new BadRequestException(
           isCoverageTable
-            ? "Required fields missing: VIN (or Chassis ID) and Make must be filled before certification."
-            : "Required fields missing: VIN (or Chassis ID), Make, and Model must be filled before certification. Use PATCH /review/:id/metadata to fill them."
+            ? "Required fields missing: Make must be filled before certification."
+            : "Required fields missing: Make and Model must be filled before certification. Use PATCH /review/:id/metadata to fill them."
         );
       }
     }
