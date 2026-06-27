@@ -19,18 +19,19 @@ import TypePill from "../../../../components/ui/TypePill";
 import PipelineTab from "../../../../components/pipeline/PipelineTab";
 import RequiredFieldsForm from "../../../../components/review/RequiredFieldsForm";
 import CoverageExplorer, { CoverageSkeleton } from "../../../../components/coverage/CoverageExplorer";
+import DocumentFloatingChat from "../../../../components/DocumentFloatingChat";
 import ChatSidebar from "../../../../components/chat/ChatSidebar";
 import type { SummaryPayload } from "../../../../lib/types";
 
 /* ─── Lazy imports for new components (graceful fallback if not yet built) ─── */
-let AiAnalystPanel: React.ComponentType<{ docId: string; filename: string; document?: any }> | null = null;
+
 let AnalystLockedPlaceholder: React.ComponentType<{ status?: string }> | null = null;
 let LogsView: React.ComponentType<{ events: any[] }> | null = null;
 let MetricsView: React.ComponentType<{ events: any[]; document?: any }> | null = null;
 let CostView: React.ComponentType<{ documentId: string }> | null = null;
 let ApprovalCard: React.ComponentType<{ docId: string; document: any; masterSchema?: any; onApproved?: () => void }> | null = null;
 
-try { AiAnalystPanel = require("../../../../components/chat/AiAnalystPanel").default; } catch {}
+
 try { AnalystLockedPlaceholder = require("../../../../components/chat/AnalystLockedPlaceholder").default; } catch {}
 try { LogsView = require("../../../../components/observability/LogsView").default; } catch {}
 try { MetricsView = require("../../../../components/observability/MetricsView").default; } catch {}
@@ -461,91 +462,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
           </div>
         </div>
 
-        {/* ─── Right column: AI Analyst or Locked Placeholder ─── */}
-        {chatReady ? (
-          AiAnalystPanel ? (
-            <AiAnalystPanel docId={params.id} filename={doc.originalFilename} document={doc} />
-          ) : (
-            <ChatSidebar
-              docId={params.id}
-              filename={doc.originalFilename}
-              certified={certified}
-            />
-          )
-        ) : (
-          <div
-            style={{
-              width: "40%",
-              height: "100%",
-              background: "var(--bg-surface)",
-              borderLeft: "1px solid var(--border)",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {AnalystLockedPlaceholder ? (
-              <AnalystLockedPlaceholder status={processingStatus} />
-            ) : (
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 32,
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: "50%",
-                    background: "var(--accent-soft)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Shield size={28} style={{ color: "var(--accent)" }} className="animate-breathe" />
-                </div>
-                <p
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: "var(--text-primary)",
-                    marginBottom: 6,
-                  }}
-                >
-                  AI Analyst will be ready soon
-                </p>
-                <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 260 }}>
-                  The analyst activates once document processing completes.
-                </p>
-                <div
-                  style={{
-                    marginTop: 16,
-                    fontSize: 12,
-                    color: "var(--accent)",
-                    background: "var(--accent-soft)",
-                    padding: "4px 12px",
-                    borderRadius: "var(--r-pill)",
-                  }}
-                >
-                  {processingStatus === "awaiting_certification"
-                    ? "Awaiting approval…"
-                    : processingStatus === "embedding"
-                    ? "Generating embeddings…"
-                    : processingStatus === "schema_extraction"
-                    ? "Extracting schema…"
-                    : "Processing…"}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {chatReady && <DocumentFloatingChat docId={params.id} filename={doc.originalFilename} document={doc} />}
       </div>
     </div>
   );

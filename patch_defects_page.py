@@ -1,4 +1,8 @@
-"use client";
+import os
+
+path = r'c:\Users\rudra\Desktop\Waranty_POC\warranty-platform\frontend\src\app\defects\[id]\page.tsx'
+
+content = """"use client";
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -76,3 +80,8 @@ export default function DefectThreadPage() {
     </div>
   );
 }
+"""
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print("Patched defects/[id]/page.tsx")
