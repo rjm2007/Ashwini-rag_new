@@ -169,10 +169,22 @@ def handle_list_coverage(context: dict, document_id: str | None) -> dict:
                 "documentId": r.get("_documentId"),
             }
         )
+    if items:
+        lines = [f"This warranty includes **{len(items)}** covered components:", ""]
+        for it in items:
+            cid = it.get("coverage_id") or "—"
+            name = it.get("coverage_name") or "Unnamed coverage"
+            period = it.get("period_label") or it.get("coverage_period") or ""
+            period_text = f" — {period}" if period else ""
+            lines.append(f"- **{cid}** {name}{period_text}")
+        list_answer = "\n".join(lines)
+    else:
+        list_answer = "I couldn't find any coverage rows for this document."
+
     return {
         "responseType": "coverage_list",
         "coverages": items,
-        "answer": f"Found {len(rows)} coverage rows across {len(docs)} document(s).",
+        "answer": list_answer,
         "evidence": [],
         "confidence": 0.9,
         "filters": {},

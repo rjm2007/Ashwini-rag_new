@@ -41,7 +41,7 @@ export class DefectEntity {
   @Column({ name: "primary_component", nullable: true })
   primaryComponent?: string;
 
-  @Column({ name: "primary_coverage_id", type: "uuid", nullable: true })
+  @Column({ name: "primary_coverage_id", type: "varchar", nullable: true })
   primaryCoverageId?: string;
 
   @Column({ name: "overall_confidence_score", type: "float", nullable: true })

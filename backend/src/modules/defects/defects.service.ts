@@ -22,20 +22,23 @@ export class DefectsService {
     private readonly documentsRepo: Repository<DocumentEntity>
   ) {}
 
-  /** Dropdown source for "New Defect": certified docs with make+model+year known. No VIN, ever. */
+  /** Dropdown source for "New Defect": certified docs with make+model known. No VIN, ever.
+   *  Year is shown when present but is no longer required — several certified docs (including
+   *  older ones certified before this column was consistently populated) have make+model but
+   *  no year, and excluding them hid every certified vehicle from the dropdown. */
   async listEligibleDocuments() {
     const docs = await this.documentsRepo.find({
       where: { currentRepository: DocumentRepository.CERTIFIED },
       order: { uploadedAt: "DESC" }
     });
     return docs
-      .filter((d) => d.make && d.model && d.year)
+      .filter((d) => d.make && d.model)
       .map((d) => ({
         documentId: d.id,
         originalFilename: d.originalFilename,
         make: d.make,
         model: d.model,
-        year: d.year
+        year: d.year ?? null
       }));
   }
 

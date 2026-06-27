@@ -321,13 +321,11 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
         {/* ─── Left column (workspace) ─── */}
         <div
           style={{
-            width: chatReady ? "64%" : "100%",
+            width: "100%",
             height: "100%",
             display: "flex",
             flexDirection: "column",
-            borderRight: chatReady ? "1px solid var(--border)" : "none",
             minWidth: 0,
-            transition: "width 300ms ease",
           }}
         >
           {/* Tab bar */}

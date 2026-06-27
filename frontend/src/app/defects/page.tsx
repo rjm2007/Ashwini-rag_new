@@ -109,7 +109,7 @@ function NewDefectModal({
           {documents.length === 0 && <option value="">No certified vehicles available</option>}
           {documents.map((d) => (
             <option key={d.documentId} value={d.documentId}>
-              {d.make} · {d.model} · {d.year}
+              {[d.make, d.model, d.year].filter(Boolean).join(" · ")}
             </option>
           ))}
         </select>
