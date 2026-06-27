@@ -1,35 +1,49 @@
-import { Controller, Post, Get, Body, Param, Req } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { Request } from "express";
+import { Roles } from "../../common/decorators/roles.decorator";
+import { RolesGuard } from "../../common/guards/roles.guard";
+import { UserRole } from "../../common/enums/user-role.enum";
 import { DefectsService } from "./defects.service";
 import { CreateDefectDto } from "./dto/create-defect.dto";
 import { SendDefectMessageDto } from "./dto/send-defect-message.dto";
 
 @Controller("defects")
+@UseGuards(RolesGuard)
 export class DefectsController {
   constructor(private readonly defectsService: DefectsService) {}
 
-  @Post()
-  async create(@Body() createDto: CreateDefectDto, @Req() req: Request & { user?: Record<string, unknown> }) {
-    if (!req.user || !req.user.id) {
-      // Using a fallback for testing if req.user.id is missing
-      const userId = (req.user?.sub as string) || "00000000-0000-0000-0000-000000000000";
-      return this.defectsService.create(createDto, userId);
-    }
-    return this.defectsService.create(createDto, req.user.id as string);
+  // Must be registered before ":id" so "eligible-documents" isn't swallowed as an :id param.
+  @Get("eligible-documents")
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async listEligibleDocuments() {
+    return this.defectsService.listEligibleDocuments();
   }
 
   @Get()
-  async findAll() {
-    return this.defectsService.findAll();
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async findAll(@Req() req: Request & { user?: any }) {
+    return this.defectsService.findAll(req.user?.userId);
   }
 
   @Get(":id")
-  async findOne(@Param("id") id: string) {
-    return this.defectsService.findOne(id);
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async findOne(@Param("id") id: string, @Req() req: Request & { user?: any }) {
+    return this.defectsService.findOne(id, req.user?.userId);
+  }
+
+  @Post()
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async create(@Body() createDto: CreateDefectDto, @Req() req: Request & { user?: any }) {
+    return this.defectsService.create(createDto, req.user?.userId);
   }
 
   @Post(":id/messages")
-  async addMessage(@Param("id") id: string, @Body() messageDto: SendDefectMessageDto) {
-    return this.defectsService.addMessage(id, messageDto);
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER, UserRole.USER)
+  async addMessage(
+    @Param("id") id: string,
+    @Body() messageDto: SendDefectMessageDto,
+    @Req() req: Request & { user?: any }
+  ) {
+    return this.defectsService.addMessage(id, messageDto.content, req.user?.userId);
   }
 }

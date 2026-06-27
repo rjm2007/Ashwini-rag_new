@@ -295,4 +295,13 @@ export interface Defect {
   overallConfidenceScore?: number;
   contextJson?: Record<string, unknown>;
   createdAt?: string;
+  messages?: DefectMessage[];
+}
+
+export interface EligibleDocumentOption {
+  documentId: string;
+  originalFilename: string;
+  make: string;
+  model: string;
+  year: number;
 }
