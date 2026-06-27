@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 
 interface AnswerMarkdownProps {
   text: string;
-  evidence?: { chunk_id?: string; text_reference?: string; title?: string }[];
+  evidence?: any[];
 }
 
 export default function AnswerMarkdown({ text, evidence = [] }: AnswerMarkdownProps) {
