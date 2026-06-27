@@ -169,12 +169,33 @@ def handle_list_coverage(context: dict, document_id: str | None) -> dict:
                 "documentId": r.get("_documentId"),
             }
         )
+    def _format_period(it: dict) -> str:
+        label = it.get("period_label")
+        if isinstance(label, str) and label.strip() and label.strip().lower() != "none":
+            return label.strip()
+        period = it.get("coverage_period")
+        if isinstance(period, dict):
+            text = period.get("duration_text")
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+            parts = []
+            months = period.get("duration_months")
+            if months:
+                parts.append(f"{months} months")
+            miles = period.get("mileage_limit")
+            if miles:
+                unit = period.get("mileage_unit") or "miles"
+                parts.append(f"{miles:,} {unit}")
+            if parts:
+                return " / ".join(parts)
+        return ""
+
     if items:
         lines = [f"This warranty includes **{len(items)}** covered components:", ""]
         for it in items:
             cid = it.get("coverage_id") or "—"
             name = it.get("coverage_name") or "Unnamed coverage"
-            period = it.get("period_label") or it.get("coverage_period") or ""
+            period = _format_period(it)
             period_text = f" — {period}" if period else ""
             lines.append(f"- **{cid}** {name}{period_text}")
         list_answer = "\n".join(lines)
