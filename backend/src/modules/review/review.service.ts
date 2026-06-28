@@ -234,6 +234,10 @@ export class ReviewService {
     await this.documentsService.saveDocument(document);
     this.logger.log(`adminApprove documents row updated to certified documentId=${documentId}`);
 
+    const warrantyType = await this.determineWarrantyType(docForGate);
+    await this.documentsRepository.update(documentId, { warrantyType });
+    this.logger.log(`adminApprove warrantyType=${warrantyType} documentId=${documentId}`);
+
     review.adminId = userId;
     review.adminApprovedAt = new Date();
     review.adminComment = comment;
@@ -368,5 +372,57 @@ export class ReviewService {
     }
     const created = this.reviewRepository.create({ documentId, finalStatus: ReviewFinalStatus.IN_REVIEW });
     return this.reviewRepository.save(created);
+  }
+  private normalizeMake(make?: string | null): string {
+    return (make || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\btruck\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  private normalizeModel(model?: string | null): string {
+    return (model || "").trim().toLowerCase().replace(/\s+/g, "");
+  }
+
+  /** VIN if present anywhere we know to look, else chassis ID, else null. */
+  private extractIdentifier(doc: DocumentEntity): string | null {
+    const meta = (doc.metadataJson as Record<string, any>) || {};
+    const schema = (doc.masterSchemaJson as Record<string, any>) || {};
+    const vehicle = schema.vehicle || {};
+    const vin = meta.vin || vehicle.vin?.value || null;
+    const chassis = meta.chassis_id || vehicle.chassis_id?.value || null;
+    const id = String(vin || chassis || "").trim().toUpperCase();
+    return id || null;
+  }
+
+  /**
+   * Standard = first certified document for this Make+Model+Year.
+   * Non-Standard = another certified document already exists for the same Make+Model+Year
+   * with a different (or missing-on-either-side) VIN/Chassis — a VIN-specific extended
+   * warranty layered on top of the standard one for that vehicle type.
+   */
+  async determineWarrantyType(doc: DocumentEntity): Promise<"standard" | "non_standard"> {
+    if (!doc.make || !doc.model) return "standard";
+    const candidates = await this.documentsRepository.find({
+      where: { currentRepository: DocumentRepository.CERTIFIED },
+    });
+    const myMake = this.normalizeMake(doc.make);
+    const myModel = this.normalizeModel(doc.model);
+    const myId = this.extractIdentifier(doc);
+
+    for (const other of candidates) {
+      if (other.id === doc.id) continue;
+      if (this.normalizeMake(other.make) !== myMake) continue;
+      if (this.normalizeModel(other.model) !== myModel) continue;
+      if (String(other.year || "") !== String(doc.year || "")) continue;
+
+      const otherId = this.extractIdentifier(other);
+      if (!myId || !otherId || myId !== otherId) {
+        return "non_standard";
+      }
+    }
+    return "standard";
   }
 }

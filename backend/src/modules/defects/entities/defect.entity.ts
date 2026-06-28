@@ -29,6 +29,9 @@ export class DefectEntity {
   @Column({ nullable: true })
   make?: string;
 
+  @Column({ name: "warranty_type", type: "varchar", length: 20, nullable: true })
+  warrantyType?: string;
+
   @Column({ nullable: true })
   model?: string;
 

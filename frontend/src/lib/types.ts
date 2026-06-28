@@ -13,6 +13,7 @@ export interface DocumentDetail extends DocumentItem {
   make?: string;
   model?: string;
   year?: number;
+  warrantyType?: string;
   metadataJson?: Record<string, unknown>;
   confidenceScore?: number;
   errorMessage?: string;
@@ -103,6 +104,7 @@ export interface SummaryPayload {
   documentType?: string | null;
   completeness?: number;
   requiredFieldsMissing?: boolean;
+  warrantyType?: string;
   stats?: WarrantySummaryStats;
   coverage_components?: CoverageComponent[];
   document?: Record<string, unknown>;
@@ -284,6 +286,7 @@ export interface Defect {
   documentId: string;
   createdBy: string;
   reportedDefect: string;
+  warrantyType?: string;
   purchaseDate?: string;
   currentMileage?: number;
   make?: string;
@@ -304,4 +307,6 @@ export interface EligibleDocumentOption {
   make: string;
   model: string;
   year: number;
+  warrantyType?: string;
+  vinSuffix?: string | null;
 }

@@ -124,11 +124,15 @@ function NewDefectModal({
         <label style={labelStyle}>Vehicle (make · model · year)</label>
         <select value={documentId} onChange={(e) => setDocumentId(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }}>
           {documents.length === 0 && <option value="">No certified vehicles available</option>}
-          {documents.map((d) => (
-            <option key={d.documentId} value={d.documentId}>
-              {[d.make, d.model, d.year].filter(Boolean).join(" · ")}
-            </option>
-          ))}
+          {documents.map((d) => {
+            const typeLabel = d.warrantyType === "non_standard" ? "Non-Standard" : "Standard";
+            const suffix = d.vinSuffix ? ` · ...${d.vinSuffix}` : "";
+            return (
+              <option key={d.documentId} value={d.documentId}>
+                {[d.make, d.model, d.year].filter(Boolean).join(" · ")} — {typeLabel}{suffix}
+              </option>
+            );
+          })}
         </select>
 
         <label style={labelStyle}>What's wrong?</label>
@@ -255,6 +259,7 @@ export default function DefectsPage() {
                 <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: "#F1F5F9" }}>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Reported Defect</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Vehicle</th>
+                  <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Warranty Type</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Decision</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Component</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Date</th>
@@ -267,6 +272,18 @@ export default function DefectsPage() {
                     <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>{d.reportedDefect}</td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: COLORS.textPrimary }}>
                       {[d.make, d.model, d.year].filter(Boolean).join(" ") || "-"}
+                    </td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <span
+                        style={{
+                          fontSize: 11, fontWeight: 700,
+                          color: d.warrantyType === "non_standard" ? COLORS.gate : COLORS.accent,
+                          padding: "2px 10px", borderRadius: 999,
+                          background: d.warrantyType === "non_standard" ? `${COLORS.gate}1A` : `${COLORS.accent}1A`,
+                        }}
+                      >
+                        {d.warrantyType === "non_standard" ? "Non-Standard" : "Standard"}
+                      </span>
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       <span

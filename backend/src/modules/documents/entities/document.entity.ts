@@ -30,8 +30,8 @@ export class DocumentEntity {
   @Column({ nullable: true })
   year?: number;
 
-  @Column({ name: "warranty_type", nullable: true })
-  warrantyType?: string;
+  @Column({ name: "warranty_type", type: "varchar", length: 20, default: "standard" })
+  warrantyType!: string;
 
   @Column({ nullable: true })
   country?: string;

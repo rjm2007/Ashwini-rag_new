@@ -186,6 +186,7 @@ export class DocumentsService {
       documentType: doc.documentType ?? schema?.document?.document_type ?? null,
       completeness: doc.completeness ?? 0,
       requiredFieldsMissing: doc.requiredFieldsMissing ?? true,
+      warrantyType: doc.warrantyType,
       ...schema,
       stats: {
         coverage_count: rows.length,

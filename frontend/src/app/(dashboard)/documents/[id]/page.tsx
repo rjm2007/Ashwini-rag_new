@@ -20,6 +20,7 @@ import PipelineTab from "../../../../components/pipeline/PipelineTab";
 import RequiredFieldsForm from "../../../../components/review/RequiredFieldsForm";
 import CoverageExplorer, { CoverageSkeleton } from "../../../../components/coverage/CoverageExplorer";
 import DocumentFloatingChat from "../../../../components/DocumentFloatingChat";
+import WarrantyTypeBadge from "../../../../components/ui/WarrantyTypeBadge";
 import ChatSidebar from "../../../../components/chat/ChatSidebar";
 import type { SummaryPayload } from "../../../../lib/types";
 
@@ -250,6 +251,7 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
             Certified
           </div>
         )}
+        {doc?.warrantyType && <WarrantyTypeBadge warrantyType={doc.warrantyType} />}
       </header>
 
       {/* ═══ Certify confirmation bar ═══ */}

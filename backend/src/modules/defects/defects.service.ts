@@ -33,13 +33,23 @@ export class DefectsService {
     });
     return docs
       .filter((d) => d.make && d.model)
-      .map((d) => ({
-        documentId: d.id,
-        originalFilename: d.originalFilename,
-        make: d.make,
-        model: d.model,
-        year: d.year ?? null
-      }));
+      .map((d) => {
+        const meta = (d.metadataJson as Record<string, any>) || {};
+        const schema = (d.masterSchemaJson as Record<string, any>) || {};
+        const vehicle = schema.vehicle || {};
+        const vin = meta.vin || vehicle.vin?.value || null;
+        const chassis = meta.chassis_id || vehicle.chassis_id?.value || null;
+        const identifier = vin || chassis || null;
+        return {
+          documentId: d.id,
+          originalFilename: d.originalFilename,
+          make: d.make,
+          model: d.model,
+          year: d.year ?? null,
+          warrantyType: d.warrantyType || "standard",
+          vinSuffix: identifier ? String(identifier).slice(-6) : null
+        };
+      });
   }
 
   private async callAi(
@@ -99,6 +109,7 @@ export class DefectsService {
       make: document.make,
       model: document.model,
       year: document.year,
+      warrantyType: document.warrantyType,
       primaryDecision: aiResponse.primary_decision || aiResponse.coverageDecision,
       primaryComponent: aiResponse.clause_results?.[0]?.warranty_heading,
       primaryCoverageId: aiResponse.clause_results?.[0]?.coverage_id,
