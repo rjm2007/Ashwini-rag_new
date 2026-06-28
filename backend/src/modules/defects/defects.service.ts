@@ -22,34 +22,61 @@ export class DefectsService {
     private readonly documentsRepo: Repository<DocumentEntity>
   ) {}
 
-  /** Dropdown source for "New Defect": certified docs with make+model known. No VIN, ever.
-   *  Year is shown when present but is no longer required — several certified docs (including
-   *  older ones certified before this column was consistently populated) have make+model but
-   *  no year, and excluding them hid every certified vehicle from the dropdown. */
+  private normalizeMakeForGrouping(make?: string | null): string {
+    return (make || "").trim().toLowerCase().replace(/\btruck\b/g, "").replace(/\s+/g, " ").trim();
+  }
+  private normalizeModelForGrouping(model?: string | null): string {
+    return (model || "").trim().toLowerCase().replace(/\s+/g, "");
+  }
+
+  /** One entry per UNIQUE Make+Model+Year, each carrying the list of specific
+   *  vehicles (documents/VINs) behind it. The dropdown shows the group once;
+   *  a second selector only appears client-side when vehicles.length > 1. */
   async listEligibleDocuments() {
     const docs = await this.documentsRepo.find({
       where: { currentRepository: DocumentRepository.CERTIFIED },
       order: { uploadedAt: "DESC" }
     });
-    return docs
-      .filter((d) => d.make && d.model)
-      .map((d) => {
-        const meta = (d.metadataJson as Record<string, any>) || {};
-        const schema = (d.masterSchemaJson as Record<string, any>) || {};
-        const vehicle = schema.vehicle || {};
-        const vin = meta.vin || vehicle.vin?.value || null;
-        const chassis = meta.chassis_id || vehicle.chassis_id?.value || null;
-        const identifier = vin || chassis || null;
-        return {
-          documentId: d.id,
-          originalFilename: d.originalFilename,
-          make: d.make,
-          model: d.model,
-          year: d.year ?? null,
-          warrantyType: d.warrantyType || "standard",
-          vinSuffix: identifier ? String(identifier).slice(-6) : null
-        };
+    const eligible = docs.filter((d) => d.make && d.model);
+
+    const groups = new Map<
+      string,
+      {
+        make: string;
+        model: string;
+        year: number | null;
+        vehicles: Array<{
+          documentId: string;
+          originalFilename: string;
+          warrantyType: string;
+          vinSuffix: string | null;
+        }>;
+      }
+    >();
+
+    for (const d of eligible) {
+      const key = `${this.normalizeMakeForGrouping(d.make)}|${this.normalizeModelForGrouping(d.model)}|${
+        d.year ?? ""
+      }`;
+      const meta = (d.metadataJson as Record<string, any>) || {};
+      const schema = (d.masterSchemaJson as Record<string, any>) || {};
+      const vehicle = schema.vehicle || {};
+      const vin = meta.vin || vehicle.vin?.value || null;
+      const chassis = meta.chassis_id || vehicle.chassis_id?.value || null;
+      const identifier = vin || chassis || null;
+
+      if (!groups.has(key)) {
+        groups.set(key, { make: d.make as string, model: d.model as string, year: d.year ?? null, vehicles: [] });
+      }
+      groups.get(key)!.vehicles.push({
+        documentId: d.id,
+        originalFilename: d.originalFilename,
+        warrantyType: d.warrantyType || "standard",
+        vinSuffix: identifier ? String(identifier).slice(-6) : null
       });
+    }
+
+    return Array.from(groups.values());
   }
 
   private async callAi(

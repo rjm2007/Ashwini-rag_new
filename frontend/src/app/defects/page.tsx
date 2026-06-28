@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getDefects, getEligibleDefectDocuments, createDefect } from "@/lib/api";
-import type { Defect, EligibleDocumentOption } from "@/lib/types";
+import type { Defect, EligibleVehicleGroup } from "@/lib/types";
 import Topbar from "@/components/Topbar";
 import { Wrench, Plus, X, Loader2, AlertCircle } from "lucide-react";
 
@@ -49,20 +49,28 @@ function decisionLabel(d?: string) {
 }
 
 function NewDefectModal({
-  documents,
+  groups,
   onClose,
-  onCreated,
+  onCreated
 }: {
-  documents: EligibleDocumentOption[];
+  groups: EligibleVehicleGroup[];
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
-  const [documentId, setDocumentId] = useState(documents[0]?.documentId || "");
+  const [groupIndex, setGroupIndex] = useState(0);
+  const [documentId, setDocumentId] = useState(groups[0]?.vehicles[0]?.documentId || "");
   const [reportedDefect, setReportedDefect] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
   const [currentMileage, setCurrentMileage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const selectedGroup = groups[groupIndex];
+
+  const onGroupChange = (idx: number) => {
+    setGroupIndex(idx);
+    setDocumentId(groups[idx]?.vehicles[0]?.documentId || "");
+  };
 
   const submit = async () => {
     if (!documentId || reportedDefect.trim().length < 3) {
@@ -121,19 +129,51 @@ function NewDefectModal({
           </button>
         </div>
 
+        {/* Step 1 — pick the vehicle type. One entry per unique Make/Model/Year. */}
         <label style={labelStyle}>Vehicle (make · model · year)</label>
-        <select value={documentId} onChange={(e) => setDocumentId(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }}>
-          {documents.length === 0 && <option value="">No certified vehicles available</option>}
-          {documents.map((d) => {
-            const typeLabel = d.warrantyType === "non_standard" ? "Non-Standard" : "Standard";
-            const suffix = d.vinSuffix ? ` · ...${d.vinSuffix}` : "";
-            return (
-              <option key={d.documentId} value={d.documentId}>
-                {[d.make, d.model, d.year].filter(Boolean).join(" · ")} — {typeLabel}{suffix}
-              </option>
-            );
-          })}
+        <select
+          value={groupIndex}
+          onChange={(e) => onGroupChange(parseInt(e.target.value, 10))}
+          style={{ ...inputStyle, marginBottom: selectedGroup && selectedGroup.vehicles.length > 1 ? 10 : 14 }}
+        >
+          {groups.length === 0 && <option value={0}>No certified vehicles available</option>}
+          {groups.map((g, idx) => (
+            <option key={`${g.make}-${g.model}-${g.year}`} value={idx}>
+              {[g.make, g.model, g.year].filter(Boolean).join(" · ")}
+              {g.vehicles.length > 1 ? ` (${g.vehicles.length} vehicles)` : ""}
+            </option>
+          ))}
         </select>
+
+        {/* Step 2 — only shown when this Make/Model/Year has more than one VIN behind it. */}
+        {selectedGroup && selectedGroup.vehicles.length > 1 && (
+          <>
+            <label style={labelStyle}>Which one? (Standard / VIN)</label>
+            <select
+              value={documentId}
+              onChange={(e) => setDocumentId(e.target.value)}
+              style={{ ...inputStyle, marginBottom: 14 }}
+            >
+              {selectedGroup.vehicles.map((v) => {
+                const typeLabel = v.warrantyType === "non_standard" ? "Non-Standard" : "Standard";
+                const suffix = v.vinSuffix ? ` · ...${v.vinSuffix}` : "";
+                return (
+                  <option key={v.documentId} value={v.documentId}>
+                    {typeLabel}{suffix}
+                  </option>
+                );
+              })}
+            </select>
+          </>
+        )}
+
+        {/* Only one vehicle behind this Make/Model/Year — nothing to pick, just say what it is. */}
+        {selectedGroup && selectedGroup.vehicles.length === 1 && (
+          <p style={{ fontSize: 11, color: COLORS.textSecondary, margin: "6px 0 14px" }}>
+            {selectedGroup.vehicles[0].warrantyType === "non_standard" ? "Non-Standard" : "Standard"} warranty
+            {selectedGroup.vehicles[0].vinSuffix ? ` · VIN ...${selectedGroup.vehicles[0].vinSuffix}` : ""}
+          </p>
+        )}
 
         <label style={labelStyle}>What's wrong?</label>
         <textarea
@@ -201,7 +241,7 @@ function NewDefectModal({
 export default function DefectsPage() {
   const router = useRouter();
   const [defects, setDefects] = useState<Defect[]>([]);
-  const [documents, setDocuments] = useState<EligibleDocumentOption[]>([]);
+  const [documents, setDocuments] = useState<EligibleVehicleGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -315,7 +355,7 @@ export default function DefectsPage() {
       </div>
 
       {showModal && (
-        <NewDefectModal documents={documents} onClose={() => setShowModal(false)} onCreated={(id) => router.push(`/defects/${id}`)} />
+        <NewDefectModal groups={documents} onClose={() => setShowModal(false)} onCreated={(id) => router.push(`/defects/${id}`)} />
       )}
     </div>
   );

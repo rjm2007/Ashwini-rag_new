@@ -301,12 +301,16 @@ export interface Defect {
   messages?: DefectMessage[];
 }
 
-export interface EligibleDocumentOption {
+export interface EligibleVehicleOption {
   documentId: string;
   originalFilename: string;
-  make: string;
-  model: string;
-  year: number;
   warrantyType?: string;
   vinSuffix?: string | null;
+}
+
+export interface EligibleVehicleGroup {
+  make: string;
+  model: string;
+  year: number | null;
+  vehicles: EligibleVehicleOption[];
 }

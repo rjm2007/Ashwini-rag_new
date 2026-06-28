@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleDocumentOption, DefectMessage } from "./types";
+import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleVehicleGroup, DefectMessage } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -62,7 +62,7 @@ export const createDefect = (documentId: string, reportedDefect: string, purchas
   api.post("/defects", { documentId, reportedDefect, purchaseDate, currentMileage });
 
 export const getEligibleDefectDocuments = () =>
-  api.get<EligibleDocumentOption[]>("/defects/eligible-documents");
+  api.get<EligibleVehicleGroup[]>("/defects/eligible-documents");
 
 export const getDefects = () =>
   api.get<Defect[]>("/defects");
