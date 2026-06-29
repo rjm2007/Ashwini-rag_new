@@ -5,6 +5,15 @@ from pathlib import Path
 from ..services.llm_service import LlmService
 
 _BARE_CITATION_RE = re.compile(r"(?<!\[)(?<=\s)([1-9])([.,](?:\s|$))")
+_CITATION_WITH_URL_RE = re.compile(r"\[(\d+)\]\(https?://[^)\s]*\)")
+
+
+def _strip_citation_urls(answer: str) -> str:
+    """The model occasionally attaches a fabricated/real URL to a citation
+    (e.g. '[1](http://localhost:3000/documents/...)' instead of plain '[1]').
+    Strip the URL, leaving just the clean bracketed citation number — the
+    citation chip rendering only ever expects '[N]', nothing else."""
+    return _CITATION_WITH_URL_RE.sub(lambda m: f"[{m.group(1)}]", answer)
 
 
 def _fix_unbracketed_citations(answer: str, max_index: int) -> str:
@@ -119,5 +128,6 @@ def reason_over_evidence(
             },
         }
     if isinstance(parsed.get("answer"), str):
+        parsed["answer"] = _strip_citation_urls(parsed["answer"])
         parsed["answer"] = _fix_unbracketed_citations(parsed["answer"], len(chunks))
     return parsed
