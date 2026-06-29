@@ -216,7 +216,7 @@ def _attach_warranty_classification(schema_facts: list[dict], target_docs: list[
     try:
         with SessionLocal() as session:
             rows = session.execute(
-                text("SELECT id, warranty_type FROM documents WHERE id = ANY(:ids)"),
+                text("SELECT id, warranty_type FROM documents WHERE id = ANY(:ids::uuid[])"),
                 {"ids": target_docs},
             ).fetchall()
         types_by_id = {str(r[0]): r[1] for r in rows}
