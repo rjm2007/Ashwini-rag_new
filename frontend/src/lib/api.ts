@@ -62,9 +62,12 @@ export const getEligibleDefectDocuments = () =>
   api.get<EligibleVehicleGroup[]>("/defects/eligible-documents");
 
 export const listDefects = () => api.get("/defects");
+export const getDefects = listDefects;
 export const getDefect = (id: string) => api.get(`/defects/${id}`);
-export const createDefect = (data: any) => api.post("/defects", data);
+export const createDefect = (documentId: string, reportedDefect: string, purchaseDate?: string, currentMileage?: number) =>
+  api.post("/defects", { documentId, reportedDefect, purchaseDate, currentMileage });
 export const addDefectMessage = (id: string, content: string) => api.post(`/defects/${id}/messages`, { content });
+export const sendDefectMessage = addDefectMessage;
 
 export const listVapiAgents = () => api.get("/vapi-agents");
 export const getVapiAgentPrompt = (key: string) => api.get(`/vapi-agents/${key}/prompt`);
