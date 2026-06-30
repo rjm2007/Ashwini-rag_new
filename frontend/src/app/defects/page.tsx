@@ -7,6 +7,7 @@ import { getDefects, getEligibleDefectDocuments, createDefect } from "@/lib/api"
 import type { Defect, EligibleVehicleGroup } from "@/lib/types";
 import Topbar from "@/components/Topbar";
 import { Wrench, Plus, X, Loader2, AlertCircle } from "lucide-react";
+import MicButton from "@/components/MicButton";
 
 const COLORS = {
   bgPage: "#F8FAFC",
@@ -175,12 +176,19 @@ function NewDefectModal({
           </p>
         )}
 
-        <label style={labelStyle}>What's wrong?</label>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <label style={labelStyle}>What's wrong?</label>
+          <MicButton
+            onTranscribed={(text) =>
+              setReportedDefect((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
+            }
+          />
+        </div>
         <textarea
           value={reportedDefect}
           onChange={(e) => setReportedDefect(e.target.value)}
           rows={3}
-          placeholder="e.g. my engine is not working"
+          placeholder="e.g. my engine is not working (or tap the mic and speak in any language)"
           style={{ ...inputStyle, marginBottom: 14, resize: "vertical" }}
         />
 

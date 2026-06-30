@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   AlertCircle,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { logout } from "../lib/auth";
@@ -39,6 +40,7 @@ export default function Sidebar() {
     { href: "/documents", icon: FileStack, title: "Templates", roles: ["admin"] },
     { href: "/documents", icon: Puzzle, title: "Integrations", roles: ["admin"] },
     { href: "/defects", icon: AlertCircle, title: "Defects", roles: ["admin", "reviewer", "user"] },
+    { href: "/call", icon: Phone, title: "Call", roles: ["admin", "reviewer", "user"] },
     { href: "/documents", icon: Settings, title: "Settings", roles: ["admin", "reviewer", "user"] },
   ].filter((item) => item.roles.includes(role));
 
@@ -126,6 +128,7 @@ export default function Sidebar() {
             (item.title === "Documents" && pathname?.startsWith("/documents")) ||
             (item.title === "Upload" && pathname?.startsWith("/upload")) ||
             (item.title === "Defects" && pathname?.startsWith("/defects")) ||
+            (item.title === "Call" && pathname?.startsWith("/call")) ||
             (item.title === "Home" && pathname === "/documents");
           const Icon = item.icon;
           return (
