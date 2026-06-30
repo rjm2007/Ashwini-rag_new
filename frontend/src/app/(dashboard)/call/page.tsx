@@ -155,7 +155,7 @@ export default function CallPage() {
   const isCallLive = status === "active" || status === "connecting";
 
   return (
-    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 64px 40px 24px", display: "flex", justifyContent: "flex-end" }}>
+    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 24px", display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div
           style={{
