@@ -31,7 +31,11 @@ export default function CallPage() {
   useEffect(() => {
     return () => {
       // Hard safety net — never leave a call running if this page unmounts.
-      vapiRef.current?.stop?.();
+      try {
+        vapiRef.current?.stop?.();
+      } catch (err) {
+        console.error("vapi.stop() failed on unmount:", err);
+      }
     };
   }, []);
 
@@ -88,9 +92,18 @@ export default function CallPage() {
     }
   };
 
-  const endCall = () => {
-    vapiRef.current?.stop?.();
-    setStatus("ended");
+  const endCall = async () => {
+    // Always flip the UI to "ended" no matter what happens inside stop() —
+    // a failure in the SDK call must never freeze this button again.
+    try {
+      await vapiRef.current?.stop?.();
+    } catch (err: any) {
+      console.error("vapi.stop() failed:", err);
+    } finally {
+      vapiRef.current = null;
+      setStatus("ended");
+      setVolume(0);
+    }
   };
 
   return (
