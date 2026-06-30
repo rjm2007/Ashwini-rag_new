@@ -41,6 +41,7 @@ export default function Sidebar() {
     { href: "/documents", icon: Puzzle, title: "Integrations", roles: ["admin"] },
     { href: "/defects", icon: AlertCircle, title: "Defects", roles: ["admin", "reviewer", "user"] },
     { href: "/call", icon: Phone, title: "Call", roles: ["admin", "reviewer", "user"] },
+    { href: "/settings", icon: Settings, title: "Settings", roles: ["admin", "reviewer", "user"] },
   ].filter((item) => item.roles.includes(role));
 
   const handleLogout = () => {
@@ -128,6 +129,7 @@ export default function Sidebar() {
             (item.title === "Upload" && pathname?.startsWith("/upload")) ||
             (item.title === "Defects" && pathname?.startsWith("/defects")) ||
             (item.title === "Call" && pathname?.startsWith("/call")) ||
+            (item.title === "Settings" && pathname?.startsWith("/settings")) ||
             (item.title === "Home" && pathname === "/documents");
           const Icon = item.icon;
           return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Phone, PhoneOff, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { listVapiAgents } from "@/lib/api";
 
 const COLORS = {
   bgPage: "#F1F5F9",
@@ -54,11 +55,29 @@ function StatusPill({ status }: { status: CallStatus }) {
   );
 }
 
+interface VapiAgentOption {
+  key: string;
+  name: string;
+  assistantId: string;
+}
+
 export default function CallPage() {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [volume, setVolume] = useState(0);
   const [error, setError] = useState("");
+  const [agents, setAgents] = useState<VapiAgentOption[]>([]);
+  const [selectedAgentKey, setSelectedAgentKey] = useState<string>("");
   const vapiRef = useRef<any>(null);
+
+  useEffect(() => {
+    listVapiAgents()
+      .then((res) => {
+        const list: VapiAgentOption[] = res.data || [];
+        setAgents(list);
+        if (list.length > 0) setSelectedAgentKey(list[0].key);
+      })
+      .catch(() => setError("Could not load the list of agents."));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -74,13 +93,21 @@ export default function CallPage() {
     setError("");
     setStatus("connecting");
     try {
-      const configRes = await fetch("/api/vapi-config");
-      const { publicKey, assistantId } = await configRes.json();
-      if (!publicKey || !assistantId) {
-        setError("Vapi is not configured — missing public key or assistant ID on the server.");
+      const agent = agents.find((a) => a.key === selectedAgentKey);
+      if (!agent) {
+        setError("Pick an agent before starting the call.");
         setStatus("idle");
         return;
       }
+
+      const configRes = await fetch("/api/vapi-config");
+      const { publicKey } = await configRes.json();
+      if (!publicKey) {
+        setError("Vapi is not configured — missing public key on the server.");
+        setStatus("idle");
+        return;
+      }
+      const assistantId = agent.assistantId;
 
       const { default: Vapi } = await import("@vapi-ai/web");
       const vapi = new Vapi(publicKey);
@@ -128,7 +155,7 @@ export default function CallPage() {
   const isCallLive = status === "active" || status === "connecting";
 
   return (
-    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 24px", display: "flex", justifyContent: "center" }}>
+    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 64px 40px 24px", display: "flex", justifyContent: "flex-end" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div
           style={{
@@ -162,10 +189,33 @@ export default function CallPage() {
             <StatusPill status={status} />
           </div>
 
-          <p style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.5, margin: "8px 0 32px" }}>
+          <p style={{ fontSize: 13, color: COLORS.textSecondary, lineHeight: 1.5, margin: "8px 0 20px" }}>
             Demo only — general guidance based on common coverage categories. Does not check a
             specific vehicle's actual records or create a defect report.
           </p>
+
+          {agents.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.textSecondary, marginBottom: 6 }}>
+                Agent
+              </label>
+              <select
+                value={selectedAgentKey}
+                onChange={(e) => setSelectedAgentKey(e.target.value)}
+                disabled={status !== "idle" && status !== "ended"}
+                style={{
+                  width: "100%", padding: "9px 12px", fontSize: 13, borderRadius: 10,
+                  border: `1px solid ${COLORS.border}`, color: COLORS.textPrimary, background: COLORS.bgCard,
+                }}
+              >
+                {agents.map((a) => (
+                  <option key={a.key} value={a.key}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "8px 0 4px" }}>
             <div style={{ position: "relative", marginBottom: 20 }}>

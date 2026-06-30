@@ -13,7 +13,8 @@ export const dynamic = "force-dynamic";
 // identifier). The Vapi PRIVATE key must never be referenced in this file
 // or anywhere under frontend/ — it has no purpose here.
 export async function GET() {
+  // Only the public key is global/shared now — the assistant ID is
+  // per-agent and comes from the backend's /vapi-agents list instead.
   const publicKey = process.env.VAPI_PUBLIC_KEY || "";
-  const assistantId = process.env.VAPI_ASSISTANT_ID || "";
-  return NextResponse.json({ publicKey, assistantId });
+  return NextResponse.json({ publicKey });
 }
