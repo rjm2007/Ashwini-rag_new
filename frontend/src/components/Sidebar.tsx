@@ -41,7 +41,6 @@ export default function Sidebar() {
     { href: "/documents", icon: Puzzle, title: "Integrations", roles: ["admin"] },
     { href: "/defects", icon: AlertCircle, title: "Defects", roles: ["admin", "reviewer", "user"] },
     { href: "/call", icon: Phone, title: "Call", roles: ["admin", "reviewer", "user"] },
-    { href: "/documents", icon: Settings, title: "Settings", roles: ["admin", "reviewer", "user"] },
   ].filter((item) => item.roles.includes(role));
 
   const handleLogout = () => {

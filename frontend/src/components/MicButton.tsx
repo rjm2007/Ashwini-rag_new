@@ -54,41 +54,79 @@ export default function MicButton({ onTranscribed }: { onTranscribed: (text: str
     mediaRecorderRef.current?.stop();
   };
 
+  const isRecording = state === "recording";
+  const isBusy = state === "transcribing";
+
   return (
-    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
       <button
         type="button"
-        onClick={state === "recording" ? stopRecording : startRecording}
-        disabled={state === "transcribing"}
-        title={
-          state === "recording"
-            ? "Stop recording"
-            : state === "transcribing"
-            ? "Transcribing..."
-            : "Speak your defect description (any language)"
-        }
+        onClick={isRecording ? stopRecording : startRecording}
+        disabled={isBusy}
+        title={isRecording ? "Stop recording" : isBusy ? "Transcribing..." : "Speak your defect description (any language)"}
         style={{
-          width: 30,
-          height: 30,
+          width: 42,
+          height: 42,
           borderRadius: "50%",
           border: "none",
-          cursor: state === "transcribing" ? "not-allowed" : "pointer",
+          cursor: isBusy ? "not-allowed" : "pointer",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: state === "recording" ? "#DC2626" : "#4F46E5",
+          background: isRecording
+            ? "linear-gradient(135deg, #EF4444, #DC2626)"
+            : "linear-gradient(135deg, #6366F1, #4F46E5)",
           color: "#FFFFFF",
+          boxShadow: isRecording
+            ? "0 0 0 6px rgba(220,38,38,0.16), 0 4px 14px rgba(220,38,38,0.4)"
+            : "0 0 0 4px rgba(79,70,229,0.12), 0 4px 14px rgba(79,70,229,0.35)",
+          animation: isRecording ? "mic-pulse 1.1s ease-in-out infinite" : "mic-glow 2.4s ease-in-out infinite",
+          transition: "transform 120ms ease",
         }}
+        onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
+        onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
       >
-        {state === "transcribing" ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : state === "recording" ? (
-          <Square size={12} />
+        {isBusy ? (
+          <Loader2 size={18} className="animate-spin" />
+        ) : isRecording ? (
+          <Square size={16} />
         ) : (
-          <Mic size={14} />
+          <Mic size={18} />
         )}
       </button>
-      {error && <span style={{ fontSize: 10, color: "#DC2626" }}>{error}</span>}
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.02em",
+          color: isRecording ? "#DC2626" : "#4F46E5",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {isRecording ? "Recording…" : isBusy ? "Transcribing…" : "Tap to speak"}
+      </span>
+      {error && <span style={{ fontSize: 10, color: "#DC2626", maxWidth: 140, textAlign: "right" }}>{error}</span>}
+
+      <style jsx>{`
+        @keyframes mic-glow {
+          0%, 100% {
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12), 0 4px 14px rgba(79, 70, 229, 0.35);
+          }
+          50% {
+            box-shadow: 0 0 0 7px rgba(79, 70, 229, 0.18), 0 4px 18px rgba(79, 70, 229, 0.5);
+          }
+        }
+        @keyframes mic-pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.16), 0 4px 14px rgba(220, 38, 38, 0.4);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 0 10px rgba(220, 38, 38, 0.22), 0 4px 18px rgba(220, 38, 38, 0.55);
+            transform: scale(1.04);
+          }
+        }
+      `}</style>
     </div>
   );
 }
