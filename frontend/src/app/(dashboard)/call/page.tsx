@@ -20,9 +20,6 @@ interface TranscriptLine {
   text: string;
 }
 
-const ASSISTANT_ID = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID as string;
-const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY as string;
-
 export default function CallPage() {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
@@ -39,19 +36,25 @@ export default function CallPage() {
   }, []);
 
   const startCall = async () => {
-    if (!PUBLIC_KEY || !ASSISTANT_ID) {
-      setError("Vapi is not configured — missing public key or assistant ID.");
-      return;
-    }
     setError("");
     setTranscript([]);
     setPartialLine(null);
     setStatus("connecting");
     try {
+      // Fetched at call-start time, not baked at build time — this is what
+      // actually fixes the "missing public key or assistant ID" error.
+      const configRes = await fetch("/api/vapi-config");
+      const { publicKey, assistantId } = await configRes.json();
+      if (!publicKey || !assistantId) {
+        setError("Vapi is not configured — missing public key or assistant ID on the server.");
+        setStatus("idle");
+        return;
+      }
+
       // Dynamic import keeps this WebRTC-only SDK out of any server-rendered
       // path — it must only ever load in the browser.
       const { default: Vapi } = await import("@vapi-ai/web");
-      const vapi = new Vapi(PUBLIC_KEY);
+      const vapi = new Vapi(publicKey);
       vapiRef.current = vapi;
 
       vapi.on("call-start", () => setStatus("active"));
@@ -78,7 +81,7 @@ export default function CallPage() {
 
       // The assistant — name, system prompt, voice, and model — is fully
       // configured in the Vapi dashboard. We only ever reference it by ID.
-      await vapi.start(ASSISTANT_ID);
+      await vapi.start(assistantId);
     } catch (err: any) {
       setError(err?.message || "Could not start the call. Check your microphone permissions.");
       setStatus("idle");
