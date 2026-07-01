@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleVehicleGroup, DefectMessage } from "./types";
+import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleVehicleGroup, DefectMessage, CallLog } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -73,5 +73,10 @@ export const listVapiAgents = () => api.get("/vapi-agents");
 export const getVapiAgentPrompt = (key: string) => api.get(`/vapi-agents/${key}/prompt`);
 export const updateVapiAgentPrompt = (key: string, prompt: string) =>
   api.patch(`/vapi-agents/${key}/prompt`, { prompt });
+
+export const startCallLog = (vapiCallId: string, agentKey: string, agentName?: string) =>
+  api.post<CallLog>("/calls", { vapiCallId, agentKey, agentName });
+export const listCallLogs = () => api.get<CallLog[]>("/calls");
+export const getCallLog = (id: string) => api.get<CallLog>(`/calls/${id}`);
 
 export default api;

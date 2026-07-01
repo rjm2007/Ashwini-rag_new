@@ -314,3 +314,27 @@ export interface EligibleVehicleGroup {
   year: number | null;
   vehicles: EligibleVehicleOption[];
 }
+
+export type CallLogStatus = "in_progress" | "completed" | "failed";
+
+export interface CallLog {
+  id: string;
+  vapiCallId?: string;
+  agentKey: string;
+  agentName?: string;
+  createdBy?: string;
+  createdByEmail?: string;
+  status: CallLogStatus;
+  eventDescription?: string;
+  summary?: string;
+  recommendation?: string;
+  documentsCollected: string[];
+  documentsPending: string[];
+  transcript?: string;
+  transcriptMessagesJson: Array<{ role: string; message: string }>;
+  endedReason?: string;
+  startedAt: string;
+  endedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}

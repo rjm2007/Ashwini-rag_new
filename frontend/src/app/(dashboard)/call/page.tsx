@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Phone, PhoneOff, Loader2, RotateCcw, Sparkles } from "lucide-react";
-import { listVapiAgents } from "@/lib/api";
+import { listVapiAgents, startCallLog } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 const COLORS = {
   bgPage: "#F1F5F9",
@@ -62,6 +63,7 @@ interface VapiAgentOption {
 }
 
 export default function CallPage() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<CallStatus>("idle");
   const [volume, setVolume] = useState(0);
   const [error, setError] = useState("");
@@ -125,7 +127,27 @@ export default function CallPage() {
       });
       vapi.on("volume-level", (level: number) => setVolume(level || 0));
 
-      await vapi.start(assistantId);
+      // Tag this call with which agent and who's calling, so Vapi's
+      // end-of-call-report webhook (received on the backend) can attribute
+      // the Call Logs row to the right user.
+      const call = await vapi.start(assistantId, {
+        metadata: {
+          agentKey: agent.key,
+          agentName: agent.name,
+          appUserEmail: user?.email || null
+        }
+      });
+
+      // Create the Call Logs row immediately so "View thread" works the
+      // instant the call starts. The transcript, summary, and
+      // recommendation are filled in later by the backend when Vapi's
+      // end-of-call-report webhook arrives — this is a best-effort ping,
+      // failures are silently ignored so they never block the call itself.
+      if (call?.id) {
+        startCallLog(call.id, agent.key, agent.name).catch((e) =>
+          console.warn("startCallLog ping failed (non-blocking):", e?.message)
+        );
+      }
     } catch (err: any) {
       setError(err?.message || "Could not start the call. Check your microphone permissions.");
       setStatus("idle");

@@ -100,9 +100,13 @@ const FloatingAiAssistant = ({
           className="absolute bottom-20 right-0 w-max max-w-[500px] transition-all duration-300 origin-bottom-right"
           style={{
             animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            maxHeight: 'min(640px, calc(100dvh - 112px))',
           }}
         >
-          <div className="relative flex flex-col rounded-3xl bg-gradient-to-br from-zinc-800/80 to-zinc-900/90 border border-zinc-500/50 shadow-2xl backdrop-blur-3xl overflow-hidden">
+          <div
+            className="relative flex flex-col rounded-3xl bg-gradient-to-br from-zinc-800/80 to-zinc-900/90 border border-zinc-500/50 shadow-2xl backdrop-blur-3xl overflow-hidden"
+            style={{ maxHeight: 'inherit' }}
+          >
             
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-4 pb-2">
@@ -126,9 +130,10 @@ const FloatingAiAssistant = ({
               </div>
             </div>
 
-            {/* Messages slot — only rendered when an integration passes them in */}
+            {/* Messages slot — flex-1 + min-h-0 makes this the ONLY scrolling
+                region inside the now height-capped panel above. */}
             {messages && (
-              <div className="px-6 py-2 max-h-[400px] overflow-y-auto scrollbar-none flex flex-col gap-4">
+              <div className="px-6 py-2 flex-1 min-h-0 overflow-y-auto scrollbar-none flex flex-col gap-4">
                 {messages}
               </div>
             )}
