@@ -30,9 +30,9 @@ function SourceCard({ item, index }: { item: any; index: number }) {
     <details
       open={index === 0}
       style={{
-        border: "1px solid #D1DCE8",
+        border: "1px solid var(--border)",
         borderRadius: 8,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "var(--bg-surface)",
         overflow: "hidden"
       }}
     >
@@ -47,11 +47,11 @@ function SourceCard({ item, index }: { item: any; index: number }) {
           userSelect: "none"
         }}
       >
-        <ChevronDown size={14} color="#7A92A8" style={{ flexShrink: 0 }} />
+        <ChevronDown size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
         <span
           style={{
-            backgroundColor: "#FFF0E6",
-            color: "#C24A00",
+            backgroundColor: "var(--accent-soft)",
+            color: "var(--accent)",
             fontSize: 10,
             fontWeight: 700,
             padding: "2px 7px",
@@ -66,7 +66,7 @@ function SourceCard({ item, index }: { item: any; index: number }) {
           <span
             style={{
               fontSize: 12,
-              color: "#3D5A80",
+              color: "var(--text-secondary)",
               fontWeight: 500,
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -77,14 +77,14 @@ function SourceCard({ item, index }: { item: any; index: number }) {
             {heading}
           </span>
         ) : (
-          <span style={{ fontSize: 12, color: "#7A92A8", flex: 1 }}>Source {index + 1}</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}>Source {index + 1}</span>
         )}
       </summary>
-      <div style={{ padding: "0 12px 12px", borderTop: "1px solid #F0F4F8" }}>
+      <div style={{ padding: "0 12px 12px", borderTop: "1px solid var(--bg-raised)" }}>
         <p
           style={{
             fontSize: 12,
-            color: "#0A1628",
+            color: "var(--text-primary)",
             lineHeight: 1.6,
             margin: "10px 0 0",
             whiteSpace: "pre-wrap",
@@ -104,7 +104,7 @@ function SourceCard({ item, index }: { item: any; index: number }) {
               marginTop: 8,
               fontSize: 12,
               fontWeight: 600,
-              color: "#C24A00",
+              color: "var(--accent)",
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -128,9 +128,9 @@ export default function InlineEvidence({ evidence }: { evidence: unknown }) {
       className="evidence-sources"
       style={{
         marginTop: 8,
-        border: "1px solid #D1DCE8",
+        border: "1px solid var(--border)",
         borderRadius: 8,
-        backgroundColor: "#FAFBFC",
+        backgroundColor: "var(--bg-raised)",
         overflow: "hidden"
       }}
     >
@@ -143,12 +143,12 @@ export default function InlineEvidence({ evidence }: { evidence: unknown }) {
           cursor: "pointer",
           fontSize: 12,
           fontWeight: 600,
-          color: "#3D5A80",
+          color: "var(--text-secondary)",
           listStyle: "none",
           userSelect: "none"
         }}
       >
-        <FileText size={14} color="#FF6200" />
+        <FileText size={14} color="var(--accent)" />
         <span>
           {items.length} source{items.length !== 1 ? "s" : ""} cited — click to expand
         </span>
@@ -159,7 +159,7 @@ export default function InlineEvidence({ evidence }: { evidence: unknown }) {
           flexDirection: "column",
           gap: 8,
           padding: "8px 10px 10px",
-          borderTop: "1px solid #D1DCE8",
+          borderTop: "1px solid var(--border)",
           maxHeight: 360,
           overflowY: "auto"
         }}
