@@ -73,39 +73,60 @@ const FloatingAiAssistant = ({
         }`}
         onClick={() => setIsChatOpen(!isChatOpen)}
         style={{
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.8) 0%, rgba(168,85,247,0.8) 100%)',
-          boxShadow: '0 0 20px rgba(139, 92, 246, 0.7), 0 0 40px rgba(124, 58, 237, 0.5), 0 0 60px rgba(109, 40, 217, 0.3)',
-          border: '2px solid rgba(255, 255, 255, 0.2)',
+          // Amber, matching the accent. It previously blended into a violet
+          // glow that belonged to no palette in the product.
+          background: 'radial-gradient(circle at 38% 32%, #FFD79A, var(--accent) 46%, #B96A1E 100%)',
+          boxShadow: '0 0 24px -4px rgba(240,166,74,0.65), 0 8px 20px -6px rgba(0,0,0,0.6)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          color: 'var(--accent-fg)',
         }}
       >
-        {/* 3D effect */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/20 to-transparent opacity-30"></div>
-        
-        {/* Inner glow */}
-        <div className="absolute inset-0 rounded-full border-2 border-white/10"></div>
-        
+        {/* Top highlight, for the 3D read */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/25 to-transparent opacity-40"></div>
+
         {/* AI Icon */}
         <div className="relative z-10">
-        { isChatOpen ? <X /> :  <Bot className="w-8 h-8 text-white" />}
+          {isChatOpen ? <X className="w-7 h-7" /> : <Bot className="w-8 h-8" />}
         </div>
-        
-        {/* Glowing animation */}
-        <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-indigo-500"></div>
       </button>
+
+      {/* Scrim. Without this the panel was translucent over live page content,
+          so table rows and headings showed straight through the conversation.
+          It also gives the panel a click-away target. */}
+      {isChatOpen && (
+        <div
+          onClick={() => setIsChatOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(6,8,12,0.62)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 40,
+          }}
+        />
+      )}
 
       {/* Chat Interface */}
       {isChatOpen && (
-        <div 
+        <div
           ref={chatRef}
           className="absolute bottom-20 right-0 w-max max-w-[500px] transition-all duration-300 origin-bottom-right"
           style={{
             animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
             maxHeight: 'min(640px, calc(100dvh - 112px))',
+            zIndex: 50,
           }}
         >
           <div
-            className="relative flex flex-col rounded-3xl bg-gradient-to-br from-zinc-800/80 to-zinc-900/90 border border-zinc-500/50 shadow-2xl backdrop-blur-3xl overflow-hidden"
-            style={{ maxHeight: 'inherit' }}
+            className="relative flex flex-col rounded-3xl shadow-2xl overflow-hidden"
+            style={{
+              maxHeight: 'inherit',
+              // Opaque, and on the token surface — the panel is a reading
+              // surface, not a glass effect over the page behind it.
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-strong)',
+              boxShadow: '0 24px 60px -20px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
+            }}
           >
             
             {/* Header */}
@@ -118,7 +139,7 @@ const FloatingAiAssistant = ({
                 <span className="px-2 py-1 text-xs font-medium bg-zinc-800/60 text-zinc-300 rounded-2xl">
                   {modelBadge}
                 </span>
-                <span className="px-2 py-1 text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 rounded-2xl">
+                <span className="px-2 py-1 text-xs font-medium rounded-2xl" style={{ background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--border-accent)" }}>
                   Pro
                 </span>
                 <button 
@@ -152,7 +173,7 @@ const FloatingAiAssistant = ({
               />
               <div 
                 className="absolute inset-0 bg-gradient-to-t from-zinc-800/5 to-transparent pointer-events-none"
-                style={{ background: 'linear-gradient(to top, rgba(39, 39, 42, 0.05), transparent)' }}
+                style={{ background: 'linear-gradient(to top, rgba(13,16,23, 0.05), transparent)' }}
               ></div>
             </div>
 
@@ -172,7 +193,7 @@ const FloatingAiAssistant = ({
                     </button>
 
                     {/* Link */}
-                    <button className="group relative p-2.5 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 hover:scale-105 hover:rotate-6 transform">
+                    <button className="group relative p-2.5 bg-transparent border-none rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-amber-300 hover:bg-zinc-800/80 hover:scale-105 hover:rotate-6 transform">
                       <Link className="w-4 h-4 transition-all duration-300 group-hover:scale-125 group-hover:rotate-12" />
                       <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-zinc-900/95 text-zinc-200 text-xs rounded-lg whitespace-nowrap opacity-0 transition-all duration-300 pointer-events-none group-hover:opacity-100 group-hover:-translate-y-1 shadow-lg border border-zinc-700/50 backdrop-blur-sm">
                         Web link
@@ -202,7 +223,7 @@ const FloatingAiAssistant = ({
                   </div>
 
                   {/* Voice Button */}
-                  <button className="group relative p-2.5 bg-transparent border border-zinc-700/30 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-400 hover:bg-zinc-800/80 hover:scale-110 hover:rotate-2 transform hover:border-red-500/30">
+                  <button className="group relative p-2.5 bg-transparent border border-zinc-700/30 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-amber-300 hover:bg-zinc-800/80 hover:scale-110 hover:rotate-2 transform hover:border-amber-500/30">
                     <Mic className="w-4 h-4 transition-all duration-300 group-hover:scale-125 group-hover:-rotate-3" />
                     <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 px-3 py-2 bg-zinc-900/95 text-zinc-200 text-xs rounded-lg whitespace-nowrap opacity-0 transition-all duration-300 pointer-events-none group-hover:opacity-100 group-hover:-translate-y-1 shadow-lg border border-zinc-700/50 backdrop-blur-sm">
                       Voice input
@@ -224,10 +245,12 @@ const FloatingAiAssistant = ({
                     className={`group relative p-3 bg-gradient-to-r border-none rounded-xl transition-all duration-300 text-white shadow-lg ${
                       disabled
                         ? 'from-zinc-600 to-zinc-500 opacity-40 cursor-not-allowed'
-                        : 'from-red-600 to-red-500 cursor-pointer hover:from-red-500 hover:to-red-400 hover:scale-110 hover:shadow-red-500/30 hover:shadow-xl active:scale-95 transform hover:-rotate-2 hover:animate-pulse'
+                        : 'cursor-pointer hover:scale-110 hover:shadow-xl active:scale-95 transform'
                     }`}
                     style={{
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
+                      background: disabled ? undefined : 'var(--accent)',
+                      color: disabled ? undefined : 'var(--accent-fg)',
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.35)',
                       animation: 'none'
                     }}
                     onMouseEnter={(e) => {
@@ -242,7 +265,7 @@ const FloatingAiAssistant = ({
                     <Send className="w-5 h-5 transition-all duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:rotate-12 group-hover:scale-110" />
                     
                     {/* Animated background glow */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-600 to-red-500 opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                    <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110" style={{ background: "var(--accent)" }}></div>
                     
                     {/* Ripple effect on click */}
                     <div className="absolute inset-0 rounded-xl overflow-hidden">
@@ -272,7 +295,7 @@ const FloatingAiAssistant = ({
             <div 
               className="absolute inset-0 rounded-3xl pointer-events-none"
               style={{ 
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.05), transparent, rgba(147, 51, 234, 0.05))' 
+                background: 'linear-gradient(135deg, rgba(240,113,111, 0.05), transparent, rgba(169,139,240, 0.05))' 
               }}
             ></div>
           </div>
@@ -301,7 +324,7 @@ const FloatingAiAssistant = ({
         
         .floating-ai-button:hover {
           transform: scale(1.1) rotate(5deg);
-          box-shadow: 0 0 30px rgba(139, 92, 246, 0.9), 0 0 50px rgba(124, 58, 237, 0.7), 0 0 70px rgba(109, 40, 217, 0.5);
+          box-shadow: 0 0 30px rgba(169,139,240, 0.9), 0 0 50px rgba(169,139,240, 0.7), 0 0 70px rgba(169,139,240, 0.5);
         }
       `}</style>
     </div>
