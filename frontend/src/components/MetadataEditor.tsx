@@ -29,10 +29,10 @@ export default function MetadataEditor({ document, readOnly = false }: MetadataE
   const inputStyle = {
     width: "100%",
     padding: "8px 12px",
-    border: "1px solid #D1DCE8",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     fontSize: 14,
-    color: "#0A1628",
+    color: "var(--text-primary)",
     outline: "none",
     fontFamily: "DM Sans, sans-serif",
     boxSizing: "border-box" as const
@@ -42,7 +42,7 @@ export default function MetadataEditor({ document, readOnly = false }: MetadataE
     display: "block" as const,
     fontSize: 12,
     fontWeight: 600,
-    color: "#7A92A8",
+    color: "var(--text-muted)",
     marginBottom: 6,
     textTransform: "uppercase" as const,
     letterSpacing: "0.04em"
@@ -84,7 +84,7 @@ export default function MetadataEditor({ document, readOnly = false }: MetadataE
         <div key={f.label}>
           <label style={labelStyle}>{f.label}</label>
           {readOnly ? (
-            <p style={{ fontSize: 14, color: "#0A1628", fontWeight: 500, padding: "4px 0" }}>
+            <p style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 500, padding: "4px 0" }}>
               {f.value || "—"}
             </p>
           ) : (
@@ -94,11 +94,11 @@ export default function MetadataEditor({ document, readOnly = false }: MetadataE
               onChange={(e) => f.setter(e.target.value)}
               placeholder={f.placeholder}
               onFocus={(e) => {
-                e.target.style.borderColor = "#FF6200";
-                e.target.style.boxShadow = "0 0 0 3px #FFF0E6";
+                e.target.style.borderColor = "var(--accent)";
+                e.target.style.boxShadow = "0 0 0 3px var(--accent-soft)";
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = "#D1DCE8";
+                e.target.style.borderColor = "var(--border)";
                 e.target.style.boxShadow = "none";
               }}
             />
@@ -108,16 +108,16 @@ export default function MetadataEditor({ document, readOnly = false }: MetadataE
 
       {!readOnly && (
         <div style={{ marginTop: 4 }}>
-          {error && <p style={{ fontSize: 13, color: "#DC2626", marginBottom: 8 }}>{error}</p>}
-          {saved && <p style={{ fontSize: 13, color: "#16A34A", marginBottom: 8 }}>✓ Changes saved</p>}
+          {error && <p style={{ fontSize: 13, color: "var(--state-failed)", marginBottom: 8 }}>{error}</p>}
+          {saved && <p style={{ fontSize: 13, color: "var(--state-done)", marginBottom: 8 }}>✓ Changes saved</p>}
           <button
             onClick={save}
             disabled={saving}
             style={{
               width: "100%",
               padding: "10px",
-              backgroundColor: saving ? "#E8EEF4" : "#FF6200",
-              color: saving ? "#7A92A8" : "white",
+              backgroundColor: saving ? "var(--bg-raised)" : "var(--accent)",
+              color: saving ? "var(--text-muted)" : "white",
               border: "none",
               borderRadius: 8,
               fontSize: 14,
