@@ -6,8 +6,12 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getDefect } from "@/lib/api";
 import type { Defect } from "@/lib/types";
-import Topbar from "@/components/Topbar";
 import DefectFloatingChat from "@/components/DefectFloatingChat";
+
+// This page lives inside the (dashboard) route group, so the shared Sidebar
+// and Topbar come from that layout. It must not render its own Topbar, and it
+// sizes itself against the viewport minus the 56px Topbar the layout supplies.
+const CONTENT_HEIGHT = "calc(100vh - 56px)";
 
 const COLORS = {
   bgPage: "#F8FAFC",
@@ -57,16 +61,14 @@ export default function DefectThreadPage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: COLORS.bgPage }}>
-        <Topbar breadcrumbOverride="Defect Details" />
+      <div style={{ display: "flex", flexDirection: "column", height: CONTENT_HEIGHT, background: COLORS.bgPage }}>
         <div style={{ padding: 24, color: COLORS.textSecondary, fontSize: 13 }}>Loading...</div>
       </div>
     );
   }
   if (!defect) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: COLORS.bgPage }}>
-        <Topbar breadcrumbOverride="Defect Details" />
+      <div style={{ display: "flex", flexDirection: "column", height: CONTENT_HEIGHT, background: COLORS.bgPage }}>
         <div style={{ padding: 24, color: COLORS.failed, fontSize: 13 }}>Defect not found.</div>
       </div>
     );
@@ -75,9 +77,7 @@ export default function DefectThreadPage() {
   const badge = decisionBadge(defect.primaryDecision);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: COLORS.bgPage }}>
-      <Topbar breadcrumbOverride="Defect Details" />
-
+    <div style={{ display: "flex", flexDirection: "column", height: CONTENT_HEIGHT, background: COLORS.bgPage }}>
       <div style={{ padding: "16px 24px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", gap: 16 }}>
         <Link href="/defects" style={{ color: COLORS.textSecondary, textDecoration: "none", display: "flex", alignItems: "center", gap: 4, fontSize: 14 }}>
           <ArrowLeft size={16} /> Back to Defects

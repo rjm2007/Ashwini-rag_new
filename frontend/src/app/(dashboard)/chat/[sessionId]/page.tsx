@@ -51,8 +51,11 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
       className="animate-page-in"
       style={{
         display: "flex",
-        height: "calc(100vh - 112px)",
-        margin: "-24px",
+        // The (dashboard) layout supplies a 56px Topbar and NO padding. A
+        // negative margin here used to cancel padding that no longer exists,
+        // which dragged the conversation list under the sidebar and pushed the
+        // message column past the right edge, clipping both.
+        height: "calc(100vh - 56px)",
         backgroundColor: "#FFFFFF"
       }}
     >

@@ -5,9 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getDefects, getEligibleDefectDocuments, createDefect } from "@/lib/api";
 import type { Defect, EligibleVehicleGroup } from "@/lib/types";
-import Topbar from "@/components/Topbar";
 import { Wrench, Plus, X, Loader2, AlertCircle } from "lucide-react";
 import MicButton from "@/components/MicButton";
+
+// This page lives inside the (dashboard) route group, so the shared Sidebar
+// and Topbar come from that layout. It must not render its own Topbar, and it
+// sizes itself against the viewport minus the 56px Topbar the layout supplies.
+const CONTENT_HEIGHT = "calc(100vh - 56px)";
 
 const COLORS = {
   bgPage: "#F8FAFC",
@@ -271,8 +275,7 @@ export default function DefectsPage() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: COLORS.bgPage }}>
-      <Topbar breadcrumbOverride="Defects" />
+    <div style={{ display: "flex", flexDirection: "column", height: CONTENT_HEIGHT, background: COLORS.bgPage }}>
       <div style={{ padding: 24, flex: 1, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
