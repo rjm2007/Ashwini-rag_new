@@ -4,96 +4,153 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
+/* ============================================================================
+   DEPOT AT DUSK
+   ----------------------------------------------------------------------------
+   One token set for the whole product. Every variable name below already
+   existed and is consumed by ~70 components — only the values changed, so the
+   majority of the UI re-themes without being edited.
+
+   Rules this palette encodes (see new-design/new-design.md):
+     · Amber (--accent) is brand and interaction ONLY. It is never a status.
+       Warnings use --warning, which is deliberately duller.
+     · Ink is warm off-white (#F0EDE8). Pure white glares on this ground.
+     · Semantic backgrounds are the status hue at 13% alpha — never a solid tint.
+     · --info is reserved for the driver's voice in transcripts and
+       INFORMATION_ONLY clauses. Nothing else.
+   ========================================================================== */
+
 :root {
-  /* ── Surfaces (soft off-white, never pure gray dashboard) ── */
-  --bg-page:        #F7F8FA;
-  --bg-surface:     #FFFFFF;
-  --bg-raised:      #FCFCFD;
-  --bg-hover:       #F2F3F6;
-  --bg-selected:    #EEF1FF;
-  --bg-sidebar:     #0E0F1A;
-  --bg-sidebar-hover: #1A1C2B;
-  --bg-sidebar-active:#23263A;
+  /* ── Surfaces ───────────────────────────────────────────────────────────
+     Ground is blue-biased, never pure black, so amber reads warm against it. */
+  --bg-page:          #10131B;
+  --bg-surface:       #171B24;
+  --bg-raised:        #1C212C;
+  --bg-sunk:          #0D1017;   /* inputs and wells read as recessed */
+  --bg-hover:         #222836;
+  --bg-selected:      rgba(240,166,74,0.06);
+  --bg-sidebar:       #0C0F15;
+  --bg-sidebar-hover: #161B26;
+  --bg-sidebar-active:#1C2130;
 
-  /* ── Borders ── */
-  --border:         #E8EAED;
-  --border-strong:  #D7DAE0;
-  --border-accent:  #C7CCFF;
+  /* Aliases for names components already reference. These were previously
+     UNDECLARED, so every rule using them silently failed. */
+  --bg-panel:         var(--bg-surface);
+  --bg-primary:       var(--bg-hover);
 
-  /* ── Text ── */
-  --text-primary:   #181B23;
-  --text-secondary: #5B616E;
-  --text-muted:     #9AA0AC;
-  --text-inverse:   #FFFFFF;
-  --text-sidebar:   #9AA0B5;
-  --text-sidebar-active: #FFFFFF;
+  /* ── Borders ──────────────────────────────────────────────────────────── */
+  --border:           #242935;
+  --border-strong:    #2E3542;
+  --border-accent:    rgba(240,166,74,0.42);
+  --border-sidebar:   #1E232E;
 
-  /* ── Accent: muted indigo / violet (the hero accent) ── */
-  --accent:         #6366F1;
-  --accent-hover:   #4F46E5;
-  --accent-press:   #4338CA;
-  --accent-soft:    #EEF1FF;
-  --accent-ring:    rgba(99,102,241,0.30);
-  --accent-dim:     rgba(99,102,241,0.10);
-  --accent-blue:    #3B82F6;
+  /* ── Text ─────────────────────────────────────────────────────────────── */
+  --text-primary:     #F0EDE8;
+  --text-secondary:   #A9A69F;
+  --text-muted:       #75726C;
+  --text-inverse:     #1D1103;   /* text ON an amber fill, not white */
+  --text-sidebar:     #8A8880;
+  --text-sidebar-active: #F0A64A;
+  --text-sidebar-dim: #5E5C57;
 
-  /* ── Status (appear only when something happens) ── */
-  --state-running:  #6366F1;
-  --state-done:     #16A34A;
-  --state-failed:   #EF4444;
-  --state-idle:     #C4C8D0;
-  --state-skipped:  #9AA0AC;
-  --success-bg:     #ECFDF3;
-  --warning:        #D97706;
-  --warning-bg:     #FFFBEB;
-  --error-bg:       #FEF2F2;
+  /* ── Accent: dusk amber ───────────────────────────────────────────────── */
+  --accent:           #F0A64A;
+  --accent-hover:     #F7B968;
+  --accent-press:     #D8912F;
+  --accent-fg:        #1D1103;
+  --accent-soft:      rgba(240,166,74,0.14);
+  --accent-ring:      rgba(240,166,74,0.38);
+  --accent-dim:       rgba(240,166,74,0.10);
+  --accent-light:     var(--accent-soft);  /* was undeclared */
+  --accent-blue:      #7FB8E8;
 
-  /* ── Certify gate ── */
-  --gate-amber:     #D97706;
-  --gate-amber-bg:  rgba(217,119,6,0.06);
-  --gate-color:     #D97706;
-  --gate-bg:        rgba(217,119,6,0.06);
+  /* ── Status ───────────────────────────────────────────────────────────── */
+  --state-running:    #F0A64A;
+  --state-done:       #54C98D;
+  --state-failed:     #F0716F;
+  --state-idle:       #4A4F5C;
+  --state-skipped:    #5E626C;
 
-  /* ── Required-fields warning ── */
-  --warn-bg:        rgba(239,68,68,0.06);
-  --warn-border:    #EF4444;
+  --success-bg:       rgba(84,201,141,0.13);
+  --warning:          #EDB454;
+  --warning-bg:       rgba(237,180,84,0.13);
+  --error-bg:         rgba(240,113,111,0.13);
+  --info:             #7FB8E8;
+  --info-bg:          rgba(127,184,232,0.13);
+  --neu-bg:           rgba(169,166,159,0.10);
 
-  /* ── Confidence gauge ── */
-  --conf-high:      #10B981;
-  --conf-medium:    #D97706;
-  --conf-low:       #EF4444;
+  /* ── Certify gate ─────────────────────────────────────────────────────── */
+  --gate-amber:       #EDB454;
+  --gate-amber-bg:    rgba(237,180,84,0.13);
+  --gate-color:       #EDB454;
+  --gate-bg:          rgba(237,180,84,0.13);
 
-  /* ── Coverage ── */
-  --cov-covered:    #16A34A;
-  --cov-not-covered:#EF4444;
-  --cov-partial:    #D97706;
-  --cov-unknown:    #9AA0AC;
+  /* ── Required-fields warning (this one is red, despite the name) ──────── */
+  --warn-bg:          rgba(240,113,111,0.13);
+  --warn-border:      #F0716F;
 
-  /* ── Categorical palette for embedding clusters / chips ── */
-  --cat-coverage:   #6366F1;
-  --cat-vehicle:    #3B82F6;
-  --cat-claims:     #F59E0B;
-  --cat-terms:      #8B5CF6;
-  --cat-exclusions: #F43F5E;
-  --cat-emissions:  #14B8A6;
+  /* ── Confidence ───────────────────────────────────────────────────────── */
+  --conf-high:        #54C98D;   /* >= 0.85 */
+  --conf-medium:      #EDB454;   /* 0.70 – 0.84 */
+  --conf-low:         #F0716F;   /* < 0.70 — never auto-decides */
+  /* Aliases: ConfidenceBand.tsx reads these spellings. Previously undeclared,
+     so all three of its colours resolved to nothing. */
+  --confidence-high:  var(--conf-high);
+  --confidence-mid:   var(--conf-medium);
+  --confidence-low:   var(--conf-low);
 
-  /* ── Depth (soft, expensive — never harsh) ── */
-  --shadow-xs: 0 1px 2px rgba(16,18,30,0.04);
-  --shadow-sm: 0 1px 3px rgba(16,18,30,0.06), 0 1px 2px rgba(16,18,30,0.04);
-  --shadow-md: 0 4px 16px rgba(16,18,30,0.07);
-  --shadow-lg: 0 12px 32px rgba(16,18,30,0.10);
-  --shadow-accent: 0 6px 20px rgba(99,102,241,0.25);
+  /* ── Coverage decision ────────────────────────────────────────────────── */
+  --cov-covered:      #54C98D;
+  --cov-not-covered:  #F0716F;
+  --cov-partial:      #EDB454;
+  --cov-unknown:      #75726C;
 
-  /* ── Radii ── */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
+  /* ── Categorical palette (embedding clusters, chunk map, chips) ────────
+     Lifted for a dark ground and separated in lightness as well as hue so the
+     set survives colour-vision deficiency. */
+  --cat-coverage:     #8B93FF;
+  --cat-vehicle:      #6FA8F5;
+  --cat-claims:       #F0A64A;
+  --cat-terms:        #A98BF0;
+  --cat-exclusions:   #F0716F;
+  --cat-emissions:    #4ACBBC;
+
+  /* ── Depth ────────────────────────────────────────────────────────────
+     On a dark ground most lift comes from an inset top highlight, not a drop
+     shadow. Shadows here stay low-opacity so they read as depth, not mud. */
+  --shadow-xs:     0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-md:     0 4px 16px rgba(0,0,0,0.40);
+  --shadow-lg:     0 12px 32px rgba(0,0,0,0.55);
+  --shadow-accent: 0 6px 20px rgba(240,166,74,0.28);
+  --highlight-top: inset 0 1px 0 rgba(255,255,255,0.10);
+
+  /* ── The sky ──────────────────────────────────────────────────────────
+     178deg, not 180deg: a 2° tilt stops the bands reading as a CSS gradient. */
+  --sky: linear-gradient(178deg,
+           #141A33 0%, #2A2544 32%, #5B3550 58%, #94502F 80%, #C4762C 100%);
+  --sky-band: linear-gradient(178deg,
+           #141A33 0%, #2D2646 46%, #6A3C48 84%, #8E4E31 100%);
+  --sun: radial-gradient(circle,
+           #FFC978 0%, rgba(255,180,90,0.34) 42%, transparent 70%);
+  --sky-ink:      #FFF6EA;
+  --sky-ink-dim:  rgba(255,246,234,0.72);
+  --sky-glass:    rgba(12,14,20,0.50);
+  --sky-glass-br: rgba(255,255,255,0.13);
+  --depot:        #0C0F17;
+
+  /* ── Radii ────────────────────────────────────────────────────────────── */
+  --r-sm: 7px;
+  --r-md: 10px;
+  --r-lg: 14px;
   --r-xl: 20px;
   --r-pill: 999px;
 
-  /* ── Motion ── */
+  /* ── Motion ───────────────────────────────────────────────────────────── */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  color-scheme: dark;
 }
 
 body {
@@ -107,13 +164,14 @@ body {
 }
 
 .mono { font-family: 'IBM Plex Mono', monospace; }
+.tnum { font-variant-numeric: tabular-nums; }
 a { color: inherit; text-decoration: none; }
 
 /* ── Cards ── */
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   box-shadow: var(--shadow-xs);
 }
 .card-hover:hover {
@@ -122,22 +180,41 @@ a { color: inherit; text-decoration: none; }
   transition: box-shadow .2s ease, border-color .2s ease;
 }
 
+/* ── Glass, for panels that sit on the sky ── */
+.glass {
+  background: var(--sky-glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--sky-glass-br);
+  box-shadow: var(--highlight-top);
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-thumb { background: #D7DAE0; border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: #2E3542; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #3A4250; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Utility animations ── */
-@keyframes breathe  { 0%,100%{opacity:1} 50%{opacity:0.4} }
-@keyframes slideIn  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
-@keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-@keyframes spin     { to{transform:rotate(360deg)} }
-@keyframes pulse-ring { 0%{transform:scale(0.95);opacity:0.6} 100%{transform:scale(1.3);opacity:0} }
+::selection { background: rgba(240,166,74,0.28); color: var(--text-primary); }
 
-.animate-breathe   { animation: breathe 1.8s ease-in-out infinite; }
-.animate-slide-in  { animation: slideIn 200ms var(--ease-out) forwards; }
-.animate-fade-in   { animation: fadeIn 200ms ease-out forwards; }
-.animate-spin      { animation: spin 1s linear infinite; }
+/* ── Utility animations ── */
+@keyframes breathe    { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes slideIn    { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+@keyframes fadeIn     { from{opacity:0} to{opacity:1} }
+@keyframes spin       { to{transform:rotate(360deg)} }
+@keyframes pulse-ring { 0%{transform:scale(0.95);opacity:0.6} 100%{transform:scale(1.3);opacity:0} }
+@keyframes pageIn     { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+@keyframes fadeSlide  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+@keyframes scaleIn    { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:none} }
+
+.animate-breathe    { animation: breathe 1.8s ease-in-out infinite; }
+.animate-slide-in   { animation: slideIn 200ms var(--ease-out) forwards; }
+.animate-fade-in    { animation: fadeIn 200ms ease-out forwards; }
+.animate-spin       { animation: spin 1s linear infinite; }
+/* These three were referenced by components but never defined, so the elements
+   using them rendered with no entrance at all. */
+.animate-page-in    { animation: pageIn 260ms var(--ease-out) forwards; }
+.animate-fade-slide { animation: fadeSlide 300ms var(--ease-out) forwards; }
+.animate-scale-in   { animation: scaleIn 200ms var(--ease-out) forwards; }
 
 /* ── Focus ring ── */
 *:focus-visible {
