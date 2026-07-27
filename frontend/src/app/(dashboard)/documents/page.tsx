@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, ChevronRight, Upload, Search, Filter } from "lucide-react";
+import { FileText, ChevronRight, Upload, Search, Filter, AlertCircle } from "lucide-react";
 import api from "../../../lib/api";
 import StatusPill from "../../../components/ui/StatusPill";
 import TypePill from "../../../components/ui/TypePill";
@@ -30,14 +30,21 @@ export default function DocumentsPage() {
   const { user } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const showUpload = user?.role === "admin" || user?.role === "reviewer";
 
   const fetchDocs = () => {
     api
       .get("/documents")
-      .then((r) => setDocuments(r.data.data || []))
-      .catch(() => setDocuments([]))
+      .then((r) => {
+        setDocuments(r.data.data || []);
+        setLoadError("");
+      })
+      // Clearing the list on failure made a broken API look like an empty
+      // workspace. Keep whatever was last shown and surface the error instead —
+      // this also polls every 10s, so one blip must not wipe the table.
+      .catch(() => setLoadError("Couldn't refresh documents — the server is unreachable."))
       .finally(() => setLoading(false));
   };
 
@@ -100,6 +107,25 @@ export default function DocumentsPage() {
           </Link>
         )}
       </div>
+
+      {loadError && (
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 16px",
+            marginBottom: 16,
+            fontSize: 13,
+            color: "var(--state-failed)",
+            background: "var(--error-bg)",
+          }}
+        >
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          {loadError}
+        </div>
+      )}
 
       {/* Search/filter bar */}
       <div
