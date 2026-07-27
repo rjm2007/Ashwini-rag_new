@@ -21,8 +21,8 @@ const ease: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 /* Category colors for the cluster dots on left side */
 const CLUSTER_COLORS = [
-  "#6366F1", "#3B82F6", "#8B5CF6",
-  "#F43F5E", "#F59E0B", "#14B8A6",
+  "var(--accent)", "var(--cat-vehicle)", "var(--cat-terms)",
+  "var(--cat-exclusions)", "var(--cat-claims)", "var(--cat-emissions)",
 ];
 
 /* Checklist items */
@@ -90,12 +90,12 @@ function DatabaseCylinder({ settle }: { settle: boolean }) {
       <svg width={80} height={120} viewBox="0 0 80 120">
         <defs>
           <linearGradient id="cyl-fill" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#6366F1" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#6366F1" stopOpacity={0.12} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.25} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.12} />
           </linearGradient>
           <linearGradient id="cyl-top" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6366F1" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#6366F1" stopOpacity={0.2} />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.35} />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.2} />
           </linearGradient>
         </defs>
 
@@ -196,7 +196,7 @@ function ChecklistItem({
             flexShrink: 0,
           }}
         >
-          <Check size={10} color="#fff" strokeWidth={3} />
+          <Check size={10} color="var(--accent-fg)" strokeWidth={3} />
         </motion.div>
       ) : active ? (
         <div
