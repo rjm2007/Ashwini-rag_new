@@ -38,7 +38,7 @@ export default function LoginPage() {
       <section
         style={{
           width: "55%",
-          background: "#0E0F1A",
+          background: "var(--bg-sidebar)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
@@ -56,7 +56,7 @@ export default function LoginPage() {
             width: "60%",
             height: "60%",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(240,166,74,0.08) 0%, transparent 70%)",
             pointerEvents: "none",
           }}
         />
@@ -75,11 +75,11 @@ export default function LoginPage() {
                 justifyContent: "center",
               }}
             >
-              <FileText size={22} color="#FFF" />
+              <FileText size={22} color="var(--accent-fg)" />
             </div>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#FFF" }}>Fixyee</div>
-              <div style={{ fontSize: 12, color: "#9AA0B5" }}>AI Document Intelligence</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>Fixyee</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>AI Document Intelligence</div>
             </div>
           </div>
 
@@ -87,7 +87,7 @@ export default function LoginPage() {
             style={{
               fontSize: 32,
               fontWeight: 600,
-              color: "#FFFFFF",
+              color: "var(--text-primary)",
               lineHeight: 1.25,
               letterSpacing: "-0.02em",
               margin: "0 0 16px",
@@ -99,7 +99,7 @@ export default function LoginPage() {
           <p
             style={{
               fontSize: 15,
-              color: "#9AA0B5",
+              color: "var(--text-muted)",
               lineHeight: 1.6,
               maxWidth: 400,
               margin: "0 0 40px",
@@ -118,7 +118,7 @@ export default function LoginPage() {
                   alignItems: "center",
                   gap: 12,
                   fontSize: 14,
-                  color: "#C7CCFF",
+                  color: "var(--text-secondary)",
                 }}
               >
                 <div
@@ -126,14 +126,14 @@ export default function LoginPage() {
                     width: 24,
                     height: 24,
                     borderRadius: "50%",
-                    background: "rgba(99,102,241,0.15)",
+                    background: "rgba(240,166,74,0.15)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
                   }}
                 >
-                  <Check size={13} color="#6366F1" />
+                  <Check size={13} color="var(--accent)" />
                 </div>
                 {f}
               </div>
@@ -267,7 +267,7 @@ export default function LoginPage() {
               style={{
                 padding: "11px",
                 background: "var(--accent)",
-                color: "#FFFFFF",
+                color: "var(--accent-fg)",
                 border: "none",
                 borderRadius: "var(--r-sm)",
                 fontSize: 14,
