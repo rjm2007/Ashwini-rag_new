@@ -344,7 +344,7 @@ export default function CompletionCelebration({
             borderRadius: "var(--r-sm)",
             border: "none",
             background: "var(--accent)",
-            color: "#fff",
+            color: "var(--accent-fg)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
