@@ -29,36 +29,36 @@ const SECTIONS: SectionDef[] = [
   {
     name: "Coverage Information",
     category: "Coverage clause",
-    categoryColor: "#6366F1",
-    categoryBg: "rgba(99, 102, 241, 0.1)",
+    categoryColor: "var(--accent)",
+    categoryBg: "rgba(240,166,74, 0.1)",
     items: 14,
   },
   {
     name: "Vehicle Data",
     category: "Eligibility",
-    categoryColor: "#0891B2",
-    categoryBg: "rgba(8, 145, 178, 0.1)",
+    categoryColor: "var(--cat-emissions)",
+    categoryBg: "rgba(74,203,188, 0.1)",
     items: 8,
   },
   {
     name: "Terms & Conditions",
     category: "Definition",
-    categoryColor: "#7C3AED",
-    categoryBg: "rgba(124, 58, 237, 0.1)",
+    categoryColor: "var(--cat-terms)",
+    categoryBg: "rgba(169,139,240, 0.1)",
     items: 22,
   },
   {
     name: "Exclusions",
     category: "Exclusion",
-    categoryColor: "#EF4444",
-    categoryBg: "rgba(239, 68, 68, 0.08)",
+    categoryColor: "var(--state-failed)",
+    categoryBg: "rgba(240,113,111, 0.08)",
     items: 11,
   },
   {
     name: "Claim Procedures",
     category: "Claim procedure",
-    categoryColor: "#16A34A",
-    categoryBg: "rgba(22, 163, 74, 0.1)",
+    categoryColor: "var(--state-done)",
+    categoryBg: "rgba(84,201,141, 0.1)",
     items: 6,
   },
 ];
@@ -131,7 +131,7 @@ function SectionCard({ section, index }: { section: SectionDef; index: number })
           width: "50%",
           height: "100%",
           background:
-            "linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.06), transparent)",
+            "linear-gradient(90deg, transparent, rgba(240,166,74, 0.06), transparent)",
           pointerEvents: "none",
         }}
       />
