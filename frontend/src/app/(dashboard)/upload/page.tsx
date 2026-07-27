@@ -8,6 +8,7 @@ import api from "../../../lib/api";
 import DropZone from "../../../components/upload/DropZone";
 import StatusPill from "../../../components/ui/StatusPill";
 import type { DocumentItem } from "../../../lib/types";
+import BandHeader from "../../../components/layout/BandHeader";
 
 /* ── Lazy imports for new components ── */
 let UploadTips: React.ComponentType | null = null;
@@ -54,22 +55,13 @@ export default function UploadPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 32px" }}>
-      {/* Page title */}
-      <h1
-        style={{
-          fontSize: 22,
-          fontWeight: 600,
-          margin: "0 0 4px",
-          color: "var(--text-primary)",
-          letterSpacing: "-0.01em",
-        }}
-      >
-        Upload Document
-      </h1>
-      <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 28 }}>
-        Drag & drop your document to start intelligent analysis
-      </p>
+    <div>
+      <BandHeader
+        title="Upload"
+        subtitle="Drop a warranty PDF, a certificate or a repair invoice. The document type is detected for you."
+      />
+
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "24px 32px 32px" }}>
 
       {/* Main layout: dropzone left, tips right */}
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
@@ -305,6 +297,7 @@ export default function UploadPage() {
             </button>
           ))
         )}
+      </div>
       </div>
     </div>
   );
