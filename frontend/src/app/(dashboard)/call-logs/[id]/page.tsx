@@ -164,8 +164,8 @@ export default function CallLogDetailPage() {
             <Section title="Documentation Checklist">
               {log.documentsCollected?.length > 0 && (
                 <div style={{ marginBottom: 14 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.done, marginBottom: 8, margin: "0 0 8px" }}>
-                    ✓ Collected
+                  <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.done, margin: "0 0 8px" }}>
+                    Collected
                   </p>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                     {log.documentsCollected.map((doc, i) => (
@@ -180,7 +180,7 @@ export default function CallLogDetailPage() {
               {log.documentsPending?.length > 0 && (
                 <div>
                   <p style={{ fontSize: 12, fontWeight: 600, color: COLORS.warn, margin: "0 0 8px" }}>
-                    ⚠ Still Needed
+                    Still Needed
                   </p>
                   <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                     {log.documentsPending.map((doc, i) => (
