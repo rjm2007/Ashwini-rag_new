@@ -1,55 +1,70 @@
-const STATUS_CONFIG: Record<
-  string,
-  { dot: string; bg: string; text: string; label: string; pulse: boolean }
-> = {
-  uploaded: { dot: "#2563EB", bg: "#EFF6FF", text: "#1D4ED8", label: "UPLOADED", pulse: false },
-  ocr_in_progress: { dot: "#7C3AED", bg: "#F5F3FF", text: "#6D28D9", label: "OCR RUNNING", pulse: true },
-  ocr_complete: { dot: "#7C3AED", bg: "#F5F3FF", text: "#6D28D9", label: "OCR DONE", pulse: false },
-  extraction_in_progress: { dot: "#7C3AED", bg: "#F5F3FF", text: "#6D28D9", label: "EXTRACTING", pulse: true },
-  extraction_complete: { dot: "#D97706", bg: "#FFFBEB", text: "#B45309", label: "EXTRACTED", pulse: false },
-  embedded: { dot: "#D97706", bg: "#FFFBEB", text: "#B45309", label: "EMBEDDED", pulse: false },
-  ready_for_review: { dot: "#D97706", bg: "#FFFBEB", text: "#B45309", label: "READY", pulse: false },
-  certified: { dot: "#16A34A", bg: "#F0FDF4", text: "#15803D", label: "CERTIFIED", pulse: false },
-  rejected: { dot: "#DC2626", bg: "#FEF2F2", text: "#B91C1C", label: "REJECTED", pulse: false },
-  failed: { dot: "#DC2626", bg: "#FEF2F2", text: "#B91C1C", label: "FAILED", pulse: false },
-  pending_review: { dot: "#D97706", bg: "#FFFBEB", text: "#B45309", label: "PENDING", pulse: false },
-  reviewer_approved: { dot: "#FF6200", bg: "#FFF0E6", text: "#C24A00", label: "REVIEWER ✓", pulse: false }
+/**
+ * Processing status for a document.
+ *
+ * Previously this carried a light-theme palette hardcoded as hex, set
+ * `fontFamily: "DM Mono"` — a face this app never loads — and applied a
+ * `.pulse` class that was never defined. All three are fixed here by going
+ * through the token set.
+ */
+
+type Tone = "info" | "running" | "warn" | "ok" | "bad" | "accent" | "neutral";
+
+const TONE: Record<Tone, { fg: string; bg: string }> = {
+  info:    { fg: "var(--info)",         bg: "var(--info-bg)" },
+  running: { fg: "var(--state-running)", bg: "var(--accent-soft)" },
+  warn:    { fg: "var(--warning)",      bg: "var(--warning-bg)" },
+  ok:      { fg: "var(--state-done)",   bg: "var(--success-bg)" },
+  bad:     { fg: "var(--state-failed)", bg: "var(--error-bg)" },
+  accent:  { fg: "var(--accent)",       bg: "var(--accent-soft)" },
+  neutral: { fg: "var(--text-muted)",   bg: "var(--neu-bg)" },
 };
 
-const DEFAULT_CONFIG = {
-  dot: "#7A92A8",
-  bg: "#F0F4F8",
-  text: "#3D5A80",
-  label: "UNKNOWN",
-  pulse: false
+const STATUS_CONFIG: Record<string, { tone: Tone; label: string; pulse: boolean }> = {
+  uploaded:                { tone: "info",    label: "UPLOADED",   pulse: false },
+  ocr_in_progress:         { tone: "running", label: "OCR RUNNING", pulse: true },
+  ocr_complete:            { tone: "info",    label: "OCR DONE",   pulse: false },
+  extraction_in_progress:  { tone: "running", label: "EXTRACTING", pulse: true },
+  extraction_complete:     { tone: "warn",    label: "EXTRACTED",  pulse: false },
+  embedded:                { tone: "warn",    label: "EMBEDDED",   pulse: false },
+  ready_for_review:        { tone: "warn",    label: "READY",      pulse: false },
+  certified:               { tone: "ok",      label: "CERTIFIED",  pulse: false },
+  rejected:                { tone: "bad",     label: "REJECTED",   pulse: false },
+  failed:                  { tone: "bad",     label: "FAILED",     pulse: false },
+  pending_review:          { tone: "warn",    label: "PENDING",    pulse: false },
+  reviewer_approved:       { tone: "accent",  label: "REVIEWER ✓", pulse: false },
 };
+
+const DEFAULT_CONFIG = { tone: "neutral" as Tone, label: "UNKNOWN", pulse: false };
 
 export default function DocumentStatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status?.toLowerCase()] || DEFAULT_CONFIG;
+  const tone = TONE[cfg.tone];
+
   return (
     <span
+      className="mono"
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        backgroundColor: cfg.bg,
-        color: cfg.text,
-        fontSize: 11,
+        backgroundColor: tone.bg,
+        color: tone.fg,
+        fontSize: 10.5,
         fontWeight: 600,
-        fontFamily: "DM Mono, monospace",
         letterSpacing: "0.06em",
         padding: "3px 8px",
-        borderRadius: 99
+        borderRadius: "var(--r-pill)",
+        whiteSpace: "nowrap",
       }}
     >
       <span
-        className={cfg.pulse ? "pulse" : ""}
+        className={cfg.pulse ? "animate-breathe" : undefined}
         style={{
           width: 6,
           height: 6,
           borderRadius: "50%",
-          backgroundColor: cfg.dot,
-          flexShrink: 0
+          backgroundColor: "currentColor",
+          flexShrink: 0,
         }}
       />
       {cfg.label}
