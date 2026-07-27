@@ -24,7 +24,7 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
         style={{
           width: 64,
           height: 64,
-          backgroundColor: "#FFF0E6",
+          backgroundColor: "var(--accent-soft)",
           borderRadius: 16,
           display: "flex",
           alignItems: "center",
@@ -32,20 +32,24 @@ export default function EmptyState({ icon: Icon, title, description, action }: E
           marginBottom: 16
         }}
       >
-        <Icon size={30} color="#FF6200" />
+        <Icon size={30} color="var(--accent)" />
       </div>
-      <p style={{ fontSize: 16, fontWeight: 600, color: "#0A1628", marginBottom: 8 }}>{title}</p>
-      <p style={{ fontSize: 14, color: "#7A92A8", maxWidth: 320 }}>{description}</p>
+      <p style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+        {title}
+      </p>
+      <p style={{ fontSize: 14, color: "var(--text-muted)", maxWidth: 320, lineHeight: 1.6 }}>
+        {description}
+      </p>
       {action && (
         <Link
           href={action.href}
           style={{
             marginTop: 20,
             display: "inline-block",
-            backgroundColor: "#FF6200",
-            color: "white",
+            backgroundColor: "var(--accent)",
+            color: "var(--accent-fg)",
             padding: "8px 20px",
-            borderRadius: 8,
+            borderRadius: "var(--r-md)",
             fontSize: 14,
             fontWeight: 600,
             textDecoration: "none"
