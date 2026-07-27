@@ -38,15 +38,15 @@ export default function StatusPipeline({ currentStatus }: { currentStatus: strin
                   height: 32,
                   borderRadius: "50%",
                   backgroundColor: isFinalRejected
-                    ? "#DC2626"
+                    ? "var(--state-failed)"
                     : isDone || isActive
-                      ? "#FF6200"
-                      : "#E8EEF4",
+                      ? "var(--accent)"
+                      : "var(--bg-raised)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  border: isActive ? "2px solid #FF6200" : "none",
-                  boxShadow: isActive ? "0 0 0 4px #FFF0E6" : "none"
+                  border: isActive ? "2px solid var(--accent)" : "none",
+                  boxShadow: isActive ? "0 0 0 4px var(--accent-soft)" : "none"
                 }}
               >
                 {isFinalRejected ? (
@@ -59,7 +59,7 @@ export default function StatusPipeline({ currentStatus }: { currentStatus: strin
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      backgroundColor: isActive ? "white" : "#A8BCCF"
+                      backgroundColor: isActive ? "white" : "var(--text-muted)"
                     }}
                   />
                 )}
@@ -68,7 +68,7 @@ export default function StatusPipeline({ currentStatus }: { currentStatus: strin
                 style={{
                   fontSize: 11,
                   fontWeight: isActive ? 600 : 400,
-                  color: isFuture ? "#7A92A8" : "#0A1628",
+                  color: isFuture ? "var(--text-muted)" : "var(--text-primary)",
                   marginTop: 6,
                   whiteSpace: "nowrap"
                 }}
@@ -82,7 +82,7 @@ export default function StatusPipeline({ currentStatus }: { currentStatus: strin
                 style={{
                   flex: 1,
                   height: 2,
-                  backgroundColor: i < activeIndex ? "#FF6200" : "#E8EEF4",
+                  backgroundColor: i < activeIndex ? "var(--accent)" : "var(--bg-raised)",
                   margin: "0 4px",
                   marginBottom: 18
                 }}
