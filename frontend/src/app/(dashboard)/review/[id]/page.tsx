@@ -7,25 +7,25 @@ import MetadataEditor from "../../../../components/MetadataEditor";
 
 function StatusBanner({ finalStatus }: { finalStatus?: string }) {
   const status = (finalStatus || "in_review").toLowerCase();
-  let bg = "#EFF6FF";
-  let border = "#BFDBFE";
-  let color = "#1D4ED8";
+  let bg = "var(--info-bg)";
+  let border = "var(--info-bg)";
+  let color = "var(--info)";
   let text = "🔵 Awaiting Reviewer Approval";
 
   if (status === "reviewer_approved") {
-    bg = "#FFFBEB";
-    border = "#FDE68A";
-    color = "#B45309";
+    bg = "var(--warning-bg)";
+    border = "var(--warning)";
+    color = "var(--warning)";
     text = "🟡 Awaiting Admin Final Approval";
   } else if (status === "certified") {
-    bg = "#F0FDF4";
-    border = "#BBF7D0";
-    color = "#15803D";
+    bg = "var(--success-bg)";
+    border = "var(--success-bg)";
+    color = "var(--state-done)";
     text = "✅ Document Certified";
   } else if (status === "rejected") {
-    bg = "#FEF2F2";
-    border = "#FCA5A5";
-    color = "#B91C1C";
+    bg = "var(--error-bg)";
+    border = "var(--state-failed)";
+    color = "var(--state-failed)";
     text = "❌ Document Rejected";
   }
 
@@ -101,7 +101,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
   const textareaStyle = {
     width: "100%",
     padding: "8px 12px",
-    border: "1px solid #D1DCE8",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     fontSize: 14,
     fontFamily: "DM Sans, sans-serif",
@@ -119,15 +119,15 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
               display: "flex",
               justifyContent: "space-between",
               padding: "12px 16px",
-              backgroundColor: "#F0F4F8",
-              borderBottom: "1px solid #D1DCE8"
+              backgroundColor: "var(--bg-raised)",
+              borderBottom: "1px solid var(--border)"
             }}
           >
-            <span className="truncate text-sm font-semibold" style={{ color: "#0A1628" }}>
+            <span className="truncate text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
               {document?.originalFilename || "PDF Preview"}
             </span>
             {pdfUrl ? (
-              <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ color: "#7A92A8" }}>
+              <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ color: "var(--text-muted)" }}>
                 <Download size={14} />
               </a>
             ) : null}
@@ -135,7 +135,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           {pdfUrl ? (
             <iframe title="pdf" src={pdfUrl} style={{ width: "100%", height: 560, border: "none" }} />
           ) : (
-            <p style={{ padding: 24, color: "#7A92A8" }}>No PDF preview.</p>
+            <p style={{ padding: 24, color: "var(--text-muted)" }}>No PDF preview.</p>
           )}
         </div>
 
@@ -144,7 +144,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
 
           <p
             className="mb-2 text-xs font-bold uppercase tracking-wide"
-            style={{ color: "#7A92A8" }}
+            style={{ color: "var(--text-muted)" }}
           >
             Document Details
           </p>
@@ -153,7 +153,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
           </div>
 
           <div className="card" style={{ padding: 16 }}>
-            <h2 className="mb-3 text-sm font-semibold" style={{ color: "#0A1628" }}>
+            <h2 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
               Review Actions
             </h2>
 
@@ -161,7 +161,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
               <p
                 className="mb-3 text-sm"
                 style={{
-                  color: message.includes("failed") ? "#DC2626" : "#16A34A"
+                  color: message.includes("failed") ? "var(--state-failed)" : "var(--state-done)"
                 }}
               >
                 {message}
@@ -170,7 +170,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
 
             {(state?.canReviewerApprove || state?.canAdminApprove || state?.canReject) && (
               <>
-                <label className="mb-1 block text-sm" style={{ color: "#3D5A80" }}>
+                <label className="mb-1 block text-sm" style={{ color: "var(--text-secondary)" }}>
                   Add a comment (optional)
                 </label>
                 <textarea
@@ -180,11 +180,11 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   rows={3}
                   style={{ ...textareaStyle, marginBottom: 12 }}
                   onFocus={(e) => {
-                    e.target.style.borderColor = "#FF6200";
-                    e.target.style.boxShadow = "0 0 0 3px #FFF0E6";
+                    e.target.style.borderColor = "var(--accent)";
+                    e.target.style.boxShadow = "0 0 0 3px var(--accent-soft)";
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = "#D1DCE8";
+                    e.target.style.borderColor = "var(--border)";
                     e.target.style.boxShadow = "none";
                   }}
                 />
@@ -200,7 +200,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   style={{
                     width: "100%",
                     padding: "10px",
-                    backgroundColor: busy ? "#E8EEF4" : "#FF6200",
+                    backgroundColor: busy ? "var(--bg-raised)" : "var(--accent)",
                     color: "white",
                     border: "none",
                     borderRadius: 8,
@@ -219,7 +219,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                   style={{
                     width: "100%",
                     padding: "10px",
-                    backgroundColor: busy ? "#E8EEF4" : "#16A34A",
+                    backgroundColor: busy ? "var(--bg-raised)" : "var(--state-done)",
                     color: "white",
                     border: "none",
                     borderRadius: 8,
@@ -239,8 +239,8 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
                     width: "100%",
                     padding: "10px",
                     backgroundColor: "transparent",
-                    color: "#DC2626",
-                    border: "1px solid #DC2626",
+                    color: "var(--state-failed)",
+                    border: "1px solid var(--state-failed)",
                     borderRadius: 8,
                     fontWeight: 600,
                     cursor: busy ? "not-allowed" : "pointer"
@@ -252,7 +252,7 @@ export default function ReviewDetailPage({ params }: { params: { id: string } })
               {!state?.canReviewerApprove &&
                 !state?.canAdminApprove &&
                 !state?.canReject && (
-                  <p style={{ fontSize: 13, color: "#7A92A8" }}>No further actions available</p>
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No further actions available</p>
                 )}
             </div>
           </div>
