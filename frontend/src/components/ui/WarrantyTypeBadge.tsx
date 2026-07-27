@@ -12,8 +12,8 @@ export default function WarrantyTypeBadge({ warrantyType }: { warrantyType?: str
         fontWeight: 700,
         padding: "2px 10px",
         borderRadius: 999,
-        color: isNonStandard ? "#D97706" : "#4F46E5",
-        background: isNonStandard ? "#D9770626" : "#4F46E526"
+        color: isNonStandard ? "var(--warning)" : "var(--accent-hover)",
+        background: isNonStandard ? "var(--warning)26" : "var(--accent-hover)26"
       }}
     >
       {isNonStandard ? "Non-Standard" : "Standard"}
