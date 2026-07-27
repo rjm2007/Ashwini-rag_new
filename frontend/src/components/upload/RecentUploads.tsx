@@ -40,10 +40,10 @@ function formatFileSize(bytes?: number): string {
 function statusColor(status: string): { bg: string; color: string } {
   const s = status.toLowerCase();
   if (s === "processing_complete" || s === "complete" || s === "done")
-    return { bg: "rgba(22,163,74,0.10)", color: "#16A34A" };
+    return { bg: "rgba(84,201,141,0.10)", color: "var(--state-done)" };
   if (s === "failed" || s === "error")
-    return { bg: "rgba(239,68,68,0.10)", color: "#EF4444" };
-  return { bg: "rgba(99,102,241,0.10)", color: "#6366F1" };
+    return { bg: "rgba(240,113,111,0.10)", color: "var(--state-failed)" };
+  return { bg: "rgba(240,166,74,0.10)", color: "var(--accent)" };
 }
 
 function statusLabel(status: string): string {
