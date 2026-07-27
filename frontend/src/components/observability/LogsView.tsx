@@ -73,8 +73,8 @@ function mapEventsToLogs(events: PipelineEvent[]): LogEntry[] {
 
 const LEVEL_STYLES: Record<LogLevel, { color: string; bg: string }> = {
   INFO: { color: "var(--accent)", bg: "var(--accent-soft)" },
-  WARN: { color: "var(--conf-medium)", bg: "rgba(217, 119, 6, 0.08)" },
-  ERROR: { color: "var(--state-failed)", bg: "rgba(239, 68, 68, 0.08)" },
+  WARN: { color: "var(--conf-medium)", bg: "rgba(237,180,84, 0.08)" },
+  ERROR: { color: "var(--state-failed)", bg: "rgba(240,113,111, 0.08)" },
   DEBUG: { color: "var(--text-muted)", bg: "var(--bg-hover)" },
 };
 
