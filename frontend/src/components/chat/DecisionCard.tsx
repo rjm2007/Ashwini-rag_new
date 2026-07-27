@@ -33,11 +33,26 @@ export type DecisionCardProps = {
   reasons?: string[];
 };
 
+/**
+ * All eight members of the CoverageDecision union.
+ *
+ * Two things were wrong before: only four states were handled (the other four
+ * silently fell through to "NEED MORE INFO"), and `covered` paired a solid
+ * green fill with green text, so the label was invisible. Every entry now uses
+ * a 13%-alpha tint behind full-strength status ink.
+ *
+ * `covered_with_limits` deliberately does NOT render as plain "covered" —
+ * collapsing it is how a claim gets approved for more than the policy pays.
+ */
 const BANNER: Record<string, { label: string; bg: string; color: string; Icon: typeof Check }> = {
-  covered: { label: "COVERED", bg: "var(--state-done)", color: "var(--conf-high)", Icon: Check },
-  not_covered: { label: "NOT COVERED", bg: "#3d1515", color: "#f87171", Icon: X },
-  partial: { label: "PARTIALLY COVERED", bg: "var(--bg-hover)", color: "var(--conf-medium)", Icon: Info },
-  insufficient_evidence: { label: "NEED MORE INFO", bg: "var(--bg-hover)", color: "var(--text-muted)", Icon: Info },
+  covered:              { label: "COVERED",             bg: "var(--success-bg)", color: "var(--cov-covered)",     Icon: Check },
+  covered_with_limits:  { label: "COVERED WITH LIMITS", bg: "var(--warning-bg)", color: "var(--cov-partial)",     Icon: Info },
+  partial:              { label: "PARTIALLY COVERED",   bg: "var(--warning-bg)", color: "var(--cov-partial)",     Icon: Info },
+  not_covered:          { label: "NOT COVERED",         bg: "var(--error-bg)",   color: "var(--cov-not-covered)", Icon: X },
+  insufficient_evidence:{ label: "NEED MORE INFO",      bg: "var(--neu-bg)",     color: "var(--text-muted)",      Icon: Info },
+  needs_clarification:  { label: "NEEDS CLARIFICATION", bg: "var(--neu-bg)",     color: "var(--text-muted)",      Icon: Info },
+  not_in_document:      { label: "NOT IN THIS DOCUMENT",bg: "var(--neu-bg)",     color: "var(--text-muted)",      Icon: Info },
+  answered:             { label: "ANSWERED",            bg: "var(--info-bg)",    color: "var(--info)",            Icon: Info },
 };
 
 export default function DecisionCard(props: DecisionCardProps) {
