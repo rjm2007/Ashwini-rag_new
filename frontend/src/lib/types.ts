@@ -338,3 +338,19 @@ export interface CallLog {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Status of one admin-managed provider credential. Never carries a usable secret. */
+export interface ApiKeyStatus {
+  key: string;
+  label: string;
+  help: string;
+  isSecret: boolean;
+  /** False means the consuming service only picks the value up after a restart. */
+  appliesLive: boolean;
+  testable: boolean;
+  configured: boolean;
+  source: "database" | "environment" | "none";
+  /** Masked for secrets, full value for non-secrets, empty when unset. */
+  preview: string;
+  updatedAt: string | null;
+}

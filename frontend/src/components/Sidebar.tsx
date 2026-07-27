@@ -6,10 +6,8 @@ import {
   Home,
   FileText,
   UploadCloud,
-  BarChart3,
-  FileStack,
-  Puzzle,
   Settings,
+  KeyRound,
   LogOut,
   ChevronLeft,
   AlertCircle,
@@ -34,16 +32,14 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   const navItems = [
-    { href: "/documents", icon: Home, title: "Home", roles: ["admin", "reviewer", "user"] },
+    { href: "/dashboard", icon: Home, title: "Home", roles: ["admin", "reviewer", "user"] },
     { href: "/documents", icon: FileText, title: "Documents", roles: ["admin", "reviewer", "user"] },
     { href: "/upload", icon: UploadCloud, title: "Upload", roles: ["admin", "reviewer"] },
-    { href: "/documents", icon: BarChart3, title: "Analytics", roles: ["admin"] },
-    { href: "/documents", icon: FileStack, title: "Templates", roles: ["admin"] },
-    { href: "/documents", icon: Puzzle, title: "Integrations", roles: ["admin"] },
     { href: "/defects", icon: AlertCircle, title: "Defects", roles: ["admin", "reviewer", "user"] },
     { href: "/call", icon: Phone, title: "Call", roles: ["admin", "reviewer", "user"] },
     { href: "/call-logs", icon: History, title: "Call Logs", roles: ["admin", "reviewer", "user"] },
     { href: "/settings", icon: Settings, title: "Settings", roles: ["admin", "reviewer", "user"] },
+    { href: "/api-keys", icon: KeyRound, title: "API Keys", roles: ["admin"] },
   ].filter((item) => item.roles.includes(role));
 
   const handleLogout = () => {
@@ -133,7 +129,8 @@ export default function Sidebar() {
             (item.title === "Call" && pathname?.startsWith("/call") && !pathname?.startsWith("/call-logs")) ||
             (item.title === "Call Logs" && pathname?.startsWith("/call-logs")) ||
             (item.title === "Settings" && pathname?.startsWith("/settings")) ||
-            (item.title === "Home" && pathname === "/documents");
+            (item.title === "API Keys" && pathname?.startsWith("/api-keys")) ||
+            (item.title === "Home" && pathname === "/dashboard");
           const Icon = item.icon;
           return (
             <Link

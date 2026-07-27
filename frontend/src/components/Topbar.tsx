@@ -12,6 +12,7 @@ function getInitials(email: string): string {
 }
 
 function getBreadcrumb(pathname: string): { parts: string[] } {
+  if (pathname === "/dashboard") return { parts: ["Dashboard"] };
   if (pathname === "/documents") return { parts: ["Documents"] };
   if (pathname === "/upload") return { parts: ["Upload"] };
   if (pathname.startsWith("/documents/")) {
@@ -22,6 +23,14 @@ function getBreadcrumb(pathname: string): { parts: string[] } {
   }
   if (pathname === "/review") return { parts: ["Review"] };
   if (pathname === "/chat") return { parts: ["AI Chat"] };
+  if (pathname.startsWith("/chat/")) return { parts: ["AI Chat", "Conversation"] };
+  if (pathname === "/defects") return { parts: ["Defects"] };
+  if (pathname.startsWith("/defects/")) return { parts: ["Defects", "Defect Details"] };
+  if (pathname === "/call") return { parts: ["Call"] };
+  if (pathname === "/call-logs") return { parts: ["Call Logs"] };
+  if (pathname.startsWith("/call-logs/")) return { parts: ["Call Logs", "Call Detail"] };
+  if (pathname === "/settings") return { parts: ["Settings"] };
+  if (pathname === "/api-keys") return { parts: ["API Keys"] };
   return { parts: ["Document Intelligence"] };
 }
 

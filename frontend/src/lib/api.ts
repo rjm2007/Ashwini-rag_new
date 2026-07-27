@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleVehicleGroup, DefectMessage, CallLog } from "./types";
+import type { PipelineEvent, QueryContext, SummaryPayload, Defect, EligibleVehicleGroup, DefectMessage, CallLog, ApiKeyStatus } from "./types";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
@@ -73,6 +73,16 @@ export const listVapiAgents = () => api.get("/vapi-agents");
 export const getVapiAgentPrompt = (key: string) => api.get(`/vapi-agents/${key}/prompt`);
 export const updateVapiAgentPrompt = (key: string, prompt: string) =>
   api.patch(`/vapi-agents/${key}/prompt`, { prompt });
+// Served by the backend rather than the frontend's own env, so a key saved in
+// Settings > API Keys applies without redeploying the frontend.
+export const getVapiPublicConfig = () => api.get<{ publicKey: string }>("/vapi-agents/public-config");
+
+export const listApiKeys = () => api.get<ApiKeyStatus[]>("/app-settings/api-keys");
+export const saveApiKey = (key: string, value: string) =>
+  api.put<ApiKeyStatus>(`/app-settings/api-keys/${key}`, { value });
+export const clearApiKey = (key: string) => api.delete<ApiKeyStatus>(`/app-settings/api-keys/${key}`);
+export const testApiKey = (key: string, value?: string) =>
+  api.post<{ ok: boolean; message: string }>(`/app-settings/api-keys/${key}/test`, { value });
 
 export const startCallLog = (vapiCallId: string, agentKey: string, agentName?: string) =>
   api.post<CallLog>("/calls", { vapiCallId, agentKey, agentName });
