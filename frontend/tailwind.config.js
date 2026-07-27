@@ -7,12 +7,10 @@ module.exports = {
         sans: ['Inter', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
-      colors: {
-        surface: '#161B22',
-        raised:  '#1E2430',
-        accent:  '#00D9C0',
-        border:  '#30363D',
-      }
+      // Colour lives in globals.css as CSS custom properties so that one token
+      // set drives both Tailwind utilities and the many inline styles in this
+      // codebase. A previous theme block here declared a teal palette that no
+      // component ever referenced; it was removed rather than maintained.
     }
   },
   plugins: []
