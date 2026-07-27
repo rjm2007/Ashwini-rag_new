@@ -9,6 +9,7 @@ import StatusPill from "../../../components/ui/StatusPill";
 import TypePill from "../../../components/ui/TypePill";
 import MonoChip from "../../../components/ui/MonoChip";
 import { useAuth } from "../../../hooks/useAuth";
+import BandHeader, { SkyButton } from "../../../components/layout/BandHeader";
 import type { DocumentItem } from "../../../lib/types";
 
 function relativeDate(value?: string): string {
@@ -58,55 +59,35 @@ export default function DocumentsPage() {
     d.originalFilename.toLowerCase().includes(search.toLowerCase())
   );
 
+  const coverageTotal = documents.reduce((n, d) => n + (d.coverageCount || 0), 0);
+  const needsReview = documents.filter(
+    (d) => !["certified", "reviewer_approved"].includes((d.processingStatus || "").toLowerCase())
+  ).length;
+
   return (
-    <div style={{ padding: "24px 28px" }}>
-      {/* Page header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 600,
-              margin: 0,
-              color: "var(--text-primary)",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Documents
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "4px 0 0" }}>
-            {documents.length} document{documents.length !== 1 ? "s" : ""} in your workspace
-          </p>
-        </div>
-        {showUpload && (
-          <Link
-            href="/upload"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: 13,
-              fontWeight: 600,
-              padding: "9px 20px",
-              background: "var(--accent)",
-              color: "var(--text-inverse)",
-              borderRadius: "var(--r-sm)",
-              boxShadow: "var(--shadow-accent)",
-              textDecoration: "none",
-            }}
-          >
-            <Upload size={15} />
-            Upload Document
-          </Link>
-        )}
-      </div>
+    <div>
+      {/* Header level 2 — the band. Counts sit inline rather than eating a card row. */}
+      <BandHeader
+        title="Documents"
+        subtitle="Warranty PDFs, read and broken into coverage components."
+        stats={[
+          { label: "Documents", value: documents.length },
+          { label: "Components", value: coverageTotal },
+          { label: "Needs review", value: needsReview },
+        ]}
+        action={
+          showUpload ? (
+            <Link href="/upload" style={{ textDecoration: "none" }}>
+              <SkyButton>
+                <Upload size={15} />
+                Upload
+              </SkyButton>
+            </Link>
+          ) : undefined
+        }
+      />
+
+      <div style={{ padding: "20px 28px 28px" }}>
 
       {loadError && (
         <div
@@ -370,6 +351,7 @@ export default function DocumentsPage() {
               />
             </div>
           ))}
+        </div>
       </div>
     </div>
   );
