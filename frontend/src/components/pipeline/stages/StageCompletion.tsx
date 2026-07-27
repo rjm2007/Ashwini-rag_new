@@ -156,7 +156,7 @@ function SuccessRing({ skipAnim }: { skipAnim: boolean }) {
             justifyContent: "center",
           }}
         >
-          <Check size={26} color="#fff" strokeWidth={2.8} />
+          <Check size={26} color="var(--accent-fg)" strokeWidth={2.8} />
         </div>
       </motion.div>
     </div>
@@ -502,7 +502,7 @@ export default function StageCompletion({
             borderRadius: "var(--r-sm)",
             border: "none",
             background: "var(--accent)",
-            color: "#fff",
+            color: "var(--accent-fg)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
