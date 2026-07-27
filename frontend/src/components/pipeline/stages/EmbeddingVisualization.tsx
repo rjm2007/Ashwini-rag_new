@@ -158,7 +158,7 @@ export default function EmbeddingVisualization({
                 height: 20,
                 borderRadius: "50%",
                 background: i <= phase ? "var(--accent)" : "var(--bg-hover)",
-                color: i <= phase ? "#FFF" : "var(--text-muted)",
+                color: i <= phase ? "var(--accent-fg)" : "var(--text-muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
