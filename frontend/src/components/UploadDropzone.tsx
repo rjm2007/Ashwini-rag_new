@@ -67,33 +67,33 @@ export default function UploadDropzone() {
           display: "flex",
           alignItems: "flex-start",
           gap: 10,
-          backgroundColor: "#FFF0E6",
-          border: "1px solid #FFD4B2",
+          backgroundColor: "var(--accent-soft)",
+          border: "1px solid var(--accent-soft)",
           borderRadius: 8,
           padding: "10px 16px",
           marginBottom: 16
         }}
       >
-        <Info size={16} color="#FF6200" style={{ marginTop: 2, flexShrink: 0 }} />
-        <p style={{ fontSize: 13, color: "#3D5A80", margin: 0 }}>
+        <Info size={16} color="var(--accent)" style={{ marginTop: 2, flexShrink: 0 }} />
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>
           Upload warranty PDFs for AI processing. Text-based and scanned PDFs supported. Max 50MB.
         </p>
       </div>
 
       {documentId ? (
         <div className="card" style={{ padding: 32, textAlign: "center" }}>
-          <CheckCircle size={40} color="#16A34A" style={{ margin: "0 auto 12px" }} />
-          <p style={{ fontSize: 16, fontWeight: 600, color: "#16A34A" }}>Upload successful!</p>
+          <CheckCircle size={40} color="var(--state-done)" style={{ margin: "0 auto 12px" }} />
+          <p style={{ fontSize: 16, fontWeight: 600, color: "var(--state-done)" }}>Upload successful!</p>
           <div
             style={{
               marginTop: 12,
               padding: "8px 12px",
-              backgroundColor: "#F0F4F8",
-              border: "1px solid #D1DCE8",
+              backgroundColor: "var(--bg-raised)",
+              border: "1px solid var(--border)",
               borderRadius: 8,
               fontFamily: "DM Mono, monospace",
               fontSize: 12,
-              color: "#0A1628"
+              color: "var(--text-primary)"
             }}
           >
             {documentId}
@@ -102,7 +102,7 @@ export default function UploadDropzone() {
             <Link
               href={`/documents/${documentId}`}
               style={{
-                backgroundColor: "#FF6200",
+                backgroundColor: "var(--accent)",
                 color: "white",
                 padding: "8px 16px",
                 borderRadius: 8,
@@ -118,7 +118,7 @@ export default function UploadDropzone() {
               onClick={reset}
               style={{
                 padding: "8px 16px",
-                border: "1px solid #D1DCE8",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 background: "white",
                 fontSize: 14,
@@ -132,14 +132,14 @@ export default function UploadDropzone() {
       ) : file ? (
         <div className="card" style={{ padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-            <FileText size={20} color="#FF6200" />
+            <FileText size={20} color="var(--accent)" />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 14, fontWeight: 500, color: "#0A1628", margin: 0 }}>{file.name}</p>
-              <p style={{ fontSize: 12, color: "#7A92A8", margin: 0 }}>{formatBytes(file.size)}</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", margin: 0 }}>{file.name}</p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>{formatBytes(file.size)}</p>
             </div>
             {!uploading && (
               <button type="button" onClick={reset} style={{ border: "none", background: "none", cursor: "pointer" }}>
-                <X size={16} color="#7A92A8" />
+                <X size={16} color="var(--text-muted)" />
               </button>
             )}
           </div>
@@ -150,7 +150,7 @@ export default function UploadDropzone() {
             style={{
               width: "100%",
               padding: "10px",
-              backgroundColor: uploading ? "#E05500" : "#FF6200",
+              backgroundColor: uploading ? "var(--accent-press)" : "var(--accent)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -196,27 +196,27 @@ export default function UploadDropzone() {
             pickFile(e.dataTransfer.files?.[0]);
           }}
           style={{
-            border: `2px dashed ${dragHover ? "#FF6200" : "#D1DCE8"}`,
+            border: `2px dashed ${dragHover ? "var(--accent)" : "var(--border)"}`,
             borderRadius: 16,
             padding: "48px 24px",
             textAlign: "center",
-            backgroundColor: dragHover ? "#FFF0E6" : "#FAFBFC",
+            backgroundColor: dragHover ? "var(--accent-soft)" : "var(--bg-raised)",
             transition: "all 0.2s ease"
           }}
         >
-          <UploadCloud size={48} color="#A8BCCF" style={{ margin: "0 auto" }} />
-          <p style={{ fontSize: 14, fontWeight: 500, color: "#3D5A80", marginTop: 12 }}>
+          <UploadCloud size={48} color="var(--text-muted)" style={{ margin: "0 auto" }} />
+          <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-secondary)", marginTop: 12 }}>
             Drag and drop your warranty PDF here
           </p>
-          <p style={{ fontSize: 12, color: "#7A92A8", marginTop: 8 }}>— or —</p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>— or —</p>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             style={{
               marginTop: 12,
-              backgroundColor: "#F0F4F8",
-              border: "1px solid #D1DCE8",
-              color: "#0A1628",
+              backgroundColor: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
               padding: "8px 20px",
               borderRadius: 8,
               fontSize: 14,
@@ -242,22 +242,22 @@ export default function UploadDropzone() {
             display: "flex",
             alignItems: "flex-start",
             gap: 10,
-            backgroundColor: "#FEF2F2",
-            border: "1px solid #FCA5A5",
+            backgroundColor: "var(--error-bg)",
+            border: "1px solid var(--state-failed)",
             borderRadius: 8,
             padding: "12px 16px"
           }}
         >
-          <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 2 }} />
+          <AlertCircle size={16} color="var(--state-failed)" style={{ flexShrink: 0, marginTop: 2 }} />
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 14, color: "#DC2626", margin: 0 }}>{error}</p>
+            <p style={{ fontSize: 14, color: "var(--state-failed)", margin: 0 }}>{error}</p>
             <button
               type="button"
               onClick={reset}
               style={{
                 marginTop: 8,
                 padding: "6px 12px",
-                backgroundColor: "#DC2626",
+                backgroundColor: "var(--state-failed)",
                 color: "white",
                 border: "none",
                 borderRadius: 6,
