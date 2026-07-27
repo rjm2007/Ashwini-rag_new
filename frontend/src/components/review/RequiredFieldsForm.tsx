@@ -36,7 +36,7 @@ export default function RequiredFieldsForm({
         style={{
           margin: "16px 20px 0",
           padding: "12px 16px",
-          background: "rgba(63, 185, 80, 0.08)",
+          background: "rgba(84,201,141, 0.08)",
           border: "1px solid var(--state-done)",
           borderRadius: 8,
           display: "flex",
