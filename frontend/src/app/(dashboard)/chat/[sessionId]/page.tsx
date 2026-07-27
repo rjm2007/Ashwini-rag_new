@@ -56,7 +56,7 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
         // which dragged the conversation list under the sidebar and pushed the
         // message column past the right edge, clipping both.
         height: "calc(100vh - 56px)",
-        backgroundColor: "#FFFFFF"
+        backgroundColor: "var(--bg-surface)"
       }}
     >
       <aside
@@ -64,7 +64,7 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
         style={{
           width: "30%",
           maxWidth: 300,
-          borderRight: "1px solid #D1DCE8",
+          borderRight: "1px solid var(--border)",
           flexDirection: "column",
           flexShrink: 0
         }}
@@ -75,10 +75,10 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
             alignItems: "center",
             justifyContent: "space-between",
             padding: "14px 16px",
-            borderBottom: "1px solid #D1DCE8"
+            borderBottom: "1px solid var(--border)"
           }}
         >
-          <span className="text-sm font-semibold" style={{ color: "#0A1628" }}>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             Conversations
           </span>
           <Link
@@ -87,7 +87,7 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              backgroundColor: "#FF6200",
+              backgroundColor: "var(--accent)",
               color: "white",
               padding: "5px 10px",
               borderRadius: 8,
@@ -111,14 +111,14 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
                   display: "block",
                   padding: "12px 16px",
                   textDecoration: "none",
-                  backgroundColor: active ? "#FFF0E6" : "white",
-                  borderLeft: active ? "3px solid #FF6200" : "3px solid transparent"
+                  backgroundColor: active ? "var(--accent-soft)" : "white",
+                  borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent"
                 }}
               >
-                <p className="truncate text-sm font-medium" style={{ color: "#0A1628" }}>
+                <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                   {session.title || "Untitled chat"}
                 </p>
-                <p className="text-xs" style={{ color: "#7A92A8", marginTop: 4 }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)", marginTop: 4 }}>
                   {formatRelative(session.lastMessageAt || session.createdAt)}
                 </p>
               </Link>
@@ -135,7 +135,7 @@ export default function ChatSessionPage({ params }: { params: { sessionId: strin
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#7A92A8",
+              color: "var(--text-muted)",
               fontSize: 14
             }}
           >
