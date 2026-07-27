@@ -18,3 +18,7 @@ test-run.log
 
 # TypeScript incremental build cache (regenerated on every build)
 *.tsbuildinfo
+
+# Design proposal: "Depot at Dusk" spec + reference renders (~4.5 MB of PNGs).
+# Reference material only — not consumed by any build. See new-design/new-design.md
+new-design/
