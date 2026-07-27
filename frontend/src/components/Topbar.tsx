@@ -57,8 +57,24 @@ export default function Topbar({ breadcrumbOverride }: { breadcrumbOverride?: st
         justifyContent: "space-between",
         padding: "0 24px",
         flexShrink: 0,
+        position: "relative",
       }}
     >
+      {/* Header level 3: a single amber hairline that fades out. This is the
+          only trace of the dusk sky on detail pages, and it is enough. */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: -1,
+          height: 1,
+          background:
+            "linear-gradient(90deg, var(--accent), rgba(240,166,74,0) 44%)",
+          pointerEvents: "none",
+        }}
+      />
       {/* Breadcrumb */}
       <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {breadcrumbOverride ? (
