@@ -2,24 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Phone, Clock, CheckCircle, XCircle, Loader2, History } from "lucide-react";
+import { Phone, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { listCallLogs } from "@/lib/api";
 import type { CallLog } from "@/lib/types";
+import BandHeader from "@/components/layout/BandHeader";
 
 const COLORS = {
-  bgPage: "#F1F5F9",
-  bgCard: "#FFFFFF",
-  border: "#E2E8F0",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  accent: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  done: "#16A34A",
-  doneSoft: "#F0FDF4",
-  failed: "#DC2626",
-  failedSoft: "#FEF2F2",
-  warn: "#D97706",
-  warnSoft: "#FFFBEB",
+  bgPage: "var(--bg-raised)",
+  bgCard: "var(--bg-surface)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  accent: "var(--accent-hover)",
+  accentSoft: "var(--accent-soft)",
+  done: "var(--state-done)",
+  doneSoft: "var(--success-bg)",
+  failed: "var(--state-failed)",
+  failedSoft: "var(--error-bg)",
+  warn: "var(--warning)",
+  warnSoft: "var(--warning-bg)",
 };
 
 function StatusBadge({ status }: { status: CallLog["status"] }) {
@@ -67,20 +68,17 @@ export default function CallLogsPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 32px" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 12, background: COLORS.accentSoft,
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <History size={20} color={COLORS.accent} />
-        </div>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.textPrimary, margin: 0 }}>Call Logs</h1>
-          <p style={{ fontSize: 13, color: COLORS.textSecondary, margin: 0 }}>
-            Transcripts and AI summaries from every voice call.
-          </p>
-        </div>
-      </div>
+    <div style={{ minHeight: "100%", background: COLORS.bgPage }}>
+      <BandHeader
+        title="Call logs"
+        subtitle="Transcripts and AI summaries from every voice call."
+        stats={[
+          { label: "Calls", value: logs.length },
+          { label: "Completed", value: logs.filter((l) => l.status === "completed").length },
+          { label: "Incomplete", value: logs.filter((l) => l.documentsPending?.length > 0).length },
+        ]}
+      />
+      <div style={{ padding: "24px 32px 40px" }}>
 
       {/* States */}
       {loading && (
@@ -104,10 +102,10 @@ export default function CallLogsPage() {
 
       {!loading && !error && logs.length > 0 && (
         <div style={{ background: COLORS.bgCard, borderRadius: 16, border: `1px solid ${COLORS.border}`,
-          boxShadow: "0 1px 2px rgba(15,23,42,0.04)", overflow: "hidden" }}>
+          boxShadow: "0 1px 2px rgba(13,16,23,0.04)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: `1px solid ${COLORS.border}` }}>
+              <tr style={{ background: "var(--bg-raised)", borderBottom: `1px solid ${COLORS.border}` }}>
                 {["Event", "Agent", "Status", "Date", ""].map((h) => (
                   <th key={h} style={{ padding: "12px 18px", textAlign: "left", fontSize: 11,
                     fontWeight: 600, color: COLORS.textSecondary, letterSpacing: "0.04em",
@@ -157,6 +155,7 @@ export default function CallLogsPage() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }
