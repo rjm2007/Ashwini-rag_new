@@ -2,8 +2,8 @@ import React from "react";
 import AnswerMarkdown from "./AnswerMarkdown";
 import type { MultiDecisionResponse, ClauseResult } from "../../lib/types";
 
-const TEXT_PRIMARY = "#E6EDF3";
-const TEXT_SECONDARY = "#B7C2CC";
+const TEXT_PRIMARY = "var(--text-secondary)";
+const TEXT_SECONDARY = "var(--text-muted)";
 
 const DECISION_LABEL: Record<string, string> = {
   COVERED: "Covered",
@@ -21,23 +21,23 @@ function confidenceWord(score: number): string {
 export function decisionBadge(d?: string): { label: string; color: string } {
   switch ((d || "").toUpperCase()) {
     case "COVERED":
-      return { label: "Covered", color: "#3FB950" };
+      return { label: "Covered", color: "var(--state-done)" };
     case "POSSIBLY_COVERED":
-      return { label: "Possibly Covered", color: "#D29922" };
+      return { label: "Possibly Covered", color: "var(--warning)" };
     case "NOT_COVERED":
-      return { label: "Not Covered", color: "#F85149" };
+      return { label: "Not Covered", color: "var(--state-failed)" };
     case "INFORMATION_ONLY":
-      return { label: "More Info Needed", color: "#8B949E" };
+      return { label: "More Info Needed", color: "var(--text-muted)" };
     default:
-      return { label: "Result", color: "#8B949E" };
+      return { label: "Result", color: "var(--text-muted)" };
   }
 }
 
 function decisionColor(d: string): string {
-  if (d === "COVERED") return "#3FB950";
-  if (d === "NOT_COVERED") return "#F85149";
-  if (d === "POSSIBLY_COVERED") return "#D29922";
-  return "#8B949E";
+  if (d === "COVERED") return "var(--state-done)";
+  if (d === "NOT_COVERED") return "var(--state-failed)";
+  if (d === "POSSIBLY_COVERED") return "var(--warning)";
+  return "var(--text-muted)";
 }
 
 function Eligibility({ e }: { e?: ClauseResult["asset_eligibility"] }) {
@@ -74,7 +74,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
       ) : null}
 
       {di && (
-        <div style={{ background: "#161B22", borderRadius: 8, padding: "0.75rem", color: TEXT_PRIMARY }}>
+        <div style={{ background: "var(--bg-surface)", borderRadius: 8, padding: "0.75rem", color: TEXT_PRIMARY }}>
           <div style={{ fontWeight: 600, color: TEXT_PRIMARY }}>Reported: {String(di.reported_defect || "")}</div>
           <div style={{ fontSize: "0.85rem", color: TEXT_SECONDARY, marginTop: 4 }}>
             Interpreted as{" "}
@@ -90,7 +90,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
           <div
             key={c.coverage_id + String(c.rank)}
             style={{
-              background: "#161B22",
+              background: "var(--bg-surface)",
               borderRadius: 8,
               padding: "0.85rem",
               borderLeft: `3px solid ${decisionColor(c.decision)}`,
@@ -131,7 +131,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
                   padding: "2px 8px",
                   borderRadius: 999,
                   background: "rgba(255,255,255,0.08)",
-                  color: "#00D9C0",
+                  color: "var(--accent)",
                   fontFamily: "monospace",
                   fontWeight: 600,
                 }}
@@ -143,7 +143,7 @@ export default function ClauseResultsCard({ data }: { data: MultiDecisionRespons
         ))}
 
       {ex && ex.exclusion_result && (
-        <div style={{ background: "#161B22", borderRadius: 8, padding: "0.7rem", fontSize: "0.85rem", color: TEXT_PRIMARY }}>
+        <div style={{ background: "var(--bg-surface)", borderRadius: 8, padding: "0.7rem", fontSize: "0.85rem", color: TEXT_PRIMARY }}>
           <b style={{ color: TEXT_PRIMARY }}>Exclusion check:</b>{" "}
           <span style={{ color: TEXT_SECONDARY }}>
             {String(ex.exclusion_result || "")}
