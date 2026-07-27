@@ -74,12 +74,12 @@ export default function MicButton({ onTranscribed }: { onTranscribed: (text: str
           alignItems: "center",
           justifyContent: "center",
           background: isRecording
-            ? "linear-gradient(135deg, #EF4444, #DC2626)"
-            : "linear-gradient(135deg, #6366F1, #4F46E5)",
-          color: "#FFFFFF",
+            ? "linear-gradient(135deg, var(--state-failed), var(--state-failed))"
+            : "linear-gradient(135deg, var(--accent), var(--accent-hover))",
+          color: "var(--accent-fg)",
           boxShadow: isRecording
-            ? "0 0 0 6px rgba(220,38,38,0.16), 0 4px 14px rgba(220,38,38,0.4)"
-            : "0 0 0 4px rgba(79,70,229,0.12), 0 4px 14px rgba(79,70,229,0.35)",
+            ? "0 0 0 6px rgba(240,113,111,0.16), 0 4px 14px rgba(240,113,111,0.4)"
+            : "0 0 0 4px rgba(240,166,74,0.12), 0 4px 14px rgba(240,166,74,0.35)",
           animation: isRecording ? "mic-pulse 1.1s ease-in-out infinite" : "mic-glow 2.4s ease-in-out infinite",
           transition: "transform 120ms ease",
         }}
@@ -99,30 +99,30 @@ export default function MicButton({ onTranscribed }: { onTranscribed: (text: str
           fontSize: 10,
           fontWeight: 600,
           letterSpacing: "0.02em",
-          color: isRecording ? "#DC2626" : "#4F46E5",
+          color: isRecording ? "var(--state-failed)" : "var(--accent-hover)",
           whiteSpace: "nowrap",
         }}
       >
         {isRecording ? "Recording…" : isBusy ? "Transcribing…" : "Tap to speak"}
       </span>
-      {error && <span style={{ fontSize: 10, color: "#DC2626", maxWidth: 140, textAlign: "right" }}>{error}</span>}
+      {error && <span style={{ fontSize: 10, color: "var(--state-failed)", maxWidth: 140, textAlign: "right" }}>{error}</span>}
 
       <style jsx>{`
         @keyframes mic-glow {
           0%, 100% {
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12), 0 4px 14px rgba(79, 70, 229, 0.35);
+            box-shadow: 0 0 0 4px rgba(240,166,74, 0.12), 0 4px 14px rgba(240,166,74, 0.35);
           }
           50% {
-            box-shadow: 0 0 0 7px rgba(79, 70, 229, 0.18), 0 4px 18px rgba(79, 70, 229, 0.5);
+            box-shadow: 0 0 0 7px rgba(240,166,74, 0.18), 0 4px 18px rgba(240,166,74, 0.5);
           }
         }
         @keyframes mic-pulse {
           0%, 100% {
-            box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.16), 0 4px 14px rgba(220, 38, 38, 0.4);
+            box-shadow: 0 0 0 6px rgba(240,113,111, 0.16), 0 4px 14px rgba(240,113,111, 0.4);
             transform: scale(1);
           }
           50% {
-            box-shadow: 0 0 0 10px rgba(220, 38, 38, 0.22), 0 4px 18px rgba(220, 38, 38, 0.55);
+            box-shadow: 0 0 0 10px rgba(240,113,111, 0.22), 0 4px 18px rgba(240,113,111, 0.55);
             transform: scale(1.04);
           }
         }
