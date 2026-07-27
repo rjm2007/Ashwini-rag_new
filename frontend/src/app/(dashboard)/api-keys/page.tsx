@@ -18,21 +18,28 @@ import { listApiKeys, saveApiKey, clearApiKey, testApiKey } from "@/lib/api";
 import type { ApiKeyStatus } from "@/lib/types";
 import { useAuth } from "@/hooks/useAuth";
 
+/**
+ * This page used to declare its own slate palette as hex, which meant it was
+ * the one screen that ignored the design tokens entirely — on a dark ground its
+ * heading rendered near-black on near-black and its error card was a glaring
+ * white box. Keeping the object but pointing every entry at a token fixes the
+ * whole page without touching the ~90 call sites below.
+ */
 const COLORS = {
-  bgCard: "#FFFFFF",
-  bgSubtle: "#F8FAFC",
-  border: "#E2E8F0",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  textMuted: "#94A3B8",
-  accent: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  failed: "#DC2626",
-  failedSoft: "#FEF2F2",
-  done: "#16A34A",
-  doneSoft: "#F0FDF4",
-  warn: "#D97706",
-  warnSoft: "#FFFBEB",
+  bgCard: "var(--bg-surface)",
+  bgSubtle: "var(--bg-raised)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  textMuted: "var(--text-muted)",
+  accent: "var(--accent)",
+  accentSoft: "var(--accent-soft)",
+  failed: "var(--state-failed)",
+  failedSoft: "var(--error-bg)",
+  done: "var(--state-done)",
+  doneSoft: "var(--success-bg)",
+  warn: "var(--warning)",
+  warnSoft: "var(--warning-bg)",
 };
 
 type Feedback = { kind: "ok" | "error" | "info"; message: string };
@@ -191,7 +198,7 @@ function KeyCard({ status, onChanged }: { status: ApiKeyStatus; onChanged: (next
               fontFamily: "'IBM Plex Mono', monospace",
               borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
-              background: "#FFFFFF",
+              background: "var(--bg-surface)",
               color: COLORS.textPrimary,
               outline: "none",
               boxSizing: "border-box",
@@ -234,7 +241,7 @@ function KeyCard({ status, onChanged }: { status: ApiKeyStatus; onChanged: (next
             borderRadius: 8,
             border: "none",
             background: COLORS.accent,
-            color: "#FFFFFF",
+            color: "var(--accent-fg)",
             fontSize: 13,
             fontWeight: 600,
             cursor: canSave ? "pointer" : "not-allowed",
@@ -257,7 +264,7 @@ function KeyCard({ status, onChanged }: { status: ApiKeyStatus; onChanged: (next
               padding: "9px 16px",
               borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
-              background: "#FFFFFF",
+              background: "var(--bg-surface)",
               color: COLORS.textPrimary,
               fontSize: 13,
               fontWeight: 500,
@@ -283,7 +290,7 @@ function KeyCard({ status, onChanged }: { status: ApiKeyStatus; onChanged: (next
               padding: "9px 12px",
               borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
-              background: "#FFFFFF",
+              background: "var(--bg-surface)",
               color: COLORS.failed,
               fontSize: 13,
               fontWeight: 500,
@@ -409,7 +416,7 @@ function SummaryPanel({ keys }: { keys: ApiKeyStatus[] }) {
       <div
         style={{
           background: COLORS.accentSoft,
-          border: `1px solid #C7CCFF`,
+          border: `1px solid var(--border-accent)`,
           borderRadius: 12,
           padding: 20,
         }}
@@ -504,7 +511,7 @@ export default function ApiKeysPage() {
             color: COLORS.failed,
             fontSize: 13,
             background: COLORS.failedSoft,
-            border: `1px solid #FCA5A5`,
+            border: `1px solid var(--state-failed)`,
             borderRadius: 10,
             padding: "12px 14px",
             maxWidth: 520,
