@@ -56,11 +56,16 @@ export default function DefectFloatingChat({
               <div key={msg.id || i} style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
                 <div style={{
                   maxWidth: "90%",
-                  background: isUser ? "var(--accent)" : "var(--bg-panel)",
+                  background: isUser ? "var(--accent)" : "var(--bg-surface)",
                   border: isUser ? "none" : "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: 16,
-                  color: "#FFF"
+                  borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                  padding: isUser ? "10px 14px" : 16,
+                  fontSize: 13.5,
+                  lineHeight: 1.6,
+                  // Text colour has to follow the bubble it sits on. This was
+                  // --accent-fg for both, which is near-black: correct on the
+                  // amber user bubble, invisible on the dark assistant one.
+                  color: isUser ? "var(--accent-fg)" : "var(--text-secondary)",
                 }}>
                   {isUser ? (
                     <div>{msg.content}</div>
