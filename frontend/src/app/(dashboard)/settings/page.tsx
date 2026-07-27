@@ -4,17 +4,19 @@ import { useEffect, useState } from "react";
 import { Sparkles, Save, Loader2, CheckCircle2 } from "lucide-react";
 import { listVapiAgents, getVapiAgentPrompt, updateVapiAgentPrompt } from "@/lib/api";
 
+import BandHeader from "@/components/layout/BandHeader";
+
 const COLORS = {
-  bgPage: "#F1F5F9",
-  bgCard: "#FFFFFF",
-  border: "#E2E8F0",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  accent: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  failed: "#DC2626",
-  failedSoft: "#FEF2F2",
-  done: "#16A34A",
+  bgPage: "var(--bg-raised)",
+  bgCard: "var(--bg-surface)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  accent: "var(--accent-hover)",
+  accentSoft: "var(--accent-soft)",
+  failed: "var(--state-failed)",
+  failedSoft: "var(--error-bg)",
+  done: "var(--state-done)",
 };
 
 interface VapiAgentOption {
@@ -68,14 +70,19 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ minHeight: "100%", background: COLORS.bgPage, padding: "40px 24px", display: "flex", justifyContent: "center" }}>
+    <div style={{ minHeight: "100%", background: COLORS.bgPage }}>
+      <BandHeader
+        title="Settings"
+        subtitle="Voice agents and the prompts they follow. Changes apply to the next call."
+      />
+      <div style={{ padding: "28px 24px", display: "flex", justifyContent: "center" }}>
       <div style={{ width: "100%", maxWidth: 680 }}>
         <div
           style={{
             background: COLORS.bgCard,
             borderRadius: 20,
             border: `1px solid ${COLORS.border}`,
-            boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.06)",
+            boxShadow: "0 1px 2px rgba(13,16,23,0.04), 0 8px 24px rgba(13,16,23,0.06)",
             padding: "32px 28px",
           }}
         >
@@ -133,14 +140,14 @@ export default function SettingsPage() {
               style={{
                 width: "100%", padding: 14, fontSize: 13, lineHeight: 1.6, fontFamily: "monospace",
                 borderRadius: 12, border: `1px solid ${COLORS.border}`, color: COLORS.textPrimary,
-                background: loadingPrompt ? "#F8FAFC" : COLORS.bgCard, resize: "vertical", boxSizing: "border-box",
+                background: loadingPrompt ? "var(--bg-raised)" : COLORS.bgCard, resize: "vertical", boxSizing: "border-box",
               }}
             />
             {loadingPrompt && (
               <div
                 style={{
                   position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "rgba(255,255,255,0.6)", borderRadius: 12,
+                  background: "rgba(13,16,23,0.6)", borderRadius: 12,
                 }}
               >
                 <Loader2 size={22} color={COLORS.accent} className="animate-spin" />
@@ -160,7 +167,7 @@ export default function SettingsPage() {
               disabled={saving || loadingPrompt || !selectedKey || !prompt.trim()}
               style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", fontSize: 13, fontWeight: 600,
-                color: "#FFFFFF", background: COLORS.accent, border: "none", borderRadius: 10,
+                color: "var(--accent-fg)", background: COLORS.accent, border: "none", borderRadius: 10,
                 cursor: saving || loadingPrompt ? "not-allowed" : "pointer",
                 opacity: saving || loadingPrompt || !selectedKey || !prompt.trim() ? 0.6 : 1,
               }}
@@ -182,6 +189,7 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
