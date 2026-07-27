@@ -5,7 +5,7 @@ interface ConfidenceGaugeProps {
 
 export default function ConfidenceGauge({ value, showLabel = true }: ConfidenceGaugeProps) {
   const percent = Math.max(0, Math.min(1, value));
-  const color = percent >= 0.8 ? "#16A34A" : percent >= 0.5 ? "#D97706" : "#DC2626";
+  const color = percent >= 0.8 ? "var(--state-done)" : percent >= 0.5 ? "var(--warning)" : "var(--state-failed)";
   const label = percent >= 0.8 ? "High" : percent >= 0.5 ? "Medium" : "Low";
 
   return (
@@ -14,7 +14,7 @@ export default function ConfidenceGauge({ value, showLabel = true }: ConfidenceG
         style={{
           width: 100,
           height: 6,
-          backgroundColor: "#E8EEF4",
+          backgroundColor: "var(--bg-raised)",
           borderRadius: 3,
           overflow: "hidden"
         }}
@@ -29,7 +29,7 @@ export default function ConfidenceGauge({ value, showLabel = true }: ConfidenceG
           }}
         />
       </div>
-      <span style={{ fontFamily: "DM Mono, monospace", fontSize: 11, color: "#3D5A80", minWidth: 30 }}>
+      <span style={{ fontFamily: "DM Mono, monospace", fontSize: 11, color: "var(--text-secondary)", minWidth: 30 }}>
         {Math.round(percent * 100)}%
       </span>
       {showLabel && (
