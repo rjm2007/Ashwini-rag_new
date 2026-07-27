@@ -60,11 +60,11 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
           flex: 1,
           overflowY: "auto",
           padding: 16,
-          backgroundColor: "#F0F4F8"
+          backgroundColor: "var(--bg-raised)"
         }}
       >
         {loadingHistory ? (
-          <p style={{ fontSize: 14, color: "#7A92A8" }}>Loading conversation...</p>
+          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>Loading conversation...</p>
         ) : null}
 
         {empty ? (
@@ -83,7 +83,7 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
               style={{
                 width: 56,
                 height: 56,
-                backgroundColor: "#FF6200",
+                backgroundColor: "var(--accent)",
                 borderRadius: 14,
                 display: "flex",
                 alignItems: "center",
@@ -93,8 +93,8 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
             >
               <ShieldCheck size={28} color="white" />
             </div>
-            <p style={{ fontSize: 18, fontWeight: 700, color: "#0A1628" }}>Warranty AI</p>
-            <p style={{ fontSize: 14, color: "#7A92A8", marginTop: 8, marginBottom: 20 }}>
+            <p style={{ fontSize: 18, fontWeight: 700, color: "var(--text-primary)" }}>Warranty AI</p>
+            <p style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 8, marginBottom: 20 }}>
               Ask about warranty coverage for any certified vehicle
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 480, width: "100%" }}>
@@ -104,9 +104,9 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
                   type="button"
                   onClick={() => onSend(text)}
                   style={{
-                    border: "1px solid #D1DCE8",
+                    border: "1px solid var(--border)",
                     backgroundColor: "white",
-                    color: "#0A1628",
+                    color: "var(--text-primary)",
                     padding: "8px 14px",
                     borderRadius: 99,
                     fontSize: 13,
@@ -140,23 +140,23 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
               style={{
                 width: 28,
                 height: 28,
-                backgroundColor: "#06101E",
+                backgroundColor: "var(--bg-page)",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center"
               }}
             >
-              <ShieldCheck size={14} color="#FF6200" />
+              <ShieldCheck size={14} color="var(--accent)" />
             </div>
             <div
               style={{
                 backgroundColor: "white",
-                border: "1px solid #D1DCE8",
+                border: "1px solid var(--border)",
                 borderRadius: 18,
                 padding: "12px 16px",
                 fontSize: 13,
-                color: "#7A92A8"
+                color: "var(--text-muted)"
               }}
             >
               Assistant is thinking...
@@ -168,7 +168,7 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
       <div
         style={{
           backgroundColor: "white",
-          borderTop: "1px solid #D1DCE8",
+          borderTop: "1px solid var(--border)",
           padding: "12px 16px",
           display: "flex",
           alignItems: "flex-end",
@@ -189,7 +189,7 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
           placeholder="Ask about warranty coverage..."
           style={{
             flex: 1,
-            border: "1px solid #D1DCE8",
+            border: "1px solid var(--border)",
             borderRadius: 12,
             padding: "10px 14px",
             fontSize: 14,
@@ -199,11 +199,11 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
             maxHeight: 112
           }}
           onFocus={(e) => {
-            e.target.style.borderColor = "#FF6200";
-            e.target.style.boxShadow = "0 0 0 3px #FFF0E6";
+            e.target.style.borderColor = "var(--accent)";
+            e.target.style.boxShadow = "0 0 0 3px var(--accent-soft)";
           }}
           onBlur={(e) => {
-            e.target.style.borderColor = "#D1DCE8";
+            e.target.style.borderColor = "var(--border)";
             e.target.style.boxShadow = "none";
           }}
         />
@@ -221,10 +221,10 @@ export default function ChatWindow({ sessionId }: { sessionId: string }) {
             justifyContent: "center",
             flexShrink: 0,
             cursor: canSend ? "pointer" : "not-allowed",
-            backgroundColor: canSend ? "#FF6200" : "#E8EEF4"
+            backgroundColor: canSend ? "var(--accent)" : "var(--bg-raised)"
           }}
         >
-          <ArrowUp size={18} color={canSend ? "white" : "#A8BCCF"} />
+          <ArrowUp size={18} color={canSend ? "white" : "var(--text-muted)"} />
         </button>
       </div>
     </div>
