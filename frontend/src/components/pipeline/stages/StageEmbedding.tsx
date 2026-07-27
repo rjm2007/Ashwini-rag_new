@@ -29,12 +29,12 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-  { key: "coverage",  name: "Coverage Codes",  color: "#6366F1", proportion: 0.28, cx: 0.20, cy: 0.25 },
-  { key: "vehicle",   name: "Vehicle Data",    color: "#3B82F6", proportion: 0.22, cx: 0.75, cy: 0.20 },
-  { key: "period",    name: "Coverage Period",  color: "#8B5CF6", proportion: 0.15, cx: 0.18, cy: 0.72 },
-  { key: "exclusions",name: "Exclusions",       color: "#F43F5E", proportion: 0.13, cx: 0.78, cy: 0.70 },
-  { key: "claims",    name: "Claim Process",    color: "#F59E0B", proportion: 0.12, cx: 0.50, cy: 0.50 },
-  { key: "general",   name: "General Info",     color: "#14B8A6", proportion: 0.10, cx: 0.50, cy: 0.88 },
+  { key: "coverage",  name: "Coverage Codes",  color: "var(--accent)", proportion: 0.28, cx: 0.20, cy: 0.25 },
+  { key: "vehicle",   name: "Vehicle Data",    color: "var(--cat-vehicle)", proportion: 0.22, cx: 0.75, cy: 0.20 },
+  { key: "period",    name: "Coverage Period",  color: "var(--cat-terms)", proportion: 0.15, cx: 0.18, cy: 0.72 },
+  { key: "exclusions",name: "Exclusions",       color: "var(--cat-exclusions)", proportion: 0.13, cx: 0.78, cy: 0.70 },
+  { key: "claims",    name: "Claim Process",    color: "var(--cat-claims)", proportion: 0.12, cx: 0.50, cy: 0.50 },
+  { key: "general",   name: "General Info",     color: "var(--cat-emissions)", proportion: 0.10, cx: 0.50, cy: 0.88 },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -250,7 +250,7 @@ export default function StageEmbedding({ totalChunks = 382, isRunning = true }: 
                 height: 20,
                 borderRadius: "50%",
                 background: i <= beat ? "var(--accent)" : "var(--bg-hover)",
-                color: i <= beat ? "#FFF" : "var(--text-muted)",
+                color: i <= beat ? "var(--accent-fg)" : "var(--text-muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
