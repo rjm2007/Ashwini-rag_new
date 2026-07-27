@@ -21,7 +21,7 @@ function StatusDotStage({ status }: { status: StageState["status"] }) {
           flexShrink: 0,
         }}
       >
-        <Check size={12} color="#FFF" strokeWidth={3} />
+        <Check size={12} color="var(--accent-fg)" strokeWidth={3} />
       </motion.div>
     );
   }
@@ -56,7 +56,7 @@ function StatusDotStage({ status }: { status: StageState["status"] }) {
           flexShrink: 0,
         }}
       >
-        <X size={12} color="#FFF" strokeWidth={3} />
+        <X size={12} color="var(--accent-fg)" strokeWidth={3} />
       </div>
     );
   }
