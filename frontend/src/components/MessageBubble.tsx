@@ -27,7 +27,7 @@ export default function MessageBubble({
         <div style={{ maxWidth: "75%" }}>
           <div
             style={{
-              backgroundColor: "#FF6200",
+              backgroundColor: "var(--accent)",
               color: "white",
               borderRadius: "18px 18px 4px 18px",
               padding: "10px 14px",
@@ -38,7 +38,7 @@ export default function MessageBubble({
             {content}
           </div>
           {timestamp ? (
-            <p style={{ fontSize: 10, color: "#7A92A8", textAlign: "right", marginTop: 4 }}>{timestamp}</p>
+            <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "right", marginTop: 4 }}>{timestamp}</p>
           ) : null}
         </div>
       </div>
@@ -52,7 +52,7 @@ export default function MessageBubble({
           style={{
             width: 28,
             height: 28,
-            backgroundColor: "#06101E",
+            backgroundColor: "var(--bg-page)",
             borderRadius: "50%",
             display: "flex",
             alignItems: "center",
@@ -60,18 +60,18 @@ export default function MessageBubble({
             flexShrink: 0
           }}
         >
-          <ShieldCheck size={14} color="#FF6200" />
+          <ShieldCheck size={14} color="var(--accent)" />
         </div>
         <div style={{ maxWidth: "75%" }}>
           <div
             style={{
               backgroundColor: "white",
-              border: "1px solid #D1DCE8",
+              border: "1px solid var(--border)",
               borderRadius: "18px 18px 18px 4px",
               padding: "10px 14px",
               fontSize: 14,
               lineHeight: 1.6,
-              color: "#0A1628"
+              color: "var(--text-primary)"
             }}
           >
             <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{content}</p>
@@ -82,7 +82,7 @@ export default function MessageBubble({
             ) : null}
           </div>
           {timestamp ? (
-            <p style={{ fontSize: 10, color: "#7A92A8", marginTop: 4 }}>{timestamp}</p>
+            <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 4 }}>{timestamp}</p>
           ) : null}
         </div>
       </div>
