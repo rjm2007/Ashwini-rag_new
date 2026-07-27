@@ -1,14 +1,14 @@
 import type { CoverageDecision as CoverageDecisionType } from "../../lib/types";
 
 const CONFIG: Record<string, { bg: string; color: string; label: string }> = {
-  covered: { bg: "rgba(72,187,120,0.12)", color: "#48BB78", label: "COVERED" },
-  covered_with_limits: { bg: "rgba(72,187,120,0.12)", color: "#48BB78", label: "COVERED" },
-  not_covered: { bg: "rgba(252,129,129,0.12)", color: "#FC8181", label: "NOT COVERED" },
-  partial: { bg: "rgba(236,201,75,0.12)", color: "#ECC94B", label: "PARTIAL" },
-  insufficient_evidence: { bg: "rgba(74,85,104,0.2)", color: "var(--text-muted)", label: "INSUFFICIENT" },
-  answered: { bg: "rgba(63,185,80,0.12)", color: "var(--state-done)", label: "ANSWERED" },
-  not_in_document: { bg: "rgba(210,153,34,0.12)", color: "var(--gate-amber)", label: "NOT IN DOCUMENT" },
-  needs_clarification: { bg: "rgba(74,85,104,0.2)", color: "var(--text-muted)", label: "NEEDS CLARIFICATION" },
+  covered: { bg: "rgba(84,201,141,0.12)", color: "var(--state-done)", label: "COVERED" },
+  covered_with_limits: { bg: "rgba(84,201,141,0.12)", color: "var(--state-done)", label: "COVERED" },
+  not_covered: { bg: "rgba(240,113,111,0.12)", color: "var(--state-failed)", label: "NOT COVERED" },
+  partial: { bg: "rgba(237,180,84,0.12)", color: "var(--warning)", label: "PARTIAL" },
+  insufficient_evidence: { bg: "rgba(117,114,108,0.2)", color: "var(--text-muted)", label: "INSUFFICIENT" },
+  answered: { bg: "rgba(84,201,141,0.12)", color: "var(--state-done)", label: "ANSWERED" },
+  not_in_document: { bg: "rgba(237,180,84,0.12)", color: "var(--gate-amber)", label: "NOT IN DOCUMENT" },
+  needs_clarification: { bg: "rgba(117,114,108,0.2)", color: "var(--text-muted)", label: "NEEDS CLARIFICATION" },
 };
 
 export default function CoverageDecision({ decision }: { decision: CoverageDecisionType | string }) {
