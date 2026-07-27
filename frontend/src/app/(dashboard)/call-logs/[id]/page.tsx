@@ -7,19 +7,19 @@ import { getCallLog } from "@/lib/api";
 import type { CallLog } from "@/lib/types";
 
 const COLORS = {
-  bgPage: "#F1F5F9",
-  bgCard: "#FFFFFF",
-  border: "#E2E8F0",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  accent: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  done: "#16A34A",
-  doneSoft: "#F0FDF4",
-  failed: "#DC2626",
-  failedSoft: "#FEF2F2",
-  warn: "#D97706",
-  warnSoft: "#FFFBEB",
+  bgPage: "var(--bg-raised)",
+  bgCard: "var(--bg-surface)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  accent: "var(--accent-hover)",
+  accentSoft: "var(--accent-soft)",
+  done: "var(--state-done)",
+  doneSoft: "var(--success-bg)",
+  failed: "var(--state-failed)",
+  failedSoft: "var(--error-bg)",
+  warn: "var(--warning)",
+  warnSoft: "var(--warning-bg)",
 };
 
 function StatusBadge({ status }: { status: CallLog["status"] }) {
