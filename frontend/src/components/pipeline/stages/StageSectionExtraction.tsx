@@ -26,11 +26,11 @@ interface SectionDef {
 }
 
 const SECTIONS: SectionDef[] = [
-  { name: "Coverage Information", tag: "Coverage clause", tagColor: "#6366F1", tagBg: "rgba(99,102,241,0.10)", items: 14 },
-  { name: "Vehicle Data", tag: "Eligibility", tagColor: "#3B82F6", tagBg: "rgba(59,130,246,0.10)", items: 8 },
-  { name: "Terms & Conditions", tag: "Definition", tagColor: "#8B5CF6", tagBg: "rgba(139,92,246,0.10)", items: 22 },
-  { name: "Exclusions", tag: "Exclusion", tagColor: "#F43F5E", tagBg: "rgba(244,63,94,0.08)", items: 11 },
-  { name: "Claim Procedures", tag: "Claim procedure", tagColor: "#16A34A", tagBg: "rgba(22,163,74,0.10)", items: 6 },
+  { name: "Coverage Information", tag: "Coverage clause", tagColor: "var(--accent)", tagBg: "rgba(240,166,74,0.10)", items: 14 },
+  { name: "Vehicle Data", tag: "Eligibility", tagColor: "var(--cat-vehicle)", tagBg: "rgba(111,168,245,0.10)", items: 8 },
+  { name: "Terms & Conditions", tag: "Definition", tagColor: "var(--cat-terms)", tagBg: "rgba(169,139,240,0.10)", items: 22 },
+  { name: "Exclusions", tag: "Exclusion", tagColor: "var(--cat-exclusions)", tagBg: "rgba(240,113,111,0.08)", items: 11 },
+  { name: "Claim Procedures", tag: "Claim procedure", tagColor: "var(--state-done)", tagBg: "rgba(84,201,141,0.10)", items: 6 },
 ];
 
 const ease: [number, number, number, number] = [0.16, 1, 0.3, 1];
@@ -113,7 +113,7 @@ function SectionCard({
             left: 0,
             width: "50%",
             height: "100%",
-            background: "linear-gradient(90deg, transparent, rgba(99,102,241,0.06), transparent)",
+            background: "linear-gradient(90deg, transparent, rgba(240,166,74,0.06), transparent)",
             pointerEvents: "none",
           }}
         />
