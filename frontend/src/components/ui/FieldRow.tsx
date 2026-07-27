@@ -37,8 +37,8 @@ export default function FieldRow({
     right = (
       <span style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 500, color: "var(--text-primary)" }}>
         {isVin(display) ? <MonoChip value={display} /> : display}
-        <AlertTriangle size={12} style={{ color: "#ECC94B" }} />
-        <span className="mono" style={{ fontSize: 10, color: "#ECC94B" }}>
+        <AlertTriangle size={12} style={{ color: "var(--warning)" }} />
+        <span className="mono" style={{ fontSize: 10, color: "var(--warning)" }}>
           {Math.round(confidence * 100)}%
         </span>
         {page != null ? <PageChip page={page} /> : null}
