@@ -7,7 +7,7 @@ function SkeletonBox({ style }: { style?: React.CSSProperties }) {
   return (
     <div
       style={{
-        backgroundColor: "#E8EEF4",
+        backgroundColor: "var(--bg-raised)",
         borderRadius: 6,
         animation: "pulse-dot 1.5s ease-in-out infinite",
         ...style
