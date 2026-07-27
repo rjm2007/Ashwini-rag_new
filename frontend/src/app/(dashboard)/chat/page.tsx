@@ -47,10 +47,10 @@ export default function ChatSessionsPage() {
         style={{
           width: "30%",
           maxWidth: 300,
-          borderRight: "1px solid #D1DCE8",
+          borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
-          backgroundColor: "#FFFFFF"
+          backgroundColor: "var(--bg-surface)"
         }}
       >
         <div
@@ -59,10 +59,10 @@ export default function ChatSessionsPage() {
             alignItems: "center",
             justifyContent: "space-between",
             padding: "14px 16px",
-            borderBottom: "1px solid #D1DCE8"
+            borderBottom: "1px solid var(--border)"
           }}
         >
-          <h1 className="text-sm font-semibold" style={{ color: "#0A1628" }}>
+          <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
             Conversations
           </h1>
           <Link
@@ -71,7 +71,7 @@ export default function ChatSessionsPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              backgroundColor: "#FF6200",
+              backgroundColor: "var(--accent)",
               color: "white",
               padding: "6px 12px",
               borderRadius: 8,
@@ -93,11 +93,11 @@ export default function ChatSessionsPage() {
                 display: "block",
                 padding: "12px 16px",
                 textDecoration: "none",
-                borderBottom: "1px solid #F0F4F8",
+                borderBottom: "1px solid var(--bg-raised)",
                 backgroundColor: "white"
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = "#F0F4F8";
+                (e.currentTarget as HTMLElement).style.backgroundColor = "var(--bg-raised)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLElement).style.backgroundColor = "white";
@@ -105,17 +105,17 @@ export default function ChatSessionsPage() {
             >
               <p
                 className="truncate text-sm font-medium"
-                style={{ color: "#0A1628" }}
+                style={{ color: "var(--text-primary)" }}
               >
                 {session.title || "Untitled chat"}
               </p>
-              <p className="text-xs" style={{ color: "#7A92A8", marginTop: 4 }}>
+              <p className="text-xs" style={{ color: "var(--text-muted)", marginTop: 4 }}>
                 {formatRelative(session.lastMessageAt || session.createdAt)}
               </p>
             </Link>
           ))}
           {sessions.length === 0 ? (
-            <p style={{ padding: 16, fontSize: 13, color: "#7A92A8", textAlign: "center" }}>
+            <p style={{ padding: 16, fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>
               No conversations yet
             </p>
           ) : null}
