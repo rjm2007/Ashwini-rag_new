@@ -12,13 +12,18 @@ export default function AnswerMarkdown({ text, evidence = [] }: AnswerMarkdownPr
   const processedText = text.replace(/\[(\d+)\]/g, "[$1](cite:$1)");
 
   return (
-    <div style={{ lineHeight: 1.6 }}>
+    // The base colour is set here rather than inherited. Previously this
+    // component set no colour of its own, so body text took whatever the
+    // surrounding bubble had — and `strong` was pinned to --text-secondary,
+    // which is DIMMER than body. The net effect was answers where only the
+    // bold fragments were legible.
+    <div style={{ lineHeight: 1.6, color: "var(--text-secondary)", fontSize: 13.5 }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => <p style={{ margin: "0 0 12px" }}>{children}</p>,
           strong: ({ children }) => (
-            <strong style={{ fontWeight: 700, color: "#E6EDF3" }}>{children}</strong>
+            <strong style={{ fontWeight: 650, color: "var(--text-primary)" }}>{children}</strong>
           ),
           em: ({ children }) => <em style={{ fontStyle: "italic" }}>{children}</em>,
           ul: ({ children }) => <ul style={{ margin: "0 0 12px", paddingLeft: 20 }}>{children}</ul>,
@@ -28,7 +33,17 @@ export default function AnswerMarkdown({ text, evidence = [] }: AnswerMarkdownPr
           h2: ({ children }) => <h2 style={{ fontSize: 16, fontWeight: 600, margin: "14px 0 8px" }}>{children}</h2>,
           h3: ({ children }) => <h3 style={{ fontSize: 14, fontWeight: 600, margin: "12px 0 8px" }}>{children}</h3>,
           code: ({ children }) => (
-            <code style={{ background: "rgba(0,0,0,0.1)", padding: "2px 4px", borderRadius: 4, fontSize: "0.9em", fontFamily: "monospace" }}>
+            <code
+              style={{
+                background: "var(--bg-sunk)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+                padding: "1px 5px",
+                borderRadius: 4,
+                fontSize: "0.9em",
+                fontFamily: "'IBM Plex Mono', monospace",
+              }}
+            >
               {children}
             </code>
           ),
