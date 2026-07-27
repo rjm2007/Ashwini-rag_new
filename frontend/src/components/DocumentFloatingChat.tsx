@@ -173,11 +173,14 @@ export default function DocumentFloatingChat({ docId, filename, document }: Docu
                 <div
                   style={{
                     maxWidth: "90%",
-                    background: isUser ? "var(--accent)" : "var(--bg-panel)",
+                    background: isUser ? "var(--accent)" : "var(--bg-surface)",
                     border: isUser ? "none" : "1px solid var(--border)",
-                    borderRadius: 12,
-                    padding: 16,
-                    color: "#FFF",
+                    borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+                    padding: isUser ? "10px 14px" : 16,
+                    fontSize: 13.5,
+                    lineHeight: 1.6,
+                    // See DefectFloatingChat: the colour must follow the bubble.
+                    color: isUser ? "var(--accent-fg)" : "var(--text-secondary)",
                   }}
                 >
                   {isUser ? (
