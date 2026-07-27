@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getDefects, getEligibleDefectDocuments, createDefect } from "@/lib/api";
 import type { Defect, EligibleVehicleGroup } from "@/lib/types";
-import { Wrench, Plus, X, Loader2, AlertCircle } from "lucide-react";
+import { Plus, X, Loader2, AlertCircle } from "lucide-react";
 import MicButton from "@/components/MicButton";
+import BandHeader, { SkyButton } from "@/components/layout/BandHeader";
 
 // This page lives inside the (dashboard) route group, so the shared Sidebar
 // and Topbar come from that layout. It must not render its own Topbar, and it
@@ -14,16 +15,16 @@ import MicButton from "@/components/MicButton";
 const CONTENT_HEIGHT = "calc(100vh - 56px)";
 
 const COLORS = {
-  bgPage: "#F8FAFC",
-  bgPanel: "#FFFFFF",
-  border: "#D1DCE8",
-  textPrimary: "#0A1628",
-  textSecondary: "#7A92A8",
-  accent: "#4F46E5",
-  done: "#16A34A",
-  gate: "#D97706",
-  failed: "#DC2626",
-  muted: "#9AA6B5",
+  bgPage: "var(--bg-raised)",
+  bgPanel: "var(--bg-surface)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-muted)",
+  accent: "var(--accent-hover)",
+  done: "var(--state-done)",
+  gate: "var(--warning)",
+  failed: "var(--state-failed)",
+  muted: "var(--text-muted)",
 };
 
 function decisionColor(d?: string) {
@@ -114,7 +115,7 @@ function NewDefectModal({
   return (
     <div
       style={{
-        position: "fixed", inset: 0, background: "rgba(10,22,40,0.45)",
+        position: "fixed", inset: 0, background: "rgba(13,16,23,0.45)",
         display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
       }}
       onClick={onClose}
@@ -124,7 +125,7 @@ function NewDefectModal({
         style={{
           width: 480, maxWidth: "90vw", background: COLORS.bgPanel,
           border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 24,
-          boxShadow: "0 12px 32px rgba(10,22,40,0.18)",
+          boxShadow: "0 12px 32px rgba(13,16,23,0.18)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -237,7 +238,7 @@ function NewDefectModal({
             onClick={submit}
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 13,
-              background: COLORS.accent, border: "none", borderRadius: 6, color: "#FFFFFF",
+              background: COLORS.accent, border: "none", borderRadius: 6, color: "var(--accent-fg)",
               cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.7 : 1,
             }}
           >
@@ -276,24 +277,29 @@ export default function DefectsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: CONTENT_HEIGHT, background: COLORS.bgPage }}>
-      <div style={{ padding: 24, flex: 1, overflow: "auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Wrench size={24} color={COLORS.accent} />
-            <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, color: COLORS.textPrimary }}>Defect Reports</h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: 13,
-              background: COLORS.accent, border: "none", borderRadius: 6, color: "#FFFFFF", cursor: "pointer",
-              fontWeight: 600,
-            }}
-          >
-            <Plus size={14} /> New Defect
-          </button>
-        </div>
+      <BandHeader
+        title="Defects"
+        subtitle="A reported fault, matched to a coverage component and decided against the document."
+        stats={[
+          { label: "Reported", value: defects.length },
+          {
+            label: "Covered",
+            value: defects.filter((d) =>
+              (d.primaryDecision || "").toUpperCase().startsWith("COVERED")
+            ).length,
+          },
+          {
+            label: "Needs review",
+            value: defects.filter((d) => (d.overallConfidenceScore ?? 1) < 0.7).length,
+          },
+        ]}
+        action={
+          <SkyButton onClick={() => setShowModal(true)}>
+            <Plus size={14} /> New defect
+          </SkyButton>
+        }
+      />
+      <div style={{ padding: 20, flex: 1, overflow: "auto" }}>
 
         {error && <div style={{ color: COLORS.failed, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
@@ -307,7 +313,7 @@ export default function DefectsPage() {
           <div style={{ background: COLORS.bgPanel, borderRadius: 8, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: "#F1F5F9" }}>
+                <tr style={{ borderBottom: `1px solid ${COLORS.border}`, background: "var(--bg-raised)" }}>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Reported Defect</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Vehicle</th>
                   <th style={{ padding: "12px 16px", fontWeight: 500, fontSize: 12, color: COLORS.textSecondary }}>Warranty Type</th>
