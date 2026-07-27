@@ -14,15 +14,15 @@ export default function DocumentCard({ document }: { document: any }) {
       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 16 }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <FileText size={18} color="#FF6200" />
+        <FileText size={18} color="var(--accent)" />
         <div>
-          <p style={{ fontSize: 14, fontWeight: 500, color: "#0A1628" }}>{document.originalFilename}</p>
-          <p style={{ fontSize: 12, color: "#7A92A8" }}>{vehicle}</p>
+          <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{document.originalFilename}</p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{vehicle}</p>
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <DocumentStatusBadge status={document.currentRepository} />
-        <Eye size={16} color="#7A92A8" />
+        <Eye size={16} color="var(--text-muted)" />
       </div>
     </Link>
   );
