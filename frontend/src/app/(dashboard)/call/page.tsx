@@ -6,19 +6,19 @@ import { listVapiAgents, startCallLog, getVapiPublicConfig } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 const COLORS = {
-  bgPage: "#F1F5F9",
-  bgCard: "#FFFFFF",
-  border: "#E2E8F0",
-  textPrimary: "#0F172A",
-  textSecondary: "#64748B",
-  textMuted: "#94A3B8",
-  accent: "#4F46E5",
-  accentSoft: "#EEF2FF",
-  failed: "#DC2626",
-  failedSoft: "#FEF2F2",
-  done: "#16A34A",
-  warn: "#D97706",
-  warnSoft: "#FFFBEB",
+  bgPage: "var(--bg-raised)",
+  bgCard: "var(--bg-surface)",
+  border: "var(--border)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  textMuted: "var(--text-muted)",
+  accent: "var(--accent-hover)",
+  accentSoft: "var(--accent-soft)",
+  failed: "var(--state-failed)",
+  failedSoft: "var(--error-bg)",
+  done: "var(--state-done)",
+  warn: "var(--warning)",
+  warnSoft: "var(--warning-bg)",
 };
 
 type CallStatus = "idle" | "connecting" | "active" | "ending" | "ended";
@@ -29,11 +29,11 @@ const HANGUP_CONFIRM_TIMEOUT_MS = 6000;
 
 function StatusPill({ status }: { status: CallStatus }) {
   const map: Record<CallStatus, { label: string; color: string; bg: string }> = {
-    idle: { label: "Ready", color: COLORS.textSecondary, bg: "#F1F5F9" },
+    idle: { label: "Ready", color: COLORS.textSecondary, bg: "var(--bg-raised)" },
     connecting: { label: "Connecting", color: COLORS.accent, bg: COLORS.accentSoft },
-    active: { label: "In call", color: COLORS.done, bg: "#F0FDF4" },
+    active: { label: "In call", color: COLORS.done, bg: "var(--success-bg)" },
     ending: { label: "Ending", color: COLORS.warn, bg: COLORS.warnSoft },
-    ended: { label: "Call ended", color: COLORS.textSecondary, bg: "#F1F5F9" },
+    ended: { label: "Call ended", color: COLORS.textSecondary, bg: "var(--bg-raised)" },
   };
   const s = map[status];
   return (
@@ -279,7 +279,7 @@ export default function CallPage() {
             background: COLORS.bgCard,
             borderRadius: 20,
             border: `1px solid ${COLORS.border}`,
-            boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.06)",
+            boxShadow: "0 1px 2px rgba(13,16,23,0.04), 0 8px 24px rgba(13,16,23,0.06)",
             padding: "32px 28px",
           }}
         >
@@ -372,12 +372,12 @@ export default function CallPage() {
                     borderRadius: "50%",
                     border: "none",
                     cursor: "pointer",
-                    background: `linear-gradient(135deg, #6366F1, ${COLORS.accent})`,
-                    color: "#FFFFFF",
+                    background: `linear-gradient(135deg, var(--accent), ${COLORS.accent})`,
+                    color: "var(--accent-fg)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 10px 28px rgba(79,70,229,0.35)",
+                    boxShadow: "0 10px 28px rgba(240,166,74,0.35)",
                   }}
                 >
                   <Phone size={32} />
@@ -413,13 +413,13 @@ export default function CallPage() {
                     cursor: status === "ending" ? "wait" : "pointer",
                     background:
                       status === "ending"
-                        ? "#F1F5F9"
-                        : `linear-gradient(135deg, #EF4444, ${COLORS.failed})`,
-                    color: status === "ending" ? COLORS.textSecondary : "#FFFFFF",
+                        ? "var(--bg-raised)"
+                        : `linear-gradient(135deg, var(--state-failed), ${COLORS.failed})`,
+                    color: status === "ending" ? COLORS.textSecondary : "var(--accent-fg)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: status === "ending" ? "none" : "0 10px 28px rgba(220,38,38,0.35)",
+                    boxShadow: status === "ending" ? "none" : "0 10px 28px rgba(240,113,111,0.35)",
                     transition: "background 150ms ease, box-shadow 150ms ease",
                   }}
                 >
@@ -463,7 +463,7 @@ export default function CallPage() {
                   padding: "12px 14px",
                   borderRadius: 10,
                   background: COLORS.warnSoft,
-                  border: `1px solid #FDE68A`,
+                  border: `1px solid var(--warning)`,
                   maxWidth: 380,
                   textAlign: "center",
                 }}
@@ -484,7 +484,7 @@ export default function CallPage() {
                     fontWeight: 600,
                     color: COLORS.warn,
                     background: COLORS.bgCard,
-                    border: `1px solid #FDE68A`,
+                    border: `1px solid var(--warning)`,
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
