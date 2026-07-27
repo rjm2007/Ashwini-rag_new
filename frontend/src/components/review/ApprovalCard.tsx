@@ -321,7 +321,7 @@ export default function ApprovalCard({
               title={hasRequiredFields ? "" : "Fill the required fields above first"}
               style={{
                 width: "100%", padding: "12px 20px", fontSize: 14, fontWeight: 600,
-                color: "#FFFFFF",
+                color: "var(--accent-fg)",
                 background: hasRequiredFields ? "var(--accent)" : "var(--border-strong)",
                 border: "none", borderRadius: "var(--r-sm)",
                 cursor: hasRequiredFields ? "pointer" : "not-allowed",
@@ -342,7 +342,7 @@ export default function ApprovalCard({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2 }}
               style={{
-                background: "rgba(217,119,6,0.06)",
+                background: "rgba(237,180,84,0.06)",
                 border: "1px solid var(--conf-medium)",
                 borderRadius: "var(--r-sm)",
                 padding: "14px 16px",
@@ -357,7 +357,7 @@ export default function ApprovalCard({
                   onClick={handleConfirm}
                   style={{
                     flex: 1, padding: "8px 16px", fontSize: 13, fontWeight: 600,
-                    color: "#FFFFFF", background: "var(--accent)",
+                    color: "var(--accent-fg)", background: "var(--accent)",
                     border: "none", borderRadius: 6, cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   }}
