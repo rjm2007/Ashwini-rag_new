@@ -7,6 +7,7 @@ import api from "../../../lib/api";
 import DocumentStatusBadge from "../../../components/DocumentStatusBadge";
 import EmptyState from "../../../components/EmptyState";
 import LoadingSkeleton from "../../../components/LoadingSkeleton";
+import BandHeader from "../../../components/layout/BandHeader";
 
 export default function ReviewPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -22,28 +23,13 @@ export default function ReviewPage() {
 
   return (
     <div className="animate-page-in">
-      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
-        <h1 className="text-xl font-bold" style={{ color: "#0A1628" }}>
-          Review Queue
-        </h1>
-        <span
-          style={{
-            backgroundColor: "#FF6200",
-            color: "#FFFFFF",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "2px 10px",
-            borderRadius: 99,
-            fontFamily: "DM Mono, monospace"
-          }}
-        >
-          {items.length}
-        </span>
-      </div>
-      <p className="mb-5 text-sm" style={{ color: "#7A92A8" }}>
-        Showing documents that require your action
-      </p>
+      <BandHeader
+        title="Review queue"
+        subtitle="Documents that cannot be certified until a person fills in what the extractor could not find."
+        count={items.length}
+      />
 
+      <div style={{ padding: "20px 28px 28px" }}>
       {loading ? (
         <LoadingSkeleton type="card" count={3} />
       ) : items.length === 0 ? (
@@ -75,12 +61,12 @@ export default function ReviewPage() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1, minWidth: 200 }}>
-                  <FileText size={20} color="#FF6200" style={{ marginTop: 2, flexShrink: 0 }} />
+                  <FileText size={20} color="var(--accent)" style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: "#0A1628" }}>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                       {filename}
                     </p>
-                    <p className="text-xs" style={{ color: "#7A92A8", marginTop: 4 }}>
+                    <p className="text-xs" style={{ color: "var(--text-muted)", marginTop: 4 }}>
                       {uploaded ? new Date(uploaded).toLocaleDateString() : "—"}
                     </p>
                   </div>
@@ -89,8 +75,8 @@ export default function ReviewPage() {
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span
                     style={{
-                      backgroundColor: "#F0F4F8",
-                      color: "#3D5A80",
+                      backgroundColor: "var(--bg-raised)",
+                      color: "var(--text-secondary)",
                       fontSize: 12,
                       padding: "3px 8px",
                       borderRadius: 6
@@ -100,8 +86,8 @@ export default function ReviewPage() {
                   </span>
                   <span
                     style={{
-                      backgroundColor: "#F0F4F8",
-                      color: "#3D5A80",
+                      backgroundColor: "var(--bg-raised)",
+                      color: "var(--text-secondary)",
                       fontSize: 12,
                       padding: "3px 8px",
                       borderRadius: 6
@@ -111,8 +97,8 @@ export default function ReviewPage() {
                   </span>
                   <span
                     style={{
-                      backgroundColor: "#F0F4F8",
-                      color: "#3D5A80",
+                      backgroundColor: "var(--bg-raised)",
+                      color: "var(--text-secondary)",
                       fontSize: 12,
                       padding: "3px 8px",
                       borderRadius: 6
@@ -127,10 +113,10 @@ export default function ReviewPage() {
                   <Link
                     href={`/review/${item.documentId || item.id}`}
                     style={{
-                      backgroundColor: "#FF6200",
-                      color: "white",
+                      backgroundColor: "var(--accent)",
+                      color: "var(--accent-fg)",
                       padding: "6px 16px",
-                      borderRadius: 8,
+                      borderRadius: "var(--r-md)",
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: "none"
@@ -144,6 +130,7 @@ export default function ReviewPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
