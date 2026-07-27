@@ -13,8 +13,8 @@ export default function StatCard({
   icon: Icon,
   label,
   value,
-  iconColor = "#FF6200",
-  iconBg = "#FFF0E6",
+  iconColor = "var(--accent)",
+  iconBg = "var(--accent-soft)",
   accent = false
 }: StatCardProps) {
   return (
@@ -24,7 +24,7 @@ export default function StatCard({
           <p
             style={{
               fontSize: 12,
-              color: "#7A92A8",
+              color: "var(--text-muted)",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
               fontWeight: 600
@@ -36,7 +36,7 @@ export default function StatCard({
             style={{
               fontSize: 30,
               fontWeight: 700,
-              color: accent ? "#FF6200" : "#0A1628",
+              color: accent ? "var(--accent)" : "var(--text-primary)",
               marginTop: 8,
               lineHeight: 1
             }}
